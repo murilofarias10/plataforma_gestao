@@ -1,0 +1,169 @@
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { ProjectDocument } from "@/types/project";
+import { useProjectStore } from "@/stores/projectStore";
+import { GridHeader } from "./GridHeader";
+import { GridRow } from "./GridRow";
+import { GridActions } from "./GridActions";
+import { EmptyState } from "./EmptyState";
+
+export function DataGrid() {
+  const { 
+    getFilteredDocuments, 
+    addDocument, 
+    updateDocument, 
+    deleteDocument,
+    duplicateDocument,
+    clearDocument 
+  } = useProjectStore();
+  
+  const documents = getFilteredDocuments();
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
+    dataInicio: '',
+    dataFim: '',
+    documento: '',
+    detalhe: '',
+    revisao: '',
+    responsavel: '',
+    status: 'A iniciar',
+    area: '',
+    participantes: '',
+  });
+
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  const columns = [
+    { key: 'dataInicio', label: 'Data Início', type: 'date', width: '1fr' },
+    { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
+    { key: 'documento', label: 'Documento', type: 'text', width: '2fr' },
+    { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
+    { key: 'revisao', label: 'Revisão', type: 'text', width: '0.8fr' },
+    { key: 'responsavel', label: 'Responsável', type: 'text', width: '1.2fr' },
+    { key: 'status', label: 'Status', type: 'select', width: '1.2fr' },
+    { key: 'area', label: 'Área', type: 'text', width: '1fr' },
+    { key: 'participantes', label: 'Participantes', type: 'text', width: '1.5fr' },
+  ];
+
+  const handleCellEdit = useCallback((id: string, field: string, value: any) => {
+    if (id === 'blank-row') {
+      setBlankRow(prev => ({ ...prev, [field]: value }));
+    } else {
+      updateDocument(id, { [field]: value });
+    }
+  }, [updateDocument]);
+
+  const handleBlankRowSave = useCallback(() => {
+    // Check if blank row has required data
+    if (blankRow.dataInicio && blankRow.documento) {
+      addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
+      
+      // Reset blank row
+      setBlankRow({
+        dataInicio: '',
+        dataFim: '',
+        documento: '',
+        detalhe: '',
+        revisao: '',
+        responsavel: '',
+        status: 'A iniciar',
+        area: '',
+        participantes: '',
+      });
+    }
+  }, [blankRow, addDocument]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, field: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (id === 'blank-row') {
+        handleBlankRowSave();
+      }
+      setEditingCell(null);
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  }, [handleBlankRowSave]);
+
+  const toggleRowSelection = useCallback((id: string) => {
+    setSelectedRows(prev => 
+      prev.includes(id) 
+        ? prev.filter(rowId => rowId !== id)
+        : [...prev, id]
+    );
+  }, []);
+
+  const selectAllRows = useCallback(() => {
+    const allIds = documents.map(doc => doc.id);
+    setSelectedRows(selectedRows.length === allIds.length ? [] : allIds);
+  }, [documents, selectedRows.length]);
+
+  if (documents.length === 0 && !Object.values(blankRow).some(v => v)) {
+    return <EmptyState onAddFirst={() => setEditingCell({ id: 'blank-row', field: 'documento' })} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <GridActions selectedRows={selectedRows} onClearSelection={() => setSelectedRows([])} />
+      
+      <div className="spreadsheet-grid" ref={gridRef}>
+        <GridHeader 
+          columns={columns} 
+          selectedCount={selectedRows.length}
+          totalCount={documents.length}
+          onSelectAll={selectAllRows}
+        />
+        
+        <div className="max-h-[600px] overflow-auto">
+          {/* Existing documents */}
+          {documents.map((document, index) => (
+            <GridRow
+              key={document.id}
+              document={document}
+              columns={columns}
+              isSelected={selectedRows.includes(document.id)}
+              onToggleSelect={() => toggleRowSelection(document.id)}
+              editingCell={editingCell}
+              onCellEdit={handleCellEdit}
+              onStartEdit={(field) => setEditingCell({ id: document.id, field })}
+              onStopEdit={() => setEditingCell(null)}
+              onKeyDown={handleKeyDown}
+              onDelete={() => deleteDocument(document.id)}
+              onDuplicate={() => duplicateDocument(document.id)}
+              onClear={() => clearDocument(document.id)}
+              isEven={index % 2 === 0}
+            />
+          ))}
+
+          {/* Always-present blank row */}
+          <GridRow
+            document={{ id: 'blank-row', ...blankRow } as ProjectDocument}
+            columns={columns}
+            isSelected={false}
+            onToggleSelect={() => {}}
+            editingCell={editingCell}
+            onCellEdit={handleCellEdit}
+            onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
+            onStopEdit={() => setEditingCell(null)}
+            onKeyDown={handleKeyDown}
+            onDelete={() => {}}
+            onDuplicate={() => {}}
+            onClear={() => setBlankRow({
+              dataInicio: '',
+              dataFim: '',
+              documento: '',
+              detalhe: '',
+              revisao: '',
+              responsavel: '',
+              status: 'A iniciar',
+              area: '',
+              participantes: '',
+            })}
+            isBlankRow={true}
+            isEven={documents.length % 2 === 0}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

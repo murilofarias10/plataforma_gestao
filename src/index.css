@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* KUBIK Project Tracker Design System - Inspired by modern engineering interfaces */
+
+@layer base {
+  :root {
+    /* Core Background & Text */
+    --background: 0 0% 99%;
+    --foreground: 215 25% 15%;
+
+    /* Card System */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    /* Popover System */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Primary Brand - Teal/Engineering Green */
+    --primary: 174 60% 35%;
+    --primary-foreground: 0 0% 98%;
+    --primary-hover: 174 60% 30%;
+    --primary-light: 174 60% 90%;
+
+    /* Secondary - Neutral Engineering Gray */
+    --secondary: 215 15% 95%;
+    --secondary-foreground: 215 25% 25%;
+    --secondary-hover: 215 15% 90%;
+
+    /* Muted - Subtle Backgrounds */
+    --muted: 215 15% 97%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Accent - Bright Engineering Blue */
+    --accent: 200 90% 50%;
+    --accent-foreground: 0 0% 98%;
+
+    /* Status Colors */
+    --status-todo: 220 15% 60%;
+    --status-todo-foreground: 0 0% 98%;
+    --status-doing: 35 90% 60%;
+    --status-doing-foreground: 35 45% 15%;
+    --status-done: 142 70% 45%;
+    --status-done-foreground: 0 0% 98%;
+
+    /* System Colors */
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders & Inputs */
+    --border: 215 20% 88%;
+    --input: 215 20% 94%;
+    --ring: 174 60% 35%;
+
+    /* Grid & Layout */
+    --radius: 0.75rem;
+    --shadow-elegant: 0 2px 8px -2px hsl(215 25% 15% / 0.08);
+    --shadow-card: 0 4px 12px -4px hsl(215 25% 15% / 0.1);
+
+    /* Engineering Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(174 60% 35%), hsl(174 60% 45%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(215 15% 98%));
+    --gradient-header: linear-gradient(180deg, hsl(0 0% 100%), hsl(215 15% 99%));
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    /* Dark Theme - Engineering Night Mode */
+    --background: 215 30% 8%;
+    --foreground: 215 15% 92%;
+
+    --card: 215 25% 10%;
+    --card-foreground: 215 15% 92%;
+
+    --popover: 215 25% 10%;
+    --popover-foreground: 215 15% 92%;
+
+    --primary: 174 60% 50%;
+    --primary-foreground: 215 30% 8%;
+    --primary-hover: 174 60% 55%;
+    --primary-light: 174 60% 15%;
+
+    --secondary: 215 20% 15%;
+    --secondary-foreground: 215 15% 85%;
+    --secondary-hover: 215 20% 20%;
+
+    --muted: 215 20% 12%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 200 90% 55%;
+    --accent-foreground: 215 30% 8%;
+
+    --status-todo: 220 15% 50%;
+    --status-todo-foreground: 0 0% 98%;
+    --status-doing: 35 90% 65%;
+    --status-doing-foreground: 35 45% 15%;
+    --status-done: 142 70% 50%;
+    --status-done-foreground: 0 0% 98%;
+
+    --destructive: 0 85% 65%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 215 20% 20%;
+    --input: 215 20% 15%;
+    --ring: 174 60% 50%;
+
+    --shadow-elegant: 0 2px 8px -2px hsl(215 30% 5% / 0.3);
+    --shadow-card: 0 4px 12px -4px hsl(215 30% 5% / 0.4);
+
+    --gradient-primary: linear-gradient(135deg, hsl(174 60% 50%), hsl(174 60% 60%));
+    --gradient-card: linear-gradient(180deg, hsl(215 25% 10%), hsl(215 25% 12%));
+    --gradient-header: linear-gradient(180deg, hsl(215 25% 10%), hsl(215 25% 11%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Engineering Grid Styles */
+  .spreadsheet-grid {
+    @apply bg-card border border-border rounded-lg overflow-hidden w-full;
+    box-shadow: var(--shadow-card);
+  }
+
+  .grid-header {
+    @apply bg-muted/50 border-b border-border sticky top-0 z-10;
+  }
+
+  .grid-cell {
+    @apply border-r border-b border-border p-2 text-sm;
+    transition: var(--transition-fast);
+  }
+
+  .grid-cell:hover {
+    @apply bg-muted/30;
+  }
+
+  .grid-cell.editing {
+    @apply bg-primary-light ring-2 ring-primary/20;
+  }
+
+  .grid-cell.modified {
+    @apply relative;
+  }
+
+  .grid-cell.modified::after {
+    content: '';
+    @apply absolute top-1 right-1 w-1 h-1 bg-primary rounded-full;
+  }
+
+  /* Status Pills */
+  .status-pill {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+    transition: var(--transition-fast);
+  }
+
+  .status-todo {
+    @apply bg-status-todo text-status-todo-foreground;
+  }
+
+  .status-doing {
+    @apply bg-status-doing text-status-doing-foreground;
+  }
+
+  .status-done {
+    @apply bg-status-done text-status-done-foreground;
+  }
+
+  /* Dashboard Cards */
+  .kpi-card {
+    @apply bg-card border border-border rounded-xl p-3;
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-elegant);
+    transition: var(--transition-smooth);
+  }
+
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Filter Chips */
+  .filter-chip {
+    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm;
+    @apply bg-secondary text-secondary-foreground border border-border;
+    transition: var(--transition-fast);
+  }
+
+  .filter-chip.active {
+    @apply bg-primary text-primary-foreground border-primary;
+  }
+
+  .filter-chip:hover {
+    @apply bg-secondary-hover;
+  }
+
+  .filter-chip.active:hover {
+    @apply bg-primary-hover;
+  }
+}
