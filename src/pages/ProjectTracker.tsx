@@ -25,6 +25,29 @@ const ProjectTracker = () => {
     }
   }, [documents.length, loadSampleData]);
 
+  // Clear any persisted store created before version bump or with Dec/2023 anomaly
+  useEffect(() => {
+    const storedData = localStorage.getItem('project-tracker-storage');
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData);
+        const hasDec2023 = parsed.state?.documents?.some((doc: any) =>
+          doc?.dataInicio?.includes('12/2023')
+        );
+        const needsMigration = parsed.version === 1;
+        if (hasDec2023 || needsMigration) {
+          console.log('Found December 2023 data, clearing localStorage');
+          localStorage.removeItem('project-tracker-storage');
+          loadSampleData();
+        }
+      } catch (e) {
+        console.log('Corrupted localStorage data, clearing');
+        localStorage.removeItem('project-tracker-storage');
+        loadSampleData();
+      }
+    }
+  }, [loadSampleData]);
+
   const handleSave = () => {
     // Data is automatically saved to localStorage, but we can show confirmation
     toast.success("Dados salvos com sucesso!");

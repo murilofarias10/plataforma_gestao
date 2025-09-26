@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useProjectStore } from "@/stores/projectStore";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export function FiltersBar() {
   const { 
@@ -55,7 +56,7 @@ export function FiltersBar() {
 
   return (
     <div className="space-y-4">
-      {/* One-line Filters Row in requested order */}
+      {/* All Filters in One Line */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -67,7 +68,7 @@ export function FiltersBar() {
           value={filters.statusFilter}
           onChange={(values) => setFilters({ statusFilter: values })}
           placeholder="Status"
-          className="w-36"
+          className="w-32"
         />
 
         <MultiSelect
@@ -75,7 +76,7 @@ export function FiltersBar() {
           value={filters.areaFilter}
           onChange={(values) => setFilters({ areaFilter: values })}
           placeholder="Área"
-          className="w-36"
+          className="w-32"
         />
 
         <MultiSelect
@@ -83,7 +84,7 @@ export function FiltersBar() {
           value={filters.responsavelFilter}
           onChange={(values) => setFilters({ responsavelFilter: values })}
           placeholder="Responsável"
-          className="w-40"
+          className="w-36"
         />
 
         {/* Data início */}
@@ -121,7 +122,7 @@ export function FiltersBar() {
             placeholder="Buscar documentos..."
             value={filters.searchQuery}
             onChange={(e) => setFilters({ searchQuery: e.target.value })}
-            className="pl-10 w-64"
+            className="pl-10 w-48"
           />
         </div>
 

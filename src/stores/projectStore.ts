@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
 import { persist } from 'zustand/middleware';
+import { parseBRDateLocal } from '@/lib/utils';
 
 interface ProjectStore {
   documents: ProjectDocument[];
@@ -188,16 +189,15 @@ export const useProjectStore = create<ProjectStore>()(
           
           // Date range filter
           if (filters.dateRange.start || filters.dateRange.end) {
-            const docDate = new Date(doc.dataInicio.split('/').reverse().join('-'));
-            
+            const docDate = parseBRDateLocal(doc.dataInicio);
+            if (!docDate) return false;
             if (filters.dateRange.start) {
-              const startDate = new Date(filters.dateRange.start);
-              if (docDate < startDate) return false;
+              const startDate = parseBRDateLocal(filters.dateRange.start) ?? null;
+              if (startDate && docDate < startDate) return false;
             }
-            
             if (filters.dateRange.end) {
-              const endDate = new Date(filters.dateRange.end);
-              if (docDate > endDate) return false;
+              const endDate = parseBRDateLocal(filters.dateRange.end) ?? null;
+              if (endDate && docDate > endDate) return false;
             }
           }
           
@@ -221,32 +221,33 @@ export const useProjectStore = create<ProjectStore>()(
         
         filteredDocs.forEach((doc) => {
           if (doc.dataInicio) {
-            const startDate = new Date(doc.dataInicio.split('/').reverse().join('-'));
-            const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-            
-            if (!monthlyData[monthKey]) {
-              monthlyData[monthKey] = { created: 0, finished: 0 };
+            const startDate = parseBRDateLocal(doc.dataInicio);
+            if (!startDate) return;
+            const startMonthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyData[startMonthKey]) {
+              monthlyData[startMonthKey] = { created: 0, finished: 0 };
             }
-            monthlyData[monthKey].created++;
+            monthlyData[startMonthKey].created++;
           }
           
-          if (doc.dataFim && doc.status === 'Finalizado') {
-            const endDate = new Date(doc.dataFim.split('/').reverse().join('-'));
-            const monthKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
-            
-            if (!monthlyData[monthKey]) {
-              monthlyData[monthKey] = { created: 0, finished: 0 };
+          // Count finalizados based solely on presence of dataFim
+          if (doc.dataFim) {
+            const endDate = parseBRDateLocal(doc.dataFim);
+            if (!endDate) return;
+            const endMonthKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyData[endMonthKey]) {
+              monthlyData[endMonthKey] = { created: 0, finished: 0 };
             }
-            monthlyData[monthKey].finished++;
+            monthlyData[endMonthKey].finished++;
           }
         });
         
-        return Object.entries(monthlyData)
-          .map(([month, data]) => ({
-            month: new Date(month + '-01').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
-            ...data
-          }))
-          .sort((a, b) => a.month.localeCompare(b.month));
+        // Sort months using the YYYY-MM key to ensure chronological order
+        const sortedMonthKeys = Object.keys(monthlyData).sort();
+        return sortedMonthKeys.map((monthKey) => ({
+          month: new Date(monthKey + '-01').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
+          ...monthlyData[monthKey]
+        }));
       },
 
       getStatusDistribution: () => {
@@ -422,7 +423,17 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'project-tracker-storage',
-      version: 1,
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        // Purge old persisted data to eliminate invalid UTC-based months
+        // and ensure charts recompute from fresh sample or user data.
+        return {
+          state: {
+            documents: [],
+            filters: defaultFilters,
+          }
+        } as any;
+      },
     }
   )
 );
