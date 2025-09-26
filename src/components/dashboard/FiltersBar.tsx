@@ -1,8 +1,9 @@
-import { X, Filter, RotateCcw } from "lucide-react";
+import { X, Filter, RotateCcw, Search, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProjectStore } from "@/stores/projectStore";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Input } from "@/components/ui/input";
 
 export function FiltersBar() {
   const { 
@@ -54,8 +55,8 @@ export function FiltersBar() {
 
   return (
     <div className="space-y-4">
-      {/* Filter Controls */}
-      <div className="flex flex-wrap items-center gap-4">
+      {/* One-line Filters Row in requested order */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Filtros:</span>
@@ -66,7 +67,7 @@ export function FiltersBar() {
           value={filters.statusFilter}
           onChange={(values) => setFilters({ statusFilter: values })}
           placeholder="Status"
-          className="w-48"
+          className="w-36"
         />
 
         <MultiSelect
@@ -74,7 +75,7 @@ export function FiltersBar() {
           value={filters.areaFilter}
           onChange={(values) => setFilters({ areaFilter: values })}
           placeholder="Área"
-          className="w-48"
+          className="w-36"
         />
 
         <MultiSelect
@@ -82,8 +83,47 @@ export function FiltersBar() {
           value={filters.responsavelFilter}
           onChange={(values) => setFilters({ responsavelFilter: values })}
           placeholder="Responsável"
-          className="w-48"
+          className="w-40"
         />
+
+        {/* Data início */}
+        <div className="relative">
+          <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="date"
+            value={filters.dateRange.start || ""}
+            onChange={(e) => setFilters({ 
+              dateRange: { ...filters.dateRange, start: e.target.value } 
+            })}
+            placeholder="Data início"
+            className="pl-8 w-40"
+          />
+        </div>
+
+        {/* Data fim */}
+        <div className="relative">
+          <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="date"
+            value={filters.dateRange.end || ""}
+            onChange={(e) => setFilters({ 
+              dateRange: { ...filters.dateRange, end: e.target.value } 
+            })}
+            placeholder="Data fim"
+            className="pl-8 w-40"
+          />
+        </div>
+
+        {/* Buscar documentos */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar documentos..."
+            value={filters.searchQuery}
+            onChange={(e) => setFilters({ searchQuery: e.target.value })}
+            className="pl-10 w-64"
+          />
+        </div>
 
         {activeFiltersCount > 0 && (
           <Button
