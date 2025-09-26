@@ -244,10 +244,16 @@ export const useProjectStore = create<ProjectStore>()(
         
         // Sort months using the YYYY-MM key to ensure chronological order
         const sortedMonthKeys = Object.keys(monthlyData).sort();
-        return sortedMonthKeys.map((monthKey) => ({
-          month: new Date(monthKey + '-01').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
-          ...monthlyData[monthKey]
-        }));
+        return sortedMonthKeys.map((monthKey) => {
+          const [yyyyStr, mmStr] = monthKey.split('-');
+          const yyyy = parseInt(yyyyStr, 10);
+          const mm = parseInt(mmStr, 10);
+          const labelDate = new Date(yyyy, (mm || 1) - 1, 1);
+          return {
+            month: labelDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
+            ...monthlyData[monthKey]
+          };
+        });
       },
 
       getStatusDistribution: () => {

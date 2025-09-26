@@ -16,3 +16,18 @@ export function parseBRDateLocal(dateStr?: string | null): Date | null {
   const d = new Date(yyyy, mm - 1, dd);
   return isNaN(d.getTime()) ? null : d;
 }
+
+// Parses a date in yyyy-MM-dd (ISO-like) and returns a Date in local time.
+// Returns null for falsy/invalid inputs.
+export function parseISODateLocal(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return null;
+  const [yyyyStr, mmStr, ddStr] = parts;
+  const yyyy = parseInt(yyyyStr, 10);
+  const mm = parseInt(mmStr, 10);
+  const dd = parseInt(ddStr, 10);
+  if (!yyyy || !mm || !dd) return null;
+  const d = new Date(yyyy, mm - 1, dd);
+  return isNaN(d.getTime()) ? null : d;
+}

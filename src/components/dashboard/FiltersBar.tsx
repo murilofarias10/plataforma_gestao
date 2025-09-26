@@ -92,10 +92,16 @@ export function FiltersBar() {
           <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="date"
-            value={filters.dateRange.start || ""}
-            onChange={(e) => setFilters({ 
-              dateRange: { ...filters.dateRange, start: e.target.value } 
-            })}
+            value={filters.dateRange.start ? (() => { const [dd, mm, yyyy] = filters.dateRange.start.split('/'); return yyyy && mm && dd ? `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}` : ""; })() : ""}
+            onChange={(e) => {
+              const iso = e.target.value;
+              let br = "";
+              if (iso) {
+                const [yyyy, mm, dd] = iso.split('-');
+                br = `${dd.padStart(2,'0')}/${mm.padStart(2,'0')}/${yyyy}`;
+              }
+              setFilters({ dateRange: { ...filters.dateRange, start: br } });
+            }}
             placeholder="Data início"
             className="pl-8 w-40"
           />
@@ -106,10 +112,16 @@ export function FiltersBar() {
           <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="date"
-            value={filters.dateRange.end || ""}
-            onChange={(e) => setFilters({ 
-              dateRange: { ...filters.dateRange, end: e.target.value } 
-            })}
+            value={filters.dateRange.end ? (() => { const [dd, mm, yyyy] = filters.dateRange.end.split('/'); return yyyy && mm && dd ? `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}` : ""; })() : ""}
+            onChange={(e) => {
+              const iso = e.target.value;
+              let br = "";
+              if (iso) {
+                const [yyyy, mm, dd] = iso.split('-');
+                br = `${dd.padStart(2,'0')}/${mm.padStart(2,'0')}/${yyyy}`;
+              }
+              setFilters({ dateRange: { ...filters.dateRange, end: br } });
+            }}
             placeholder="Data fim"
             className="pl-8 w-40"
           />

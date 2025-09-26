@@ -124,14 +124,25 @@ export function GridCell({
           ref={inputRef}
           type={type === 'date' ? 'date' : 'text'}
           value={type === 'date' && localValue ? 
-            new Date(localValue.split('/').reverse().join('-')).toISOString().split('T')[0] : 
+            (() => {
+              const [dd, mm, yyyy] = localValue.split('/');
+              if (dd && mm && yyyy) {
+                return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+              }
+              return '';
+            })() : 
             localValue
           }
           onChange={(e) => {
             if (type === 'date') {
-              const dateValue = e.target.value ? 
-                new Date(e.target.value).toLocaleDateString('pt-BR') : '';
-              setLocalValue(dateValue);
+              const iso = e.target.value;
+              if (iso) {
+                const [yyyy, mm, dd] = iso.split('-');
+                const br = `${dd.padStart(2, '0')}/${mm.padStart(2, '0')}/${yyyy}`;
+                setLocalValue(br);
+              } else {
+                setLocalValue('');
+              }
             } else {
               setLocalValue(e.target.value);
             }
