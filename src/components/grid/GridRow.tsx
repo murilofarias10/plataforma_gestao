@@ -91,21 +91,33 @@ export function GridRow({
       </div>
 
       {columns.map((column) => {
-        const isEditingBase = editingCell?.id === document.id && editingCell?.field === column.key;
-        const isEditing = column.key === 'status' ? true : isEditingBase; // always show dropdown for Status
+        const isEditing = editingCell?.id === document.id && editingCell?.field === column.key;
         const value = document[column.key as keyof ProjectDocument];
 
         return (
           <div key={column.key} className="border-r border-border last:border-r-0 min-w-0">
-            <GridCell
-              value={value}
-              type={column.type}
-              isEditing={isEditing}
-              onEdit={(newValue) => onCellEdit(document.id, column.key, newValue)}
-              onStartEdit={() => onStartEdit(column.key)}
-              onStopEdit={onStopEdit}
-              onKeyDown={(e) => onKeyDown(e, document.id, column.key)}
-            />
+            {column.key === 'status' && !isEditing ? (
+              <button
+                type="button"
+                className="p-1 w-full text-left hover:bg-muted/40"
+                onClick={() => onStartEdit(column.key)}
+                aria-label="Editar status"
+              >
+                <Badge variant={getStatusBadgeVariant(value as string)} className="text-xs">
+                  {value as string}
+                </Badge>
+              </button>
+            ) : (
+              <GridCell
+                value={value}
+                type={column.type}
+                isEditing={isEditing}
+                onEdit={(newValue) => onCellEdit(document.id, column.key, newValue)}
+                onStartEdit={() => onStartEdit(column.key)}
+                onStopEdit={onStopEdit}
+                onKeyDown={(e) => onKeyDown(e, document.id, column.key)}
+              />
+            )}
           </div>
         );
       })}

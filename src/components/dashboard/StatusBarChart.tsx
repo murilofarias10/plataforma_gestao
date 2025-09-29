@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useProjectStore } from "@/stores/projectStore";
 
 export function StatusBarChart() {
@@ -64,14 +64,11 @@ export function StatusBarChart() {
                 allowDecimals={false}
               />
               <Tooltip content={<CustomTooltip />} />
-              {statusData.map((entry, index) => (
-                <Bar 
-                  key={`cell-${index}`}
-                  dataKey="count" 
-                  fill={getBarColor(entry.status)}
-                  radius={[4, 4, 0, 0]}
-                />
-              ))}
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {statusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getBarColor(entry.status)} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
