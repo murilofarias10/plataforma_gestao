@@ -32,6 +32,7 @@ interface GridRowProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onClear: () => void;
+  onAdd?: () => void;
   isBlankRow?: boolean;
   isEven?: boolean;
 }
@@ -49,6 +50,7 @@ export function GridRow({
   onDelete,
   onDuplicate,
   onClear,
+  onAdd,
   isBlankRow = false,
   isEven = false,
 }: GridRowProps) {
@@ -89,35 +91,30 @@ export function GridRow({
       </div>
 
       {columns.map((column) => {
-        const isEditing = editingCell?.id === document.id && editingCell?.field === column.key;
+        const isEditingBase = editingCell?.id === document.id && editingCell?.field === column.key;
+        const isEditing = column.key === 'status' ? true : isEditingBase; // always show dropdown for Status
         const value = document[column.key as keyof ProjectDocument];
 
         return (
           <div key={column.key} className="border-r border-border last:border-r-0 min-w-0">
-            {column.key === 'status' && !isEditing ? (
-              <div className="p-1">
-                <Badge variant={getStatusBadgeVariant(value as string)} className="text-xs">
-                  {value as string}
-                </Badge>
-              </div>
-            ) : (
-              <GridCell
-                value={value}
-                type={column.type}
-                isEditing={isEditing}
-                onEdit={(newValue) => onCellEdit(document.id, column.key, newValue)}
-                onStartEdit={() => onStartEdit(column.key)}
-                onStopEdit={onStopEdit}
-                onKeyDown={(e) => onKeyDown(e, document.id, column.key)}
-              />
-            )}
+            <GridCell
+              value={value}
+              type={column.type}
+              isEditing={isEditing}
+              onEdit={(newValue) => onCellEdit(document.id, column.key, newValue)}
+              onStartEdit={() => onStartEdit(column.key)}
+              onStopEdit={onStopEdit}
+              onKeyDown={(e) => onKeyDown(e, document.id, column.key)}
+            />
           </div>
         );
       })}
 
       <div className="p-1 flex items-center justify-center">
         {isBlankRow ? (
-          <span className="text-xs text-muted-foreground">+</span>
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onAdd} title="Adicionar linha">
+            <span className="text-sm leading-none">+</span>
+          </Button>
         ) : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

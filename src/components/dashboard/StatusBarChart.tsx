@@ -2,6 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useProjectStore } from "@/stores/projectStore";
 
 export function StatusBarChart() {
+  // Get a stable reference to the selector function, then call it
   const getStatusDistribution = useProjectStore((state) => state.getStatusDistribution);
   const statusData = getStatusDistribution();
 

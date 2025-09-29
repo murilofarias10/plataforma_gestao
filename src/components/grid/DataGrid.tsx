@@ -5,6 +5,8 @@ import { GridHeader } from "./GridHeader";
 import { GridRow } from "./GridRow";
 import { GridActions } from "./GridActions";
 import { EmptyState } from "./EmptyState";
+import { parseBRDateLocal } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 export function DataGrid() {
   const { 
@@ -20,7 +22,7 @@ export function DataGrid() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
-    dataInicio: '',
+    dataInicio: new Date().toLocaleDateString('pt-BR'),
     dataFim: '',
     documento: '',
     detalhe: '',
@@ -47,7 +49,37 @@ export function DataGrid() {
 
   const handleCellEdit = useCallback((id: string, field: string, value: any) => {
     if (id === 'blank-row') {
-      setBlankRow(prev => ({ ...prev, [field]: value }));
+      setBlankRow(prev => {
+        // Build tentative update with auto rules + validation
+        let next: Partial<ProjectDocument> = { ...prev, [field]: value };
+
+        // Auto: status selection impacts dataFim
+        if (field === 'status') {
+          if (value === 'Finalizado') {
+            next = { ...next, dataFim: new Date().toLocaleDateString('pt-BR') };
+          } else {
+            next = { ...next, dataFim: '' };
+          }
+        }
+
+        // Auto: dataFim filled forces status Finalizado
+        if (field === 'dataFim' && value) {
+          next = { ...next, status: 'Finalizado' };
+        }
+
+        // Validation: dataFim cannot be earlier than dataInicio
+        const start = parseBRDateLocal((field === 'dataInicio' ? value : next.dataInicio) as string || '');
+        const end = parseBRDateLocal((field === 'dataFim' ? value : next.dataFim) as string || '');
+        if (start && end && end < start) {
+          toast({
+            title: 'Validação de datas',
+            description: 'Data Fim não pode ser anterior à Data Início',
+          });
+          return prev; // revert
+        }
+
+        return next;
+      });
     } else {
       updateDocument(id, { [field]: value });
     }
@@ -60,7 +92,7 @@ export function DataGrid() {
       
       // Reset blank row
       setBlankRow({
-        dataInicio: '',
+        dataInicio: new Date().toLocaleDateString('pt-BR'),
         dataFim: '',
         documento: '',
         detalhe: '',
@@ -149,7 +181,7 @@ export function DataGrid() {
             onDelete={() => {}}
             onDuplicate={() => {}}
             onClear={() => setBlankRow({
-              dataInicio: '',
+              dataInicio: new Date().toLocaleDateString('pt-BR'),
               dataFim: '',
               documento: '',
               detalhe: '',
@@ -159,6 +191,7 @@ export function DataGrid() {
               area: '',
               participantes: '',
             })}
+            onAdd={handleBlankRowSave}
             isBlankRow={true}
             isEven={documents.length % 2 === 0}
           />

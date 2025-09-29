@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
 import { persist } from 'zustand/middleware';
 import { parseBRDateLocal } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface ProjectStore {
   documents: ProjectDocument[];
@@ -56,9 +57,31 @@ export const useProjectStore = create<ProjectStore>()(
           updatedAt: new Date(),
         };
         
-        // Auto-fill dataFim if status is Finalizado
+        // Auto rules on create
+        // If status is Finalizado and dataFim is empty -> set today
         if (newDocument.status === 'Finalizado' && !newDocument.dataFim) {
           newDocument.dataFim = new Date().toLocaleDateString('pt-BR');
+        }
+        // If dataFim is provided -> force status Finalizado
+        if (newDocument.dataFim && newDocument.status !== 'Finalizado') {
+          newDocument.status = 'Finalizado';
+        }
+        // Validation: dataFim cannot be earlier than dataInicio
+        if (newDocument.dataInicio && newDocument.dataFim) {
+          const startDate = parseBRDateLocal(newDocument.dataInicio);
+          const endDate = parseBRDateLocal(newDocument.dataFim);
+          if (startDate && endDate && endDate < startDate) {
+            toast({
+              title: 'Validação de datas',
+              description: 'Data Fim não pode ser anterior à Data Início',
+            });
+            // Revert dataFim on invalid input for new doc
+            newDocument.dataFim = '' as any;
+            // And ensure status is not forced by invalid dataFim
+            if (newDocument.status === 'Finalizado') {
+              newDocument.status = 'A iniciar';
+            }
+          }
         }
         
         set((state) => ({
@@ -76,9 +99,56 @@ export const useProjectStore = create<ProjectStore>()(
                 updatedAt: new Date(),
               };
               
-              // Auto-fill dataFim if status changed to Finalizado
-              if (updates.status === 'Finalizado' && !updatedDoc.dataFim) {
-                updatedDoc.dataFim = new Date().toLocaleDateString('pt-BR');
+              // Validation: prevent dataFim < dataInicio
+              if (typeof updates.dataFim !== 'undefined') {
+                if (updates.dataFim) {
+                  const startDate = parseBRDateLocal(updatedDoc.dataInicio);
+                  const endDate = parseBRDateLocal(updates.dataFim);
+                  if (startDate && endDate && endDate < startDate) {
+                    toast({
+                      title: 'Validação de datas',
+                      description: 'Data Fim não pode ser anterior à Data Início',
+                    });
+                    return doc; // revert to previous
+                  }
+                }
+              }
+              if (typeof updates.dataInicio !== 'undefined') {
+                if (updatedDoc.dataFim) {
+                  const startDate = parseBRDateLocal(updates.dataInicio ?? updatedDoc.dataInicio);
+                  const endDate = parseBRDateLocal(updatedDoc.dataFim);
+                  if (startDate && endDate && endDate < startDate) {
+                    toast({
+                      title: 'Validação de datas',
+                      description: 'Data Fim não pode ser anterior à Data Início',
+                    });
+                    return doc; // revert to previous
+                  }
+                }
+              }
+
+              // Auto rules
+              // If status was changed
+              if (typeof updates.status !== 'undefined') {
+                const previousStatus = doc.status;
+                if (updates.status === 'Finalizado') {
+                  // Allow transition only from A iniciar or Em andamento (or already Finalizado)
+                  const allowedPrev = previousStatus === 'A iniciar' || previousStatus === 'Em andamento' || previousStatus === 'Finalizado';
+                  if (!allowedPrev) {
+                    return doc; // reject invalid transition
+                  }
+                  if (!updatedDoc.dataFim) {
+                    updatedDoc.dataFim = new Date().toLocaleDateString('pt-BR');
+                  }
+                } else {
+                  // If moving away from Finalizado, clear dataFim
+                  updatedDoc.dataFim = '' as any;
+                }
+              }
+
+              // If dataFim provided (not empty) -> force status Finalizado
+              if (typeof updates.dataFim !== 'undefined' && updates.dataFim) {
+                updatedDoc.status = 'Finalizado';
               }
               
               return updatedDoc;
@@ -383,16 +453,31 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'project-tracker-storage',
-      version: 2,
-      migrate: (persistedState: any, version: number) => {
-        // Purge old persisted data to eliminate invalid UTC-based months
-        // and ensure charts recompute from fresh sample or user data.
-        return {
-          state: {
-            documents: [],
-            filters: defaultFilters,
-          }
-        } as any;
+      version: 3,
+      migrate: (persistedState: any) => {
+        try {
+          const prev = persistedState?.state ?? {};
+          const docs: ProjectDocument[] = Array.isArray(prev.documents) ? prev.documents : [];
+          const normalized = docs.map((doc) => {
+            if (doc.dataFim && doc.status !== 'Finalizado') {
+              return { ...doc, status: 'Finalizado' } as ProjectDocument;
+            }
+            return doc;
+          });
+          return {
+            state: {
+              documents: normalized,
+              filters: prev.filters ?? defaultFilters,
+            }
+          } as any;
+        } catch {
+          return {
+            state: {
+              documents: [],
+              filters: defaultFilters,
+            }
+          } as any;
+        }
       },
     }
   )

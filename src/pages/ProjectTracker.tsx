@@ -15,11 +15,17 @@ const ProjectTracker = () => {
   const { documents, loadSampleData } = useProjectStore();
   const navigate = useNavigate();
 
-  // Load sample data on first visit
+  // Load sample data when there's no persisted documents
   useEffect(() => {
     if (documents.length === 0) {
-      const hasLoadedBefore = localStorage.getItem('project-tracker-storage');
-      if (!hasLoadedBefore) {
+      try {
+        const stored = localStorage.getItem('project-tracker-storage');
+        const parsed = stored ? JSON.parse(stored) : null;
+        const persistedCount = parsed?.state?.documents?.length ?? 0;
+        if (persistedCount === 0) {
+          loadSampleData();
+        }
+      } catch {
         loadSampleData();
       }
     }
