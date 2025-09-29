@@ -35,7 +35,6 @@ export function EmptyState({ onAddFirst }: EmptyStateProps) {
           <p>✓ Controle de status e prazos</p>
           <p>✓ Dashboard com métricas em tempo real</p>
           <p>✓ Filtros avançados e busca</p>
-          <p>✓ Exportação e importação CSV</p>
         </div>
       </div>
     </div>

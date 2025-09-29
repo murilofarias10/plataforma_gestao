@@ -27,10 +27,6 @@ interface ProjectStore {
   getUniqueAreas: () => string[];
   getUniqueResponsaveis: () => string[];
   
-  // Import/Export
-  importFromCsv: (csvData: string) => void;
-  exportToCsv: () => string;
-  
   // Sample data
   loadSampleData: () => void;
 }
@@ -285,48 +281,6 @@ export const useProjectStore = create<ProjectStore>()(
         return [...new Set(documents.map(doc => doc.responsavel).filter(Boolean))];
       },
 
-      importFromCsv: (csvData) => {
-        // Basic CSV parsing implementation
-        const lines = csvData.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
-        
-        const newDocuments: ProjectDocument[] = [];
-        
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',').map(v => v.trim());
-          if (values.length === headers.length) {
-            const document: any = {};
-            headers.forEach((header, index) => {
-              document[header] = values[index];
-            });
-            
-            newDocuments.push({
-              id: crypto.randomUUID(),
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              ...document
-            });
-          }
-        }
-        
-        set((state) => ({
-          documents: [...state.documents, ...newDocuments]
-        }));
-      },
-
-      exportToCsv: () => {
-        const { documents } = get();
-        const headers = ['dataInicio', 'dataFim', 'documento', 'detalhe', 'revisao', 'responsavel', 'status', 'area', 'participantes'];
-        
-        const csvContent = [
-          headers.join(','),
-          ...documents.map(doc => 
-            headers.map(header => doc[header as keyof ProjectDocument] || '').join(',')
-          )
-        ].join('\n');
-        
-        return csvContent;
-      },
 
       loadSampleData: () => {
         const sampleDocuments: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>[] = [
