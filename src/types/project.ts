@@ -11,6 +11,8 @@ export interface ProjectDocument {
   participantes: string; // semicolon separated
   createdAt: Date;
   updatedAt: Date;
+  // When true, this row was cleared by the user and should be ignored by dashboards
+  isCleared?: boolean;
 }
 
 export interface ProjectFilters {

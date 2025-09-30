@@ -13,12 +13,12 @@ export function FiltersBar() {
     resetFilters, 
     getUniqueAreas, 
     getUniqueResponsaveis,
-    getFilteredDocuments 
+    getTableDocuments 
   } = useProjectStore();
   
   const areas = getUniqueAreas();
   const responsaveis = getUniqueResponsaveis();
-  const filteredCount = getFilteredDocuments().length;
+  const filteredCount = getTableDocuments().length;
   
   const statusOptions = [
     { value: "A iniciar", label: "A iniciar" },

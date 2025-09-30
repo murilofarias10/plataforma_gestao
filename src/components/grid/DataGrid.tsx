@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 
 export function DataGrid() {
   const { 
-    getFilteredDocuments, 
+    getTableDocuments,
     addDocument, 
     updateDocument, 
     deleteDocument,
@@ -18,7 +18,8 @@ export function DataGrid() {
     clearDocument 
   } = useProjectStore();
   
-  const documents = getFilteredDocuments();
+  // Use table documents (includes cleared/incomplete rows for editing)
+  const documents = getTableDocuments();
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
@@ -36,13 +37,13 @@ export function DataGrid() {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const columns = [
-    { key: 'dataInicio', label: 'Data Início', type: 'date', width: '1fr' },
+    { key: 'dataInicio', label: 'Data Início*', type: 'date', width: '1fr' },
     { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
-    { key: 'documento', label: 'Documento', type: 'text', width: '2fr' },
+    { key: 'documento', label: 'Documento*', type: 'text', width: '2fr' },
     { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
     { key: 'revisao', label: 'Revisão', type: 'text', width: '0.8fr' },
-    { key: 'responsavel', label: 'Responsável', type: 'text', width: '1.2fr' },
-    { key: 'status', label: 'Status', type: 'select', width: '1.2fr' },
+    { key: 'responsavel', label: 'Responsável*', type: 'text', width: '1.2fr' },
+    { key: 'status', label: 'Status*', type: 'select', width: '1.2fr' },
     { key: 'area', label: 'Área', type: 'text', width: '1fr' },
     { key: 'participantes', label: 'Participantes', type: 'text', width: '1.5fr' },
   ];
@@ -87,7 +88,7 @@ export function DataGrid() {
 
   const handleBlankRowSave = useCallback(() => {
     // Check if blank row has required data
-    if (blankRow.dataInicio && blankRow.documento) {
+    if (blankRow.dataInicio && blankRow.documento && blankRow.responsavel && blankRow.status) {
       addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
       
       // Reset blank row
@@ -101,6 +102,11 @@ export function DataGrid() {
         status: 'A iniciar',
         area: '',
         participantes: '',
+      });
+    } else {
+      toast({
+        title: 'Campos obrigatórios',
+        description: 'Preencha Data Início, Documento, Responsável e Status.',
       });
     }
   }, [blankRow, addDocument]);

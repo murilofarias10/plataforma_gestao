@@ -22,6 +22,7 @@ interface ProjectStore {
   
   // Computed
   getFilteredDocuments: () => ProjectDocument[];
+  getTableDocuments: () => ProjectDocument[];
   getKpiData: () => KpiData;
   getTimelineData: () => TimelineDataPoint[];
   getStatusDistribution: () => StatusDistribution[];
@@ -55,6 +56,7 @@ export const useProjectStore = create<ProjectStore>()(
           id: crypto.randomUUID(),
           createdAt: new Date(),
           updatedAt: new Date(),
+          isCleared: false,
         };
         
         // Auto rules on create
@@ -150,6 +152,12 @@ export const useProjectStore = create<ProjectStore>()(
               if (typeof updates.dataFim !== 'undefined' && updates.dataFim) {
                 updatedDoc.status = 'Finalizado';
               }
+
+              // If this doc had been cleared, restore visibility once mandatory fields are filled
+              const mandatoryFilled = !!updatedDoc.dataInicio && !!updatedDoc.documento && !!updatedDoc.responsavel && !!updatedDoc.status;
+              if (updatedDoc.isCleared && mandatoryFilled) {
+                (updatedDoc as ProjectDocument).isCleared = false;
+              }
               
               return updatedDoc;
             }
@@ -174,6 +182,7 @@ export const useProjectStore = create<ProjectStore>()(
             documento: `${docToDuplicate.documento} (Cópia)`,
             createdAt: new Date(),
             updatedAt: new Date(),
+            isCleared: false,
           };
           set((state) => ({
             documents: [...state.documents, newDocument]
@@ -196,6 +205,7 @@ export const useProjectStore = create<ProjectStore>()(
                   status: 'A iniciar' as const,
                   area: '',
                   participantes: '',
+                  isCleared: true,
                   updatedAt: new Date(),
                 }
               : doc
@@ -226,6 +236,61 @@ export const useProjectStore = create<ProjectStore>()(
       getFilteredDocuments: () => {
         const { documents, filters } = get();
         
+        // Exclude cleared rows and rows missing mandatory fields
+        const mandatoryFilled = (doc: ProjectDocument) =>
+          !!doc.dataInicio && !!doc.documento && !!doc.responsavel && !!doc.status;
+
+        return documents.filter((doc) => {
+          if (doc.isCleared) return false;
+          if (!mandatoryFilled(doc)) return false;
+          // Search filter
+          if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            if (
+              !doc.documento.toLowerCase().includes(query) &&
+              !doc.detalhe.toLowerCase().includes(query)
+            ) {
+              return false;
+            }
+          }
+          
+          // Status filter
+          if (filters.statusFilter.length > 0 && !filters.statusFilter.includes(doc.status)) {
+            return false;
+          }
+          
+          // Area filter
+          if (filters.areaFilter.length > 0 && !filters.areaFilter.includes(doc.area)) {
+            return false;
+          }
+          
+          // Responsavel filter
+          if (filters.responsavelFilter.length > 0 && !filters.responsavelFilter.includes(doc.responsavel)) {
+            return false;
+          }
+          
+          // Date range filter
+          if (filters.dateRange.start || filters.dateRange.end) {
+            const docDate = parseBRDateLocal(doc.dataInicio);
+            if (!docDate) return false;
+            if (filters.dateRange.start) {
+              const startDate = parseBRDateLocal(filters.dateRange.start) ?? null;
+              if (startDate && docDate < startDate) return false;
+            }
+            if (filters.dateRange.end) {
+              const endDate = parseBRDateLocal(filters.dateRange.end) ?? null;
+              if (endDate && docDate > endDate) return false;
+            }
+          }
+          
+          return true;
+        });
+      },
+
+      getTableDocuments: () => {
+        const { documents, filters } = get();
+        
+        // For table: show all rows (including cleared/incomplete) but apply filters
         return documents.filter((doc) => {
           // Search filter
           if (filters.searchQuery) {
