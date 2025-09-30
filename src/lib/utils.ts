@@ -5,11 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Parses a date in dd/MM/yyyy and returns a Date in local time.
+// Parses a date in dd-mm-aaaa and returns a Date in local time.
 // Returns null for falsy/invalid inputs.
 export function parseBRDateLocal(dateStr?: string | null): Date | null {
   if (!dateStr) return null;
-  const parts = dateStr.split('/');
+  const parts = dateStr.split('-');
   if (parts.length !== 3) return null;
   const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
   if (!yyyy || !mm || !dd) return null;

@@ -88,43 +88,83 @@ export function FiltersBar() {
         />
 
         {/* Data início */}
-        <div className="relative">
-          <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="date"
-            value={filters.dateRange.start ? (() => { const [dd, mm, yyyy] = filters.dateRange.start.split('/'); return yyyy && mm && dd ? `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}` : ""; })() : ""}
-            onChange={(e) => {
-              const iso = e.target.value;
-              let br = "";
-              if (iso) {
-                const [yyyy, mm, dd] = iso.split('-');
-                br = `${dd.padStart(2,'0')}/${mm.padStart(2,'0')}/${yyyy}`;
-              }
-              setFilters({ dateRange: { ...filters.dateRange, start: br } });
-            }}
-            placeholder="Data início"
-            className="pl-8 w-40"
-          />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Data Início:</span>
+          <div className="relative">
+            <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={filters.dateRange.start || ""}
+              onChange={(e) => {
+                let value = e.target.value;
+                // Remove non-numeric characters except dashes
+                value = value.replace(/[^0-9-]/g, '');
+                
+                // Auto-format as user types (dd-mm-aaaa)
+                if (value.length <= 2) {
+                  // Just day
+                  value = value;
+                } else if (value.length <= 5) {
+                  // Day and month
+                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                } else if (value.length <= 10) {
+                  // Day, month, and year
+                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                } else {
+                  // Limit to 10 characters (dd-mm-aaaa)
+                  value = value.substring(0, 10);
+                }
+                
+                setFilters({ dateRange: { ...filters.dateRange, start: value } });
+              }}
+              placeholder="dd-mm-aaaa"
+              className="pl-8 w-40"
+              maxLength={10}
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
         </div>
 
         {/* Data fim */}
-        <div className="relative">
-          <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="date"
-            value={filters.dateRange.end ? (() => { const [dd, mm, yyyy] = filters.dateRange.end.split('/'); return yyyy && mm && dd ? `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}` : ""; })() : ""}
-            onChange={(e) => {
-              const iso = e.target.value;
-              let br = "";
-              if (iso) {
-                const [yyyy, mm, dd] = iso.split('-');
-                br = `${dd.padStart(2,'0')}/${mm.padStart(2,'0')}/${yyyy}`;
-              }
-              setFilters({ dateRange: { ...filters.dateRange, end: br } });
-            }}
-            placeholder="Data fim"
-            className="pl-8 w-40"
-          />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Data Fim:</span>
+          <div className="relative">
+            <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={filters.dateRange.end || ""}
+              onChange={(e) => {
+                let value = e.target.value;
+                // Remove non-numeric characters except dashes
+                value = value.replace(/[^0-9-]/g, '');
+                
+                // Auto-format as user types (dd-mm-aaaa)
+                if (value.length <= 2) {
+                  // Just day
+                  value = value;
+                } else if (value.length <= 5) {
+                  // Day and month
+                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                } else if (value.length <= 10) {
+                  // Day, month, and year
+                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                } else {
+                  // Limit to 10 characters (dd-mm-aaaa)
+                  value = value.substring(0, 10);
+                }
+                
+                setFilters({ dateRange: { ...filters.dateRange, end: value } });
+              }}
+              placeholder="dd-mm-aaaa"
+              className="pl-8 w-40"
+              maxLength={10}
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
         </div>
 
         {/* Buscar documentos */}

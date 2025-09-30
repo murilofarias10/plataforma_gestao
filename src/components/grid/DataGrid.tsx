@@ -23,7 +23,7 @@ export function DataGrid() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
-    dataInicio: new Date().toLocaleDateString('pt-BR'),
+    dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
     dataFim: '',
     documento: '',
     detalhe: '',
@@ -57,7 +57,7 @@ export function DataGrid() {
         // Auto: status selection impacts dataFim
         if (field === 'status') {
           if (value === 'Finalizado') {
-            next = { ...next, dataFim: new Date().toLocaleDateString('pt-BR') };
+            next = { ...next, dataFim: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-') };
           } else {
             next = { ...next, dataFim: '' };
           }
@@ -93,7 +93,7 @@ export function DataGrid() {
       
       // Reset blank row
       setBlankRow({
-        dataInicio: new Date().toLocaleDateString('pt-BR'),
+        dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
         dataFim: '',
         documento: '',
         detalhe: '',
@@ -187,7 +187,7 @@ export function DataGrid() {
             onDelete={() => {}}
             onDuplicate={() => {}}
             onClear={() => setBlankRow({
-              dataInicio: new Date().toLocaleDateString('pt-BR'),
+              dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
               dataFim: '',
               documento: '',
               detalhe: '',

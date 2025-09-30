@@ -122,27 +122,30 @@ export function GridCell({
       <div className="p-1">
         <Input
           ref={inputRef}
-          type={type === 'date' ? 'date' : 'text'}
-          value={type === 'date' && localValue ? 
-            (() => {
-              const [dd, mm, yyyy] = localValue.split('/');
-              if (dd && mm && yyyy) {
-                return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-              }
-              return '';
-            })() : 
-            localValue
-          }
+          type="text"
+          value={localValue}
           onChange={(e) => {
             if (type === 'date') {
-              const iso = e.target.value;
-              if (iso) {
-                const [yyyy, mm, dd] = iso.split('-');
-                const br = `${dd.padStart(2, '0')}/${mm.padStart(2, '0')}/${yyyy}`;
-                setLocalValue(br);
+              let value = e.target.value;
+              // Remove non-numeric characters except dashes
+              value = value.replace(/[^0-9-]/g, '');
+              
+              // Auto-format as user types (dd-mm-aaaa)
+              if (value.length <= 2) {
+                // Just day
+                value = value;
+              } else if (value.length <= 5) {
+                // Day and month
+                value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+              } else if (value.length <= 10) {
+                // Day, month, and year
+                value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
               } else {
-                setLocalValue('');
+                // Limit to 10 characters (dd-mm-aaaa)
+                value = value.substring(0, 10);
               }
+              
+              setLocalValue(value);
             } else {
               setLocalValue(e.target.value);
             }
@@ -150,7 +153,11 @@ export function GridCell({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           className="border-0 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
-          placeholder={type === 'date' ? 'dd/mm/aaaa' : ''}
+          placeholder={type === 'date' ? 'dd-mm-aaaa' : ''}
+          maxLength={type === 'date' ? 10 : undefined}
+          inputMode={type === 'date' ? 'numeric' : undefined}
+          autoComplete={type === 'date' ? 'off' : undefined}
+          spellCheck={type === 'date' ? false : undefined}
         />
       </div>
     );
@@ -164,7 +171,7 @@ export function GridCell({
       <span className="text-sm text-foreground truncate">
         {formatDisplayValue(value) || (
           <span className="text-muted-foreground italic">
-            {type === 'date' ? 'dd/mm/aaaa' : 'Clique para editar'}
+            {type === 'date' ? 'dd-mm-aaaa' : 'Clique para editar'}
           </span>
         )}
       </span>

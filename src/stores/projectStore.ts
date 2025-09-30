@@ -62,7 +62,7 @@ export const useProjectStore = create<ProjectStore>()(
         // Auto rules on create
         // If status is Finalizado and dataFim is empty -> set today
         if (newDocument.status === 'Finalizado' && !newDocument.dataFim) {
-          newDocument.dataFim = new Date().toLocaleDateString('pt-BR');
+          newDocument.dataFim = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
         }
         // If dataFim is provided -> force status Finalizado
         if (newDocument.dataFim && newDocument.status !== 'Finalizado') {
@@ -140,7 +140,7 @@ export const useProjectStore = create<ProjectStore>()(
                     return doc; // reject invalid transition
                   }
                   if (!updatedDoc.dataFim) {
-                    updatedDoc.dataFim = new Date().toLocaleDateString('pt-BR');
+                    updatedDoc.dataFim = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
                   }
                 } else {
                   // If moving away from Finalizado, clear dataFim
@@ -240,7 +240,7 @@ export const useProjectStore = create<ProjectStore>()(
         const mandatoryFilled = (doc: ProjectDocument) =>
           !!doc.dataInicio && !!doc.documento && !!doc.responsavel && !!doc.status;
 
-        return documents.filter((doc) => {
+        const filtered = documents.filter((doc) => {
           if (doc.isCleared) return false;
           if (!mandatoryFilled(doc)) return false;
           // Search filter
@@ -271,20 +271,40 @@ export const useProjectStore = create<ProjectStore>()(
           
           // Date range filter
           if (filters.dateRange.start || filters.dateRange.end) {
-            const docDate = parseBRDateLocal(doc.dataInicio);
-            if (!docDate) return false;
-            if (filters.dateRange.start) {
-              const startDate = parseBRDateLocal(filters.dateRange.start) ?? null;
-              if (startDate && docDate < startDate) return false;
-            }
-            if (filters.dateRange.end) {
-              const endDate = parseBRDateLocal(filters.dateRange.end) ?? null;
-              if (endDate && docDate > endDate) return false;
+            const docStartDate = parseBRDateLocal(doc.dataInicio);
+            const docEndDate = parseBRDateLocal(doc.dataFim);
+            
+            // If both start and end filters are provided, check if document is completely within the range
+            if (filters.dateRange.start && filters.dateRange.end) {
+              const filterStartDate = parseBRDateLocal(filters.dateRange.start);
+              const filterEndDate = parseBRDateLocal(filters.dateRange.end);
+              
+              if (!filterStartDate || !filterEndDate) return false;
+              
+              // Document must be completely within the filter range:
+              // 1. Document start date >= filter start date
+              // 2. Document end date <= filter end date
+              if (!docStartDate || docStartDate < filterStartDate) return false;
+              if (!docEndDate || docEndDate > filterEndDate) return false;
+            } else {
+              // Only start date filter: document must start on or after this date
+              if (filters.dateRange.start) {
+                const filterStartDate = parseBRDateLocal(filters.dateRange.start);
+                if (!docStartDate || !filterStartDate || docStartDate < filterStartDate) return false;
+              }
+              
+              // Only end date filter: document must end on or before this date
+              if (filters.dateRange.end) {
+                const filterEndDate = parseBRDateLocal(filters.dateRange.end);
+                if (!docEndDate || !filterEndDate || docEndDate > filterEndDate) return false;
+              }
             }
           }
           
           return true;
         });
+        
+        return filtered;
       },
 
       getTableDocuments: () => {
@@ -320,15 +340,33 @@ export const useProjectStore = create<ProjectStore>()(
           
           // Date range filter
           if (filters.dateRange.start || filters.dateRange.end) {
-            const docDate = parseBRDateLocal(doc.dataInicio);
-            if (!docDate) return false;
-            if (filters.dateRange.start) {
-              const startDate = parseBRDateLocal(filters.dateRange.start) ?? null;
-              if (startDate && docDate < startDate) return false;
-            }
-            if (filters.dateRange.end) {
-              const endDate = parseBRDateLocal(filters.dateRange.end) ?? null;
-              if (endDate && docDate > endDate) return false;
+            const docStartDate = parseBRDateLocal(doc.dataInicio);
+            const docEndDate = parseBRDateLocal(doc.dataFim);
+            
+            // If both start and end filters are provided, check if document is completely within the range
+            if (filters.dateRange.start && filters.dateRange.end) {
+              const filterStartDate = parseBRDateLocal(filters.dateRange.start);
+              const filterEndDate = parseBRDateLocal(filters.dateRange.end);
+              
+              if (!filterStartDate || !filterEndDate) return false;
+              
+              // Document must be completely within the filter range:
+              // 1. Document start date >= filter start date
+              // 2. Document end date <= filter end date
+              if (!docStartDate || docStartDate < filterStartDate) return false;
+              if (!docEndDate || docEndDate > filterEndDate) return false;
+            } else {
+              // Only start date filter: document must start on or after this date
+              if (filters.dateRange.start) {
+                const filterStartDate = parseBRDateLocal(filters.dateRange.start);
+                if (!docStartDate || !filterStartDate || docStartDate < filterStartDate) return false;
+              }
+              
+              // Only end date filter: document must end on or before this date
+              if (filters.dateRange.end) {
+                const filterEndDate = parseBRDateLocal(filters.dateRange.end);
+                if (!docEndDate || !filterEndDate || docEndDate > filterEndDate) return false;
+              }
             }
           }
           
@@ -420,8 +458,8 @@ export const useProjectStore = create<ProjectStore>()(
       loadSampleData: () => {
         const sampleDocuments: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>[] = [
           {
-            dataInicio: '15/01/2024',
-            dataFim: '28/02/2024',
+            dataInicio: '15-01-2024',
+            dataFim: '28-02-2024',
             documento: 'Projeto Estrutural Edifício Alpha',
             detalhe: 'Cálculo estrutural completo para edifício comercial de 15 andares',
             revisao: 'R2',
@@ -431,7 +469,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'João Silva; Maria Santos; Pedro Costa'
           },
           {
-            dataInicio: '03/02/2024',
+            dataInicio: '03-02-2024',
             dataFim: '',
             documento: 'Instalações Hidráulicas Residencial Beta',
             detalhe: 'Projeto de instalações hidráulicas e sanitárias para condomínio residencial',
@@ -442,7 +480,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Maria Santos; Ana Oliveira'
           },
           {
-            dataInicio: '10/03/2024',
+            dataInicio: '10-03-2024',
             dataFim: '',
             documento: 'Análise Geotécnica Terreno Gamma',
             detalhe: 'Estudo de solo e fundações para complexo industrial',
@@ -453,8 +491,8 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Pedro Costa; Carlos Lima'
           },
           {
-            dataInicio: '20/03/2024',
-            dataFim: '15/05/2024',
+            dataInicio: '20-03-2024',
+            dataFim: '15-05-2024',
             documento: 'Memorial de Cálculo Ponte Delta',
             detalhe: 'Dimensionamento estrutural de ponte rodoviária em concreto armado',
             revisao: 'R3',
@@ -464,7 +502,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Ana Oliveira; João Silva; Rafael Torres'
           },
           {
-            dataInicio: '05/04/2024',
+            dataInicio: '05-04-2024',
             dataFim: '',
             documento: 'Projeto Elétrico Centro Comercial',
             detalhe: 'Sistema elétrico completo para centro comercial de 3 pavimentos',
@@ -475,7 +513,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Carlos Lima; Fernanda Rocha'
           },
           {
-            dataInicio: '12/05/2024',
+            dataInicio: '12-05-2024',
             dataFim: '',
             documento: 'Estudo de Viabilidade Solar',
             detalhe: 'Análise de implementação de sistema fotovoltaico em indústria',
@@ -486,8 +524,8 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Fernanda Rocha; Carlos Lima'
           },
           {
-            dataInicio: '25/05/2024',
-            dataFim: '10/07/2024',
+            dataInicio: '25-05-2024',
+            dataFim: '10-07-2024',
             documento: 'Relatório de Impacto Ambiental',
             detalhe: 'RIA para aprovação de projeto industrial em área de preservação',
             revisao: 'R2',
@@ -497,7 +535,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Rafael Torres; Fernanda Rocha; Ana Oliveira'
           },
           {
-            dataInicio: '15/06/2024',
+            dataInicio: '15-06-2024',
             dataFim: '',
             documento: 'Projeto Arquitetônico Hospital',
             detalhe: 'Anteprojeto arquitetônico para hospital público de médio porte',
@@ -518,17 +556,37 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'project-tracker-storage',
-      version: 3,
+      version: 4,
       migrate: (persistedState: any) => {
         try {
           const prev = persistedState?.state ?? {};
           const docs: ProjectDocument[] = Array.isArray(prev.documents) ? prev.documents : [];
+          
+          // Migrate date format from dd/mm/yyyy to dd-mm-aaaa and add isCleared field
           const normalized = docs.map((doc) => {
-            if (doc.dataFim && doc.status !== 'Finalizado') {
-              return { ...doc, status: 'Finalizado' } as ProjectDocument;
+            let migratedDoc = { ...doc };
+            
+            // Convert date format from dd/mm/yyyy to dd-mm-aaaa
+            if (migratedDoc.dataInicio && migratedDoc.dataInicio.includes('/')) {
+              migratedDoc.dataInicio = migratedDoc.dataInicio.replace(/\//g, '-');
             }
-            return doc;
+            if (migratedDoc.dataFim && migratedDoc.dataFim.includes('/')) {
+              migratedDoc.dataFim = migratedDoc.dataFim.replace(/\//g, '-');
+            }
+            
+            // Add isCleared field if missing
+            if (migratedDoc.isCleared === undefined) {
+              migratedDoc.isCleared = false;
+            }
+            
+            // Ensure status consistency
+            if (migratedDoc.dataFim && migratedDoc.status !== 'Finalizado') {
+              migratedDoc.status = 'Finalizado';
+            }
+            
+            return migratedDoc as ProjectDocument;
           });
+          
           return {
             state: {
               documents: normalized,
