@@ -1,0 +1,43 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const KpiCards = () => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Emitidos Card */}
+      <Card className="bg-muted/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium text-muted-foreground">
+            Emitidos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-4xl font-bold text-primary">
+            65%
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Documentos emitidos do total planejado
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Aprovados Card */}
+      <Card className="bg-muted/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium text-muted-foreground">
+            Aprovados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-4xl font-bold text-primary">
+            70%
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Percentual de documentos emitidos aprovados
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default KpiCards;

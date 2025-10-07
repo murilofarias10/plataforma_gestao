@@ -1,0 +1,83 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download } from "lucide-react";
+
+interface FiltersBarProps {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  onDateRangeChange: (dateRange: { start: string; end: string }) => void;
+  selectedDiscipline: string;
+  onDisciplineChange: (discipline: string) => void;
+  onGenerateReport: () => void;
+}
+
+const FiltersBar = ({ 
+  dateRange, 
+  onDateRangeChange, 
+  selectedDiscipline, 
+  onDisciplineChange, 
+  onGenerateReport 
+}: FiltersBarProps) => {
+  return (
+    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+      {/* Date Filter */}
+      <div className="flex-1">
+        <Label htmlFor="date-filter" className="text-sm font-medium mb-2 block">
+          Data Fim Fluxo
+        </Label>
+        <div className="flex gap-2 items-center">
+          <Input
+            id="start-date"
+            type="date"
+            value={dateRange.start}
+            onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
+            className="w-40"
+          />
+          <span className="text-muted-foreground">até</span>
+          <Input
+            id="end-date"
+            type="date"
+            value={dateRange.end}
+            onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
+            className="w-40"
+          />
+        </div>
+      </div>
+
+      {/* Discipline Filter */}
+      <div className="flex-1">
+        <Label htmlFor="discipline-filter" className="text-sm font-medium mb-2 block">
+          Disciplina
+        </Label>
+        <Select value={selectedDiscipline} onValueChange={onDisciplineChange}>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue placeholder="Selecione uma disciplina" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="Civil">Civil</SelectItem>
+            <SelectItem value="Structural">Structural</SelectItem>
+            <SelectItem value="Mechanical">Mechanical</SelectItem>
+            <SelectItem value="Electrical">Electrical</SelectItem>
+            <SelectItem value="Piping">Piping</SelectItem>
+            <SelectItem value="Instrumentation">Instrumentation</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Generate Report Button */}
+      <div>
+        <Button onClick={onGenerateReport} className="flex items-center gap-2">
+          <Download className="h-4 w-4" />
+          Gerar Relatório
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default FiltersBar;

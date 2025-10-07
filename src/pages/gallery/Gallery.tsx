@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, Settings } from "lucide-react";
+import { FileSpreadsheet, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Gallery = () => {
@@ -54,25 +54,24 @@ const Gallery = () => {
             </CardContent>
           </Card>
 
-          {/* Second Tool Card - Placeholder */}
-          <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-2 hover:border-primary/20 opacity-60">
+          {/* Document Monitor Card */}
+          <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-2 hover:border-primary/20">
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 p-4 bg-muted rounded-full w-fit">
-                <Settings className="h-8 w-8 text-muted-foreground" />
+              <div className="mx-auto mb-4 p-4 bg-primary/10 rounded-full w-fit group-hover:bg-primary/20 transition-colors">
+                <BarChart3 className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-xl">Ferramenta 2</CardTitle>
+              <CardTitle className="text-xl">Monitor de Documentos</CardTitle>
               <CardDescription className="text-base">
-                Nova ferramenta em desenvolvimento. Em breve disponível.
+                Monitoramento de status de documentos técnicos com dashboard de acompanhamento
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <Button 
-                variant="outline"
+                onClick={() => navigate('/document-monitor')}
                 className="w-full"
                 size="lg"
-                disabled
               >
-                Em Breve
+                Acessar Monitor de Documentos
               </Button>
             </CardContent>
           </Card>
