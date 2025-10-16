@@ -56,11 +56,11 @@ export function FiltersBar() {
 
   return (
     <div className="space-y-4">
-      {/* All Filters in One Line */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
+      {/* All Filters in One Line - Optimized for single row */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Filtros:</span>
+          <span className="text-sm font-medium text-foreground whitespace-nowrap">Filtros:</span>
         </div>
 
         <MultiSelect
@@ -68,7 +68,7 @@ export function FiltersBar() {
           value={filters.statusFilter}
           onChange={(values) => setFilters({ statusFilter: values })}
           placeholder="Status"
-          className="w-32"
+          className="w-28 min-w-[112px] flex-shrink-0"
         />
 
         <MultiSelect
@@ -76,7 +76,7 @@ export function FiltersBar() {
           value={filters.areaFilter}
           onChange={(values) => setFilters({ areaFilter: values })}
           placeholder="Área"
-          className="w-32"
+          className="w-28 min-w-[112px] flex-shrink-0"
         />
 
         <MultiSelect
@@ -84,11 +84,11 @@ export function FiltersBar() {
           value={filters.responsavelFilter}
           onChange={(values) => setFilters({ responsavelFilter: values })}
           placeholder="Responsável"
-          className="w-36"
+          className="w-32 min-w-[128px] flex-shrink-0"
         />
 
         {/* Data início */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <span className="text-xs text-muted-foreground whitespace-nowrap">Data Início:</span>
           <div className="relative">
             <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -118,7 +118,7 @@ export function FiltersBar() {
                 setFilters({ dateRange: { ...filters.dateRange, start: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-8 w-40"
+              className="pl-8 w-36 min-w-[144px]"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -128,7 +128,7 @@ export function FiltersBar() {
         </div>
 
         {/* Data fim */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <span className="text-xs text-muted-foreground whitespace-nowrap">Data Fim:</span>
           <div className="relative">
             <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -158,7 +158,7 @@ export function FiltersBar() {
                 setFilters({ dateRange: { ...filters.dateRange, end: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-8 w-40"
+              className="pl-8 w-36 min-w-[144px]"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -168,13 +168,13 @@ export function FiltersBar() {
         </div>
 
         {/* Buscar documentos */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar documentos..."
             value={filters.searchQuery}
             onChange={(e) => setFilters({ searchQuery: e.target.value })}
-            className="pl-10 w-48"
+            className="pl-10 w-44 min-w-[176px]"
           />
         </div>
 
@@ -183,10 +183,11 @@ export function FiltersBar() {
             variant="outline"
             size="sm"
             onClick={resetFilters}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-shrink-0"
           >
             <RotateCcw className="h-3 w-3" />
-            Limpar filtros
+            <span className="hidden sm:inline">Limpar filtros</span>
+            <span className="sm:hidden">Limpar</span>
           </Button>
         )}
       </div>
