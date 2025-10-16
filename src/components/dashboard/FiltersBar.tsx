@@ -75,7 +75,7 @@ export function FiltersBar() {
           options={areaOptions}
           value={filters.areaFilter}
           onChange={(values) => setFilters({ areaFilter: values })}
-          placeholder="Área"
+          placeholder="Disciplina"
           className="w-28 min-w-[112px] flex-shrink-0"
         />
 
@@ -167,11 +167,11 @@ export function FiltersBar() {
           </div>
         </div>
 
-        {/* Buscar documentos */}
+        {/* Buscar tópicos */}
         <div className="relative flex-shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar documentos..."
+            placeholder="Buscar tópicos..."
             value={filters.searchQuery}
             onChange={(e) => setFilters({ searchQuery: e.target.value })}
             className="pl-10 w-44 min-w-[176px]"

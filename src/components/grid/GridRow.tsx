@@ -1,6 +1,5 @@
 import React from "react";
 import { ProjectDocument } from "@/types/project";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Copy, RotateCcw, MoreHorizontal } from "lucide-react";
@@ -22,8 +21,6 @@ interface Column {
 interface GridRowProps {
   document: ProjectDocument;
   columns: Column[];
-  isSelected: boolean;
-  onToggleSelect: () => void;
   editingCell: { id: string; field: string } | null;
   onCellEdit: (id: string, field: string, value: any) => void;
   onStartEdit: (field: string) => void;
@@ -40,8 +37,6 @@ interface GridRowProps {
 export function GridRow({
   document,
   columns,
-  isSelected,
-  onToggleSelect,
   editingCell,
   onCellEdit,
   onStartEdit,
@@ -73,19 +68,9 @@ export function GridRow({
     <div 
       className={`flex items-center border-b border-border transition-colors hover:bg-muted/30 ${
         isEven ? 'bg-muted/10' : 'bg-background'
-      } ${isSelected ? 'bg-primary/5' : ''}`}
-      style={{ display: 'grid', gridTemplateColumns: `32px 32px ${columns.map(col => col.width).join(' ')} 80px` }}
+      }`}
+      style={{ display: 'grid', gridTemplateColumns: `32px ${columns.map(col => col.width).join(' ')} 80px` }}
     >
-      <div className="p-1 border-r border-border">
-        {!isBlankRow && (
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onToggleSelect}
-            className="mx-auto"
-          />
-        )}
-      </div>
-      
       <div className="p-1 text-center text-xs text-muted-foreground border-r border-border">
         {rowNumber}
       </div>
