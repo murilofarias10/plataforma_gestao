@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { Header } from "@/components/layout/Header";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { TimelineChart } from "@/components/dashboard/TimelineChart";
 import { StatusBarChart } from "@/components/dashboard/StatusBarChart";
@@ -7,13 +6,11 @@ import { FiltersBar } from "@/components/dashboard/FiltersBar";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
 import { Button } from "@/components/ui/button";
-import { Database, Save, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Database, Save } from "lucide-react";
 import { toast } from "sonner";
 
 const ProjectTracker = () => {
   const { documents, loadSampleData } = useProjectStore();
-  const navigate = useNavigate();
 
   // Load sample data when there's no persisted documents
   useEffect(() => {
@@ -60,22 +57,8 @@ const ProjectTracker = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
+    <div className="h-full bg-background">
       <main className="container mx-auto px-6 py-6 space-y-8">
-        {/* Navigation */}
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar ao Menu
-          </Button>
-        </div>
 
         {/* Dashboard Section */}
         <section className="space-y-6">
