@@ -62,18 +62,13 @@ export function GridRow({
     }
   };
 
-  const rowNumber = isBlankRow ? "+" : ""; // Show + for blank row
-
   return (
     <div 
       className={`flex items-center border-b border-border transition-colors hover:bg-muted/30 ${
         isEven ? 'bg-muted/10' : 'bg-background'
       }`}
-      style={{ display: 'grid', gridTemplateColumns: `32px ${columns.map(col => col.width).join(' ')} 80px` }}
+      style={{ display: 'grid', gridTemplateColumns: `${columns.map(col => col.width).join(' ')} 80px` }}
     >
-      <div className="p-1 text-center text-xs text-muted-foreground border-r border-border">
-        {rowNumber}
-      </div>
 
       {columns.map((column) => {
         const isEditing = editingCell?.id === document.id && editingCell?.field === column.key;
