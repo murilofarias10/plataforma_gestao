@@ -264,15 +264,15 @@ export const useProjectStore = create<ProjectStore>()(
           const newDocument: ProjectDocument = {
             id: crypto.randomUUID(),
             projectId: selectedProjectId,
-            dataInicio: docToDuplicate.dataInicio, // Copy only Data Inicio
+            dataInicio: docToDuplicate.dataInicio, // Copy Data Inicio
             dataFim: '', // Set to blank
-            documento: '', // Set to blank
+            documento: docToDuplicate.documento, // Copy Tópico (documento)
             detalhe: '', // Set to blank
             revisao: '', // Set to blank
-            responsavel: '', // Set to blank
+            responsavel: docToDuplicate.responsavel, // Copy Responsável
             status: 'A iniciar' as const, // Set to default status
             area: '', // Set to blank
-            participantes: docToDuplicate.participantes, // Copy only Participantes
+            participantes: docToDuplicate.participantes, // Copy Participantes
             createdAt: new Date(),
             updatedAt: new Date(),
             isCleared: false,
