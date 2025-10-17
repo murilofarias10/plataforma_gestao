@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useProjectStore } from "@/stores/projectStore";
 import KpiCards from "./components/KpiCards";
 import FiltersBar from "./components/FiltersBar";
 import SCurveChart from "./components/SCurveChart";
@@ -7,6 +8,8 @@ import StatusBarChart from "./components/StatusBarChart";
 import DocumentStatusTable from "./components/DocumentStatusTable";
 
 const DocumentMonitor = () => {
+  const { getSelectedProject } = useProjectStore();
+  const selectedProject = getSelectedProject();
   const [dateRange, setDateRange] = useState({
     start: "09/01/2025",
     end: "09/09/2025"
@@ -22,6 +25,19 @@ const DocumentMonitor = () => {
     <div className="h-full bg-background">
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-foreground">
+            Monitor de Documentos
+            {selectedProject && (
+              <span className="text-lg font-normal text-muted-foreground ml-2">
+                - {selectedProject.name}
+              </span>
+            )}
+          </h2>
+          <p className="text-muted-foreground">Monitoramento de status de documentos técnicos</p>
+        </div>
+
         {/* KPI Cards */}
         <div className="mb-8">
           <KpiCards />

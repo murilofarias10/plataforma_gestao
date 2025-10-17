@@ -12,24 +12,32 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const ProjectTracker = () => {
-  const { documents, loadSampleData } = useProjectStore();
+  const { documents, projects, loadSampleData, getSelectedProject, initializeDefaultProject } = useProjectStore();
+  const selectedProject = getSelectedProject();
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
 
-  // Load sample data when there's no persisted documents
+  // Initialize default project if none exists
   useEffect(() => {
-    if (documents.length === 0) {
+    if (projects.length === 0) {
+      initializeDefaultProject();
+    }
+  }, [projects.length, initializeDefaultProject]);
+
+  // Load sample data when there are no projects
+  useEffect(() => {
+    if (projects.length === 0) {
       try {
         const stored = localStorage.getItem('project-tracker-storage');
         const parsed = stored ? JSON.parse(stored) : null;
-        const persistedCount = parsed?.state?.documents?.length ?? 0;
-        if (persistedCount === 0) {
+        const persistedProjectsCount = parsed?.state?.projects?.length ?? 0;
+        if (persistedProjectsCount === 0) {
           loadSampleData();
         }
       } catch {
         loadSampleData();
       }
     }
-  }, [documents.length, loadSampleData]);
+  }, [projects.length, loadSampleData]);
 
   // Clear any persisted store created before version bump or with Dec/2023 anomaly
   useEffect(() => {
@@ -59,6 +67,12 @@ const ProjectTracker = () => {
     toast.success("Dados salvos com sucesso!");
   };
 
+  const handleReloadData = () => {
+    localStorage.removeItem('project-tracker-storage');
+    loadSampleData();
+    toast.success("Dados recarregados com sucesso!");
+  };
+
   return (
     <div className="h-full bg-background">
       <main className="container mx-auto px-6 py-6 space-y-6">
@@ -67,19 +81,36 @@ const ProjectTracker = () => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">Project Tracker</h2>
+              <h2 className="text-2xl font-bold text-foreground">
+                Project Tracker
+                {selectedProject && (
+                  <span className="text-lg font-normal text-muted-foreground ml-2">
+                    - {selectedProject.name}
+                  </span>
+                )}
+              </h2>
               <p className="text-muted-foreground">Controle de documentos e acompanhamento de projetos</p>
             </div>
             
-            {documents.length === 0 && (
-              <Button 
-                onClick={loadSampleData}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Database className="h-4 w-4" />
-                Carregar dados de exemplo
-              </Button>
+            {projects.length === 0 && (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={loadSampleData}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Database className="h-4 w-4" />
+                  Carregar dados de exemplo
+                </Button>
+                <Button 
+                  onClick={handleReloadData}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Database className="h-4 w-4" />
+                  Recarregar dados
+                </Button>
+              </div>
             )}
           </div>
 

@@ -1,5 +1,14 @@
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ProjectDocument {
   id: string;
+  projectId: string; // Reference to the project this document belongs to
   dataInicio: string; // dd/mm/yyyy
   dataFim: string; // dd/mm/yyyy
   documento: string;

@@ -1,14 +1,22 @@
 import { create } from 'zustand';
-import { ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
+import { Project, ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
 import { persist } from 'zustand/middleware';
 import { parseBRDateLocal } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 interface ProjectStore {
+  projects: Project[];
   documents: ProjectDocument[];
+  selectedProjectId: string | null;
   filters: ProjectFilters;
   
-  // Actions
+  // Project management
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
+  setSelectedProject: (projectId: string) => void;
+  
+  // Document management
   addDocument: (document: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
   deleteDocument: (id: string) => void;
@@ -21,6 +29,7 @@ interface ProjectStore {
   resetFilters: () => void;
   
   // Computed
+  getSelectedProject: () => Project | null;
   getFilteredDocuments: () => ProjectDocument[];
   getTableDocuments: () => ProjectDocument[];
   getKpiData: () => KpiData;
@@ -31,6 +40,8 @@ interface ProjectStore {
   
   // Sample data
   loadSampleData: () => void;
+  initializeDefaultProject: () => void;
+  clearAllData: () => void;
 }
 
 const defaultFilters: ProjectFilters = {
@@ -47,12 +58,78 @@ const defaultFilters: ProjectFilters = {
 export const useProjectStore = create<ProjectStore>()(
   persist(
     (set, get) => ({
+      projects: [],
       documents: [],
+      selectedProjectId: null,
       filters: defaultFilters,
 
+      // Project management
+      addProject: (project) => {
+        const newProject: Project = {
+          ...project,
+          id: crypto.randomUUID(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        set((state) => ({
+          projects: [...state.projects, newProject],
+          selectedProjectId: state.selectedProjectId || newProject.id, // Set as selected if none selected
+        }));
+      },
+
+      updateProject: (id, updates) => {
+        set((state) => ({
+          projects: state.projects.map((project) => 
+            project.id === id 
+              ? { ...project, ...updates, updatedAt: new Date() }
+              : project
+          )
+        }));
+      },
+
+      deleteProject: (id) => {
+        const { projects } = get();
+        
+        // Prevent deleting the last project
+        if (projects.length <= 1) {
+          toast({
+            title: 'Não é possível excluir',
+            description: 'Deve haver pelo menos um projeto. Crie outro projeto antes de excluir este.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        set((state) => ({
+          projects: state.projects.filter((project) => project.id !== id),
+          documents: state.documents.filter((doc) => doc.projectId !== id),
+          selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId,
+        }));
+      },
+
+      setSelectedProject: (projectId) => {
+        set({ selectedProjectId: projectId });
+      },
+
+      getSelectedProject: () => {
+        const { projects, selectedProjectId } = get();
+        return projects.find((project) => project.id === selectedProjectId) || null;
+      },
+
       addDocument: (document) => {
+        const { selectedProjectId } = get();
+        if (!selectedProjectId) {
+          toast({
+            title: 'Erro',
+            description: 'Nenhum projeto selecionado',
+          });
+          return;
+        }
+
         const newDocument: ProjectDocument = {
           ...document,
+          projectId: selectedProjectId,
           id: crypto.randomUUID(),
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -173,11 +250,20 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       duplicateDocument: (id) => {
-        const { documents } = get();
+        const { documents, selectedProjectId } = get();
+        if (!selectedProjectId) {
+          toast({
+            title: 'Erro',
+            description: 'Nenhum projeto selecionado',
+          });
+          return;
+        }
+
         const docToDuplicate = documents.find((doc) => doc.id === id);
         if (docToDuplicate) {
           const newDocument: ProjectDocument = {
             id: crypto.randomUUID(),
+            projectId: selectedProjectId,
             dataInicio: docToDuplicate.dataInicio, // Copy only Data Inicio
             dataFim: '', // Set to blank
             documento: '', // Set to blank
@@ -241,13 +327,18 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       getFilteredDocuments: () => {
-        const { documents, filters } = get();
+        const { documents, filters, selectedProjectId } = get();
+        
+        if (!selectedProjectId) return [];
+        
+        // Filter by selected project first
+        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
         
         // Exclude cleared rows and rows missing mandatory fields
         const mandatoryFilled = (doc: ProjectDocument) =>
           !!doc.dataInicio && !!doc.documento && !!doc.responsavel && !!doc.status;
 
-        const filtered = documents.filter((doc) => {
+        const filtered = projectDocuments.filter((doc) => {
           if (doc.isCleared) return false;
           if (!mandatoryFilled(doc)) return false;
           // Search filter
@@ -315,10 +406,15 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       getTableDocuments: () => {
-        const { documents, filters } = get();
+        const { documents, filters, selectedProjectId } = get();
+        
+        if (!selectedProjectId) return [];
+        
+        // Filter by selected project first
+        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
         
         // For table: show all rows (including cleared/incomplete) but apply filters
-        return documents.filter((doc) => {
+        return projectDocuments.filter((doc) => {
           // Search filter
           if (filters.searchQuery) {
             const query = filters.searchQuery.toLowerCase();
@@ -452,19 +548,39 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       getUniqueAreas: () => {
-        const { documents } = get();
-        return [...new Set(documents.map(doc => doc.area).filter(Boolean))];
+        const { documents, selectedProjectId } = get();
+        if (!selectedProjectId) return [];
+        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
+        return [...new Set(projectDocuments.map(doc => doc.area).filter(Boolean))];
       },
 
       getUniqueResponsaveis: () => {
-        const { documents } = get();
-        return [...new Set(documents.map(doc => doc.responsavel).filter(Boolean))];
+        const { documents, selectedProjectId } = get();
+        if (!selectedProjectId) return [];
+        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
+        return [...new Set(projectDocuments.map(doc => doc.responsavel).filter(Boolean))];
       },
 
 
       loadSampleData: () => {
+        // First create a sample project
+        const sampleProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+          name: 'RUMO 12',
+          description: 'Projeto de infraestrutura ferroviária',
+        };
+        
+        const { addProject } = get();
+        addProject(sampleProject);
+        
+        // Get the created project ID
+        const { projects, selectedProjectId } = get();
+        const projectId = selectedProjectId || projects[0]?.id;
+        
+        if (!projectId) return;
+        
         const sampleDocuments: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>[] = [
           {
+            projectId: projectId,
             dataInicio: '15-01-2024',
             dataFim: '28-02-2024',
             documento: 'Projeto Estrutural Edifício Alpha',
@@ -476,6 +592,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'João Silva; Maria Santos; Pedro Costa'
           },
           {
+            projectId: projectId,
             dataInicio: '03-02-2024',
             dataFim: '',
             documento: 'Instalações Hidráulicas Residencial Beta',
@@ -487,6 +604,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Maria Santos; Ana Oliveira'
           },
           {
+            projectId: projectId,
             dataInicio: '10-03-2024',
             dataFim: '',
             documento: 'Análise Geotécnica Terreno Gamma',
@@ -498,6 +616,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Pedro Costa; Carlos Lima'
           },
           {
+            projectId: projectId,
             dataInicio: '20-03-2024',
             dataFim: '15-05-2024',
             documento: 'Memorial de Cálculo Ponte Delta',
@@ -509,6 +628,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Ana Oliveira; João Silva; Rafael Torres'
           },
           {
+            projectId: projectId,
             dataInicio: '05-04-2024',
             dataFim: '',
             documento: 'Projeto Elétrico Centro Comercial',
@@ -520,6 +640,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Carlos Lima; Fernanda Rocha'
           },
           {
+            projectId: projectId,
             dataInicio: '12-05-2024',
             dataFim: '',
             documento: 'Estudo de Viabilidade Solar',
@@ -531,6 +652,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Fernanda Rocha; Carlos Lima'
           },
           {
+            projectId: projectId,
             dataInicio: '25-05-2024',
             dataFim: '10-07-2024',
             documento: 'Relatório de Impacto Ambiental',
@@ -542,6 +664,7 @@ export const useProjectStore = create<ProjectStore>()(
             participantes: 'Rafael Torres; Fernanda Rocha; Ana Oliveira'
           },
           {
+            projectId: projectId,
             dataInicio: '15-06-2024',
             dataFim: '',
             documento: 'Projeto Arquitetônico Hospital',
@@ -554,16 +677,35 @@ export const useProjectStore = create<ProjectStore>()(
           }
         ];
 
-        // Clear existing documents and add sample data
-        set({ documents: [] });
+        // Add sample documents
         sampleDocuments.forEach(doc => {
           get().addDocument(doc);
+        });
+      },
+
+      initializeDefaultProject: () => {
+        const { projects } = get();
+        if (projects.length === 0) {
+          const defaultProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+            name: 'RUMO 12',
+            description: 'Projeto de infraestrutura ferroviária',
+          };
+          get().addProject(defaultProject);
+        }
+      },
+
+      clearAllData: () => {
+        set({
+          projects: [],
+          documents: [],
+          selectedProjectId: null,
+          filters: defaultFilters,
         });
       },
     }),
     {
       name: 'project-tracker-storage',
-      version: 4,
+      version: 5,
       migrate: (persistedState: any) => {
         try {
           const prev = persistedState?.state ?? {};
@@ -586,6 +728,11 @@ export const useProjectStore = create<ProjectStore>()(
               migratedDoc.isCleared = false;
             }
             
+            // Add projectId if missing (migrate existing documents to default project)
+            if (!migratedDoc.projectId) {
+              migratedDoc.projectId = 'default-project-id';
+            }
+            
             // Ensure status consistency
             if (migratedDoc.dataFim && migratedDoc.status !== 'Finalizado') {
               migratedDoc.status = 'Finalizado';
@@ -594,16 +741,30 @@ export const useProjectStore = create<ProjectStore>()(
             return migratedDoc as ProjectDocument;
           });
           
+          // Create default project for migrated documents
+          const defaultProject: Project = {
+            id: 'default-project-id',
+            name: 'RUMO 12',
+            description: 'Projeto de infraestrutura ferroviária',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
           return {
             state: {
+              projects: [defaultProject],
               documents: normalized,
+              selectedProjectId: 'default-project-id',
               filters: prev.filters ?? defaultFilters,
             }
           } as any;
         } catch {
+          // If migration fails, return empty state and let loadSampleData handle it
           return {
             state: {
+              projects: [],
               documents: [],
+              selectedProjectId: null,
               filters: defaultFilters,
             }
           } as any;

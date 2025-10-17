@@ -14,13 +14,15 @@ export function DataGrid() {
     updateDocument, 
     deleteDocument,
     duplicateDocument,
-    clearDocument 
+    clearDocument,
+    selectedProjectId
   } = useProjectStore();
   
   // Use table documents (includes cleared/incomplete rows for editing)
   const documents = getTableDocuments();
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
+    projectId: selectedProjectId || '',
     dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
     dataFim: '',
     documento: '',
@@ -33,6 +35,14 @@ export function DataGrid() {
   });
 
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Update blankRow projectId when selectedProjectId changes
+  useEffect(() => {
+    setBlankRow(prev => ({
+      ...prev,
+      projectId: selectedProjectId || ''
+    }));
+  }, [selectedProjectId]);
 
   const columns = [
     { key: 'dataInicio', label: 'Data Início*', type: 'date', width: '1fr' },
@@ -91,6 +101,7 @@ export function DataGrid() {
       
       // Reset blank row
       setBlankRow({
+        projectId: selectedProjectId || '',
         dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
         dataFim: '',
         documento: '',
@@ -107,7 +118,7 @@ export function DataGrid() {
         description: 'Preencha Data Início, Documento, Responsável e Status.',
       });
     }
-  }, [blankRow, addDocument]);
+  }, [blankRow, addDocument, selectedProjectId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === 'Enter') {

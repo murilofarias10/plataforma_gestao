@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { ProjectSelector } from "@/components/project/ProjectSelector";
 
 interface SidebarProps {
   className?: string;
@@ -75,6 +76,13 @@ const Sidebar = ({ className }: SidebarProps) => {
           )}
         </Button>
       </div>
+
+      {/* Project Selection */}
+      {!isCollapsed && (
+        <div className="p-4 border-b border-border">
+          <ProjectSelector />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
