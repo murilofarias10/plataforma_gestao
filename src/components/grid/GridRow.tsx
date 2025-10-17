@@ -2,7 +2,7 @@ import React from "react";
 import { ProjectDocument } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Copy, RotateCcw, MoreHorizontal } from "lucide-react";
+import { Trash2, Plus, RotateCcw, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,8 +116,8 @@ export function GridRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem onClick={onDuplicate}>
-                <Copy className="mr-2 h-3 w-3" />
-                Duplicar
+                <Plus className="mr-2 h-3 w-3" />
+                Adicionar
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onClear}>
                 <RotateCcw className="mr-2 h-3 w-3" />

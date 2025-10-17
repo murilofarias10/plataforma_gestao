@@ -177,9 +177,16 @@ export const useProjectStore = create<ProjectStore>()(
         const docToDuplicate = documents.find((doc) => doc.id === id);
         if (docToDuplicate) {
           const newDocument: ProjectDocument = {
-            ...docToDuplicate,
             id: crypto.randomUUID(),
-            documento: `${docToDuplicate.documento} (Cópia)`,
+            dataInicio: docToDuplicate.dataInicio, // Copy only Data Inicio
+            dataFim: '', // Set to blank
+            documento: '', // Set to blank
+            detalhe: '', // Set to blank
+            revisao: '', // Set to blank
+            responsavel: '', // Set to blank
+            status: 'A iniciar' as const, // Set to default status
+            area: '', // Set to blank
+            participantes: docToDuplicate.participantes, // Copy only Participantes
             createdAt: new Date(),
             updatedAt: new Date(),
             isCleared: false,
