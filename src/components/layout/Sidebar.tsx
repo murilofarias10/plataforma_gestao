@@ -37,7 +37,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   return (
     <div className={cn(
       "flex flex-col h-screen bg-card border-r border-border transition-all duration-300",
-      isCollapsed ? "w-16" : "w-64",
+      isCollapsed ? "w-16" : "w-80 min-w-80",
       className
     )}>
       {/* Header */}
@@ -51,7 +51,7 @@ const Sidebar = ({ className }: SidebarProps) => {
             />
             <div>
               <h1 className="text-lg font-bold text-foreground">KUBIK</h1>
-              <p className="text-xs text-muted-foreground">ENGINEERING</p>
+              <p className="text-xs text-muted-foreground">ENGENHARIA</p>
             </div>
           </div>
         )}
@@ -87,17 +87,25 @@ const Sidebar = ({ className }: SidebarProps) => {
               key={item.id}
               variant={isActive ? "default" : "ghost"}
               className={cn(
-                "w-full justify-start h-auto p-3",
-                isCollapsed && "px-2"
+                "w-full justify-start h-auto p-4 min-h-[4rem]",
+                isCollapsed && "px-2 py-3 min-h-[3rem]"
               )}
               onClick={() => navigate(item.path)}
             >
-              <div className="flex items-center gap-3">
-                <Icon className={cn("h-5 w-5 flex-shrink-0")} />
+              <div className="flex items-start gap-3 w-full">
+                <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5")} />
                 {!isCollapsed && (
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex flex-col items-start flex-1 min-w-0 pr-2">
+                    <span className={cn(
+                      "font-medium text-sm leading-tight block",
+                      isActive ? "text-primary-foreground" : "text-foreground"
+                    )}>
+                      {item.label}
+                    </span>
+                    <span className={cn(
+                      "text-xs leading-relaxed mt-1 block break-words whitespace-normal",
+                      isActive ? "text-primary-foreground/80" : "text-muted-foreground"
+                    )}>
                       {item.description}
                     </span>
                   </div>
@@ -111,7 +119,7 @@ const Sidebar = ({ className }: SidebarProps) => {
       {/* Footer */}
       {!isCollapsed && (
         <div className="p-4 border-t border-border">
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-xs text-muted-foreground text-center break-words">
             Plataforma de Gestão
           </p>
         </div>
