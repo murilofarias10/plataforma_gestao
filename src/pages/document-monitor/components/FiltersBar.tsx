@@ -1,8 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download } from "lucide-react";
 
 interface FiltersBarProps {
   dateRange: {
@@ -12,15 +10,13 @@ interface FiltersBarProps {
   onDateRangeChange: (dateRange: { start: string; end: string }) => void;
   selectedDiscipline: string;
   onDisciplineChange: (discipline: string) => void;
-  onGenerateReport: () => void;
 }
 
 const FiltersBar = ({ 
   dateRange, 
   onDateRangeChange, 
   selectedDiscipline, 
-  onDisciplineChange, 
-  onGenerateReport 
+  onDisciplineChange
 }: FiltersBarProps) => {
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
@@ -67,14 +63,6 @@ const FiltersBar = ({
             <SelectItem value="Instrumentation">Instrumentation</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Generate Report Button */}
-      <div>
-        <Button onClick={onGenerateReport} className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Gerar Relatório
-        </Button>
       </div>
     </div>
   );

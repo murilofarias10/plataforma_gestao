@@ -15,11 +15,6 @@ const DocumentMonitor = () => {
   });
   const [selectedDiscipline, setSelectedDiscipline] = useState("All");
 
-  const handleGenerateReport = () => {
-    // TODO: Implement report generation
-    console.log("Generating report with filters:", { dateRange, selectedDiscipline });
-  };
-
   return (
     <div className="h-full bg-background">
       {/* Main Content */}
@@ -42,14 +37,13 @@ const DocumentMonitor = () => {
           <KpiCards />
         </div>
 
-        {/* Filters and Generate Report */}
+        {/* Filters */}
         <div className="mb-8">
           <FiltersBar 
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
             selectedDiscipline={selectedDiscipline}
             onDisciplineChange={setSelectedDiscipline}
-            onGenerateReport={handleGenerateReport}
           />
         </div>
 

@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileSpreadsheet, BarChart3, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { ProjectSelector } from "@/components/project/ProjectSelector";
+import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
+import { generateComprehensiveReport } from "@/services/pdfReportGenerator";
 
 interface SidebarProps {
   className?: string;
@@ -11,6 +13,7 @@ interface SidebarProps {
 
 const Sidebar = ({ className }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,6 +36,15 @@ const Sidebar = ({ className }: SidebarProps) => {
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      await generateComprehensiveReport();
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+      throw error;
+    }
   };
 
   return (
@@ -124,6 +136,19 @@ const Sidebar = ({ className }: SidebarProps) => {
         })}
       </nav>
 
+      {/* Generate Report Button */}
+      {!isCollapsed && (
+        <div className="p-4">
+          <Button 
+            onClick={() => setIsReportDialogOpen(true)} 
+            className="w-full flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+          >
+            <Download className="h-4 w-4" />
+            Gerar Relatório
+          </Button>
+        </div>
+      )}
+
       {/* Footer */}
       {!isCollapsed && (
         <div className="p-4 border-t border-border">
@@ -132,6 +157,13 @@ const Sidebar = ({ className }: SidebarProps) => {
           </p>
         </div>
       )}
+      
+      {/* Report Generation Dialog */}
+      <ReportGenerationDialog
+        isOpen={isReportDialogOpen}
+        onClose={() => setIsReportDialogOpen(false)}
+        onGenerate={handleGenerateReport}
+      />
     </div>
   );
 };
