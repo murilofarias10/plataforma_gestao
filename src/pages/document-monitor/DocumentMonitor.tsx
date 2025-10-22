@@ -4,7 +4,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import KpiCards from "./components/KpiCards";
 import FiltersBar from "./components/FiltersBar";
 import SCurveChart from "./components/SCurveChart";
-import StatusBarChart from "./components/StatusBarChart";
 import DocumentStatusTable from "./components/DocumentStatusTable";
 
 const DocumentMonitor = () => {
@@ -55,7 +54,7 @@ const DocumentMonitor = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 gap-8 mb-8">
           {/* S-Curve Chart */}
           <Card>
             <CardHeader>
@@ -63,16 +62,6 @@ const DocumentMonitor = () => {
             </CardHeader>
             <CardContent>
               <SCurveChart />
-            </CardContent>
-          </Card>
-
-          {/* Status Bar Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Count of Nome do Arquivo by Status Emissão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatusBarChart />
             </CardContent>
           </Card>
         </div>
