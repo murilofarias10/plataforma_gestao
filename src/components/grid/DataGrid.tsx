@@ -32,6 +32,7 @@ export function DataGrid() {
     status: 'A iniciar',
     area: '',
     participantes: '',
+    attachments: [],
   });
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -49,11 +50,11 @@ export function DataGrid() {
     { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
     { key: 'documento', label: 'Tópico*', type: 'text', width: '2fr' },
     { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
-    { key: 'revisao', label: 'Anexo', type: 'text', width: '0.8fr' },
     { key: 'responsavel', label: 'Responsável*', type: 'text', width: '1.2fr' },
     { key: 'status', label: 'Status*', type: 'select', width: '1.2fr' },
     { key: 'area', label: 'Disciplina', type: 'text', width: '1fr' },
     { key: 'participantes', label: 'Participantes', type: 'text', width: '1.5fr' },
+    { key: 'revisao', label: 'Anexo', type: 'file', width: '0.8fr' },
   ];
 
   const handleCellEdit = useCallback((id: string, field: string, value: any) => {
@@ -111,6 +112,7 @@ export function DataGrid() {
         status: 'A iniciar',
         area: '',
         participantes: '',
+        attachments: [],
       });
     } else {
       toast({
@@ -185,6 +187,7 @@ export function DataGrid() {
               status: 'A iniciar',
               area: '',
               participantes: '',
+              attachments: [],
             })}
             onAdd={handleBlankRowSave}
             isBlankRow={true}

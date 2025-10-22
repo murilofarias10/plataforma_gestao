@@ -96,6 +96,8 @@ export function GridRow({
                 onStartEdit={() => onStartEdit(column.key)}
                 onStopEdit={onStopEdit}
                 onKeyDown={(e) => onKeyDown(e, document.id, column.key)}
+                projectId={document.projectId}
+                documentId={document.id}
               />
             )}
           </div>

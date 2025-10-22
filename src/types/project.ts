@@ -22,6 +22,17 @@ export interface ProjectDocument {
   updatedAt: Date;
   // When true, this row was cleared by the user and should be ignored by dashboards
   isCleared?: boolean;
+  // File attachment support
+  attachments?: ProjectAttachment[];
+}
+
+export interface ProjectAttachment {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  uploadedAt: Date;
+  filePath: string; // Path within the project's folder structure
 }
 
 export interface ProjectFilters {

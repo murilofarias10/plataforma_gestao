@@ -8,6 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FileUploadCell } from "./FileUploadCell";
+import { ProjectAttachment } from "@/types/project";
+import { Upload } from "lucide-react";
 
 interface GridCellProps {
   value: any;
@@ -17,6 +20,8 @@ interface GridCellProps {
   onStartEdit: () => void;
   onStopEdit: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
+  projectId?: string;
+  documentId?: string;
 }
 
 export function GridCell({
@@ -27,6 +32,8 @@ export function GridCell({
   onStartEdit,
   onStopEdit,
   onKeyDown,
+  projectId,
+  documentId,
 }: GridCellProps) {
   const [localValue, setLocalValue] = useState(value || '');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +85,18 @@ export function GridCell({
   };
 
   if (isEditing) {
+    if (type === 'file') {
+      return (
+        <FileUploadCell
+          attachments={value as ProjectAttachment[] || []}
+          onAttachmentsChange={(attachments) => onEdit(attachments)}
+          projectId={projectId || ''}
+          documentId={documentId || ''}
+          onModalClose={onStopEdit}
+        />
+      );
+    }
+
     if (type === 'select') {
       return (
         <div className="p-1">
@@ -159,6 +178,30 @@ export function GridCell({
           autoComplete={type === 'date' ? 'off' : undefined}
           spellCheck={type === 'date' ? false : undefined}
         />
+      </div>
+    );
+  }
+
+  // Handle file type display
+  if (type === 'file') {
+    const attachments = value as ProjectAttachment[] || [];
+    return (
+      <div
+        className="grid-cell p-2 cursor-pointer min-h-[40px] flex items-center"
+        onClick={onStartEdit}
+      >
+        {attachments.length > 0 ? (
+          <div className="flex items-center gap-1 text-sm">
+            <span className="text-primary">{attachments.length}</span>
+            <span className="text-muted-foreground">
+              {attachments.length === 1 ? 'arquivo' : 'arquivos'}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+          </div>
+        )}
       </div>
     );
   }

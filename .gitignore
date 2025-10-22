@@ -109,3 +109,63 @@ temp/
 # Turbo
 .turbo
 
+# Backend specific
+backend/node_modules/
+backend/uploads/
+backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+backend/logs/
+backend/*.log
+
+# Upload directories (keep structure but ignore content)
+uploads/
+!uploads/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE specific (additional)
+*.swp
+*.swo
+*~
+
+# OS specific (additional)
+.DS_Store?
+ehthumbs_vista.db
+Icon?
+
+# Project specific
+dist/
+build/
+.vite/
+
+# Environment files (additional)
+.env.development
+.env.staging
+.env.production
+
+# Package manager lock files (optional - uncomment if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Test coverage
+coverage/
+.nyc_output/
+junit.xml
+
+# Storybook
+storybook-static/
+
+# Local development
+.local
+.cache/
