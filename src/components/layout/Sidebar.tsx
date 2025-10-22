@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { FileSpreadsheet, BarChart3, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { ProjectSelector } from "@/components/project/ProjectSelector";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
-import { generateComprehensiveReport } from "@/services/pdfReportGenerator";
+import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
+import { useProjectStore } from "@/stores/projectStore";
 
 interface SidebarProps {
   className?: string;
@@ -16,6 +17,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { getSelectedProject } = useProjectStore();
 
   const navigationItems = [
     {
@@ -40,7 +42,11 @@ const Sidebar = ({ className }: SidebarProps) => {
 
   const handleGenerateReport = async () => {
     try {
-      await generateComprehensiveReport();
+      const selectedProject = getSelectedProject();
+      if (!selectedProject) {
+        throw new Error('Nenhum projeto selecionado');
+      }
+      await generateComprehensiveZipReport(selectedProject.id);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
       throw error;
@@ -144,7 +150,7 @@ const Sidebar = ({ className }: SidebarProps) => {
             className="w-full flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white"
           >
             <Download className="h-4 w-4" />
-            Gerar Relatório
+            Gerar Relatório ZIP
           </Button>
         </div>
       )}

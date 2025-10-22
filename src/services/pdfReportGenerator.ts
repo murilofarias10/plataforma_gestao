@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useProjectStore } from '@/stores/projectStore';
+import { fileManager } from './fileManager';
 
 export interface ReportData {
   projectTracker: {
@@ -20,6 +21,11 @@ export interface ReportData {
     name: string;
     description: string;
     generatedAt: string;
+  };
+  attachments: {
+    allAttachments: any[];
+    totalFiles: number;
+    totalSize: string;
   };
 }
 
@@ -48,6 +54,10 @@ export class PDFReportGenerator {
         throw new Error('Nenhum projeto selecionado');
       }
 
+      // Collect all attachments for the project
+      const allAttachments = await this.collectAllAttachments(selectedProject.id);
+      const totalSize = this.calculateTotalSize(allAttachments);
+
       const reportData: ReportData = {
         projectTracker: {
           kpiData: projectStore.getKpiData(),
@@ -66,6 +76,11 @@ export class PDFReportGenerator {
           name: selectedProject.name,
           description: selectedProject.description,
           generatedAt: new Date().toLocaleDateString('pt-BR')
+        },
+        attachments: {
+          allAttachments: allAttachments,
+          totalFiles: allAttachments.length,
+          totalSize: totalSize
         }
       };
 
@@ -78,6 +93,20 @@ export class PDFReportGenerator {
       
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
+      throw error;
+    }
+  }
+
+  async generatePDFBlob(reportData: ReportData): Promise<Blob> {
+    try {
+      // Generate PDF content
+      await this.generatePDFContent(reportData);
+      
+      // Return PDF as blob
+      return this.pdf.output('blob');
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF blob:', error);
       throw error;
     }
   }
@@ -95,13 +124,18 @@ export class PDFReportGenerator {
     // Document Monitor section
     this.addSectionHeader('MONITOR DE DOCUMENTOS');
     this.addDocumentMonitorContent(data.documentMonitor);
+    this.addNewPage();
+
+    // Attachments section
+    this.addSectionHeader('ANEXOS');
+    this.addAttachmentsContent(data.attachments);
   }
 
   private addCoverPage(projectInfo: any): void {
     // Title
     this.pdf.setFontSize(24);
     this.pdf.setFont('helvetica', 'bold');
-    this.pdf.text('RELATÓRIO COMPREHENSIVO', this.pageWidth / 2, this.currentY, { align: 'center' });
+    this.pdf.text('RELATÓRIO GERAL PLATAFORMA DE GESTÃO', this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 20;
 
     // Project info
@@ -377,6 +411,133 @@ export class PDFReportGenerator {
       { status: 'Não Se Aplica', qtde: 80, inicio: null, fim: null },
       { status: 'Para Emissão', qtde: 10, inicio: 10, fim: null },
     ];
+  }
+
+  /**
+   * Collect all attachments for the project
+   */
+  private async collectAllAttachments(projectId: string): Promise<any[]> {
+    try {
+      const folderStructure = fileManager.getProjectFolderStructure(projectId);
+      if (!folderStructure) return [];
+
+      const allAttachments: any[] = [];
+      
+      // Get all documents from the project store
+      const projectStore = useProjectStore.getState();
+      const documents = projectStore.documents.filter(doc => doc.projectId === projectId);
+      
+      // Collect attachments for each document
+      for (const document of documents) {
+        const documentAttachments = fileManager.getDocumentAttachments(projectId, document.id);
+        documentAttachments.forEach(attachment => {
+          // Ensure uploadedAt is properly handled
+          const processedAttachment = {
+            ...attachment,
+            documentName: document.documento || 'Documento sem nome',
+            documentId: document.id,
+            uploadedAt: attachment.uploadedAt instanceof Date ? attachment.uploadedAt : new Date(attachment.uploadedAt)
+          };
+          allAttachments.push(processedAttachment);
+        });
+      }
+      
+      return allAttachments;
+    } catch (error) {
+      console.error('Error collecting attachments:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate total size of all attachments
+   */
+  private calculateTotalSize(attachments: any[]): string {
+    const totalBytes = attachments.reduce((sum, attachment) => sum + (attachment.fileSize || 0), 0);
+    return fileManager.formatFileSize(totalBytes);
+  }
+
+  /**
+   * Add attachments content to PDF
+   */
+  private addAttachmentsContent(attachmentsData: any): void {
+    // Summary
+    this.addSubsectionHeader('Resumo dos Anexos');
+    this.pdf.setFontSize(10);
+    this.pdf.setFont('helvetica', 'normal');
+    this.pdf.text(`Total de arquivos: ${attachmentsData.totalFiles}`, this.margin, this.currentY);
+    this.currentY += this.lineHeight;
+    this.pdf.text(`Tamanho total: ${attachmentsData.totalSize}`, this.margin, this.currentY);
+    this.currentY += 10;
+
+    if (attachmentsData.allAttachments.length === 0) {
+      this.pdf.text('Nenhum anexo encontrado', this.margin, this.currentY);
+      this.currentY += this.lineHeight;
+      return;
+    }
+
+    // Attachments list
+    this.addSubsectionHeader('Lista de Anexos');
+    this.pdf.setFontSize(9);
+    this.pdf.setFont('helvetica', 'normal');
+    
+    // Table header
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.text('Documento', this.margin, this.currentY);
+    this.pdf.text('Arquivo', this.margin + 60, this.currentY);
+    this.pdf.text('Tipo', this.margin + 120, this.currentY);
+    this.pdf.text('Tamanho', this.margin + 150, this.currentY);
+    this.pdf.text('Data Upload', this.margin + 180, this.currentY);
+    this.currentY += this.lineHeight;
+
+    // Table rows
+    this.pdf.setFont('helvetica', 'normal');
+    attachmentsData.allAttachments.forEach(attachment => {
+      if (this.currentY > this.pageHeight - 30) {
+        this.addNewPage();
+        // Re-add header on new page
+        this.pdf.setFont('helvetica', 'bold');
+        this.pdf.text('Documento', this.margin, this.currentY);
+        this.pdf.text('Arquivo', this.margin + 60, this.currentY);
+        this.pdf.text('Tipo', this.margin + 120, this.currentY);
+        this.pdf.text('Tamanho', this.margin + 150, this.currentY);
+        this.pdf.text('Data Upload', this.margin + 180, this.currentY);
+        this.currentY += this.lineHeight;
+        this.pdf.setFont('helvetica', 'normal');
+      }
+      
+      this.pdf.text(attachment.documentName.substring(0, 25), this.margin, this.currentY);
+      this.pdf.text(attachment.fileName.substring(0, 20), this.margin + 60, this.currentY);
+      this.pdf.text(this.getFileTypeDisplay(attachment.fileType), this.margin + 120, this.currentY);
+      this.pdf.text(fileManager.formatFileSize(attachment.fileSize), this.margin + 150, this.currentY);
+      this.pdf.text(this.formatUploadDate(attachment.uploadedAt), this.margin + 180, this.currentY);
+      this.currentY += this.lineHeight;
+    });
+  }
+
+  /**
+   * Get file type display name
+   */
+  private getFileTypeDisplay(fileType: string): string {
+    if (fileType.includes('pdf')) return 'PDF';
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return 'Excel';
+    if (fileType.includes('word') || fileType.includes('document')) return 'Word';
+    if (fileType.includes('image') || fileType.includes('png') || fileType.includes('jpeg')) return 'Imagem';
+    return 'Outro';
+  }
+
+  /**
+   * Format upload date for display
+   */
+  private formatUploadDate(uploadedAt: any): string {
+    try {
+      // Handle both Date objects and date strings
+      const date = uploadedAt instanceof Date ? uploadedAt : new Date(uploadedAt);
+      return date.toLocaleDateString('pt-BR');
+    } catch (error) {
+      console.error('Error formatting upload date:', error);
+      return 'Data inválida';
+    }
   }
 }
 

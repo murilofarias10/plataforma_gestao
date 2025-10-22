@@ -20,10 +20,13 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
     "Processando indicadores de performance...",
     "Analisando timeline de documentos...",
     "Compilando distribuição por status...",
+    "Coletando anexos do projeto...",
     "Coletando dados do Monitor de Documentos...",
     "Processando curva S...",
     "Analisando status dos documentos...",
     "Gerando relatório PDF...",
+    "Baixando arquivos anexados...",
+    "Criando arquivo ZIP...",
     "Finalizando..."
   ];
 
@@ -42,7 +45,7 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
       
       await onGenerate();
       setProgress(100);
-      setCurrentStep("Relatório gerado com sucesso!");
+      setCurrentStep("Arquivo ZIP gerado com sucesso!");
       
       // Close dialog after a short delay
       setTimeout(() => {
@@ -65,15 +68,16 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Gerar Relatório PDF
+            Gerar Relatório Completo (ZIP)
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
           <div className="text-center">
             <p className="text-sm text-muted-foreground mb-4">
-              Este relatório incluirá dados completos do Project Tracker e Monitor de Documentos, 
-              incluindo todos os filtros aplicados no momento.
+              Este relatório incluirá dados completos, 
+              incluindo todos os filtros aplicados no momento, além de todos os arquivos anexados 
+              organizados em uma pasta ZIP.
             </p>
           </div>
 
@@ -115,7 +119,7 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-2" />
-                  Gerar Relatório
+                  Gerar Relatório ZIP
                 </>
               )}
             </Button>
