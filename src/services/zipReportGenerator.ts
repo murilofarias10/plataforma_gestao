@@ -98,7 +98,7 @@ export class ZIPReportGenerator {
   }
 
   /**
-   * Collect all attachments for the project
+   * Collect attachments only for filtered documents
    */
   private async collectAllAttachments(projectId: string): Promise<any[]> {
     try {
@@ -107,12 +107,12 @@ export class ZIPReportGenerator {
 
       const allAttachments: any[] = [];
       
-      // Get all documents from the project store
+      // Get FILTERED documents from the project store (same as used in the report)
       const projectStore = useProjectStore.getState();
-      const documents = projectStore.documents.filter(doc => doc.projectId === projectId);
+      const filteredDocuments = projectStore.getFilteredDocuments(); // This respects current filters
       
-      // Collect attachments for each document
-      for (const document of documents) {
+      // Collect attachments only for filtered documents
+      for (const document of filteredDocuments) {
         const documentAttachments = fileManager.getDocumentAttachments(projectId, document.id);
         documentAttachments.forEach(attachment => {
           // Ensure uploadedAt is properly handled

@@ -150,7 +150,7 @@ const Sidebar = ({ className }: SidebarProps) => {
             className="w-full flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white"
           >
             <Download className="h-4 w-4" />
-            Gerar Relatório ZIP
+            Gerar Relatório
           </Button>
         </div>
       )}

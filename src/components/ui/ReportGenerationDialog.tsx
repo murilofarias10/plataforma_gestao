@@ -20,12 +20,12 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
     "Processando indicadores de performance...",
     "Analisando timeline de documentos...",
     "Compilando distribuição por status...",
-    "Coletando anexos do projeto...",
+    "Aplicando filtros aos anexos...",
     "Coletando dados do Monitor de Documentos...",
     "Processando curva S...",
     "Analisando status dos documentos...",
     "Gerando relatório PDF...",
-    "Baixando arquivos anexados...",
+    "Baixando arquivos anexados filtrados...",
     "Criando arquivo ZIP...",
     "Finalizando..."
   ];
@@ -75,9 +75,7 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
         <div className="space-y-6">
           <div className="text-center">
             <p className="text-sm text-muted-foreground mb-4">
-              Este relatório incluirá dados completos, 
-              incluindo todos os filtros aplicados no momento, além de todos os arquivos anexados 
-              organizados em uma pasta ZIP.
+              Relatório com dados e anexos filtrados, reunidos em um único arquivo ZIP.
             </p>
           </div>
 
@@ -119,7 +117,7 @@ export const ReportGenerationDialog = ({ isOpen, onClose, onGenerate }: ReportGe
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-2" />
-                  Gerar Relatório ZIP
+                  Gerar Relatório
                 </>
               )}
             </Button>
