@@ -27,14 +27,12 @@ interface BulkEditDialogProps {
 }
 
 export function BulkEditDialog({ open, onOpenChange, selectedIds, onComplete }: BulkEditDialogProps) {
-  const { bulkUpdateDocuments, getUniqueAreas, getUniqueResponsaveis } = useProjectStore();
+  const { bulkUpdateDocuments, getUniqueResponsaveis } = useProjectStore();
   const [updates, setUpdates] = useState<{
     status?: "A iniciar" | "Em andamento" | "Finalizado";
     responsavel?: string;
-    area?: string;
   }>({});
 
-  const areas = getUniqueAreas();
   const responsaveis = getUniqueResponsaveis();
 
   const handleSave = () => {
@@ -99,29 +97,6 @@ export function BulkEditDialog({ open, onOpenChange, selectedIds, onComplete }: 
                   {responsaveis.map((responsavel) => (
                     <SelectItem key={responsavel} value={responsavel}>
                       {responsavel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="area" className="text-right">
-              Área
-            </Label>
-            <div className="col-span-3">
-              <Select
-                value={updates.area || ""}
-                onValueChange={(value) => setUpdates(prev => ({ ...prev, area: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar área" />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas.map((area) => (
-                    <SelectItem key={area} value={area}>
-                      {area}
                     </SelectItem>
                   ))}
                 </SelectContent>

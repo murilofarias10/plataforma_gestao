@@ -4,36 +4,25 @@ import { Badge } from "@/components/ui/badge";
 import { useProjectStore } from "@/stores/projectStore";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
 
 export function FiltersBar() {
   const { 
     filters, 
     setFilters, 
     resetFilters, 
-    getUniqueAreas, 
     getUniqueResponsaveis,
     getTableDocuments 
   } = useProjectStore();
   
-  const areas = getUniqueAreas();
   const responsaveis = getUniqueResponsaveis();
   const filteredCount = getTableDocuments().length;
 
-  const areaOptions = areas.map(area => ({ value: area, label: area }));
   const responsavelOptions = responsaveis.map(resp => ({ value: resp, label: resp }));
 
   const activeFiltersCount = 
-    filters.areaFilter.length + 
     filters.responsavelFilter.length +
     (filters.searchQuery ? 1 : 0) +
     (filters.dateRange.start || filters.dateRange.end ? 1 : 0);
-
-  const removeAreaFilter = (area: string) => {
-    setFilters({
-      areaFilter: filters.areaFilter.filter(a => a !== area)
-    });
-  };
 
   const removeResponsavelFilter = (responsavel: string) => {
     setFilters({
@@ -49,14 +38,6 @@ export function FiltersBar() {
           <Filter className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground whitespace-nowrap">Filtros:</span>
         </div>
-
-        <MultiSelect
-          options={areaOptions}
-          value={filters.areaFilter}
-          onChange={(values) => setFilters({ areaFilter: values })}
-          placeholder="Disciplina"
-          className="w-28 min-w-[112px] flex-shrink-0"
-        />
 
         <MultiSelect
           options={responsavelOptions}
@@ -177,20 +158,6 @@ export function FiltersBar() {
           <span className="text-sm text-muted-foreground">
             Filtros ativos ({activeFiltersCount}):
           </span>
-          
-          {filters.areaFilter.map((area) => (
-            <Badge key={area} variant="secondary" className="filter-chip active">
-              {area}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => removeAreaFilter(area)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
           
           {filters.responsavelFilter.map((responsavel) => (
             <Badge key={responsavel} variant="secondary" className="filter-chip active">
