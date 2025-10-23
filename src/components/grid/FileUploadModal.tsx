@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Download, Trash2, Plus, X } from "lucide-react";
+import { Upload, FileText, Download, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProjectAttachment } from "@/types/project";
@@ -190,13 +190,9 @@ export function FileUploadModal({
                 <h3 className="text-lg font-medium mb-2">
                   {isUploading ? "Fazendo upload..." : "Arraste arquivos aqui ou clique para selecionar"}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-muted-foreground">
                   Suporte para PDF, Excel, Word, PNG e JPEG (máximo 10MB por arquivo)
                 </p>
-                <Button variant="outline" onClick={(e) => e.stopPropagation()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Selecionar Arquivos
-                </Button>
               </div>
             </div>
 
