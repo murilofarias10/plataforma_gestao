@@ -50,7 +50,7 @@ const DocumentMonitor = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 gap-8 mb-8">
           {/* S-Curve Chart */}
-          <Card>
+          <Card data-chart-section="scurve">
             <CardHeader>
               <CardTitle>Curva "S"</CardTitle>
             </CardHeader>

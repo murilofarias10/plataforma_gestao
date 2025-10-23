@@ -3,6 +3,29 @@ import html2canvas from 'html2canvas';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
 
+// Helper function to capture element as image
+async function captureElement(selector: string): Promise<string | null> {
+  try {
+    const element = document.querySelector(selector);
+    if (!element) {
+      console.warn(`Element not found: ${selector}`);
+      return null;
+    }
+    
+    const canvas = await html2canvas(element as HTMLElement, {
+      backgroundColor: '#ffffff',
+      scale: 2, // Higher quality
+      logging: false,
+      useCORS: true,
+    });
+    
+    return canvas.toDataURL('image/png');
+  } catch (error) {
+    console.error(`Error capturing ${selector}:`, error);
+    return null;
+  }
+}
+
 export interface ReportData {
   projectTracker: {
     kpiData: any;
@@ -46,6 +69,9 @@ export class PDFReportGenerator {
 
   async generateComprehensiveReport(): Promise<void> {
     try {
+      // Capture screenshots from both pages
+      const screenshots = await this.captureAllScreenshots();
+      
       // Get current data from stores
       const projectStore = useProjectStore.getState();
       const selectedProject = projectStore.getSelectedProject();
@@ -84,8 +110,8 @@ export class PDFReportGenerator {
         }
       };
 
-      // Generate PDF content
-      await this.generatePDFContent(reportData);
+      // Generate PDF content with screenshots
+      await this.generatePDFContent(reportData, screenshots);
       
       // Save the PDF
       const fileName = `Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -96,11 +122,55 @@ export class PDFReportGenerator {
       throw error;
     }
   }
+  
+  private async captureAllScreenshots(): Promise<Record<string, string | null>> {
+    const screenshots: Record<string, string | null> = {};
+    const currentPath = window.location.pathname;
+    
+    try {
+      // Capture Project Tracker screenshots
+      await this.navigateToPage('/project-tracker');
+      await new Promise(resolve => setTimeout(resolve, 800)); // Wait for page to load
+      
+      // Expand charts if collapsed
+      await this.expandChartsSection();
+      
+      // Capture Project Tracker elements
+      screenshots.kpiCards = await captureElement('[data-report-section="kpi-cards"]');
+      screenshots.timelineChart = await captureElement('[data-chart="timeline"]');
+      screenshots.statusChart = await captureElement('[data-chart="status"]');
+      
+      // Capture Document Monitor screenshots
+      await this.navigateToPage('/document-monitor');
+      await new Promise(resolve => setTimeout(resolve, 800)); // Wait for page to load
+      
+      // Capture Document Monitor elements
+      screenshots.documentMonitorKPIs = await captureElement('[data-report-section="document-monitor-kpis"]');
+      screenshots.scurveChart = await captureElement('[data-chart-section="scurve"]');
+      
+      // Navigate back to original page
+      await this.navigateToPage(currentPath);
+      
+    } catch (error) {
+      console.error('Error capturing screenshots:', error);
+    }
+    
+    return screenshots;
+  }
+  
+  private async navigateToPage(path: string): Promise<void> {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
 
   async generatePDFBlob(reportData: ReportData): Promise<Blob> {
     try {
+      // Capture screenshots from both pages
+      const screenshots = await this.captureAllScreenshots();
+      
       // Generate PDF content
-      await this.generatePDFContent(reportData);
+      await this.generatePDFContent(reportData, screenshots);
       
       // Return PDF as blob
       return this.pdf.output('blob');
@@ -111,24 +181,40 @@ export class PDFReportGenerator {
     }
   }
 
-  private async generatePDFContent(data: ReportData): Promise<void> {
+  private async generatePDFContent(data: ReportData, screenshots?: Record<string, string | null>): Promise<void> {
+    screenshots = screenshots || {};
+    
     // Cover page
     this.addCoverPage(data.projectInfo);
     this.addNewPage();
 
     // Project Tracker section
     this.addSectionHeader('PROJECT TRACKER');
-    this.addProjectTrackerContent(data.projectTracker);
+    await this.addProjectTrackerContent(data.projectTracker, screenshots);
     this.addNewPage();
 
     // Document Monitor section
     this.addSectionHeader('MONITOR DE DOCUMENTOS');
-    this.addDocumentMonitorContent(data.documentMonitor);
+    await this.addDocumentMonitorContent(data.documentMonitor, screenshots);
     this.addNewPage();
 
     // Attachments section
     this.addSectionHeader('ANEXOS');
     this.addAttachmentsContent(data.attachments);
+  }
+  
+  private async expandChartsSection(): Promise<void> {
+    // Wait a bit for the page to be ready
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Try to expand charts if they're collapsed
+    const chartsSection = document.querySelector('[data-charts-section]');
+    if (chartsSection) {
+      // Trigger click to expand (if collapsed)
+      const event = new MouseEvent('click', { bubbles: true });
+      chartsSection.dispatchEvent(event);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
   }
 
   private addCoverPage(projectInfo: any): void {
@@ -167,10 +253,14 @@ export class PDFReportGenerator {
     this.currentY += 10;
   }
 
-  private addProjectTrackerContent(data: any): void {
-    // KPI Cards
+  private async addProjectTrackerContent(data: any, screenshots: Record<string, string | null>): Promise<void> {
+    // KPI Cards - Capture the entire grid
     this.addSubsectionHeader('Indicadores de Performance (KPIs)');
-    this.addKPICards(data.kpiData);
+    if (screenshots.kpiCards) {
+      await this.addImage(screenshots.kpiCards, 'KPI Cards');
+    } else {
+      this.addKPICards(data.kpiData);
+    }
     this.currentY += 10;
 
     // Filters applied
@@ -180,23 +270,108 @@ export class PDFReportGenerator {
 
     // Timeline Chart
     this.addSubsectionHeader('Timeline de Documentos');
-    this.addTimelineData(data.timelineData);
+    if (screenshots.timelineChart) {
+      await this.addImage(screenshots.timelineChart, 'Timeline Chart');
+    } else {
+      this.addTimelineData(data.timelineData);
+    }
     this.currentY += 10;
 
     // Status Distribution
     this.addSubsectionHeader('Distribuição por Status');
-    this.addStatusDistribution(data.statusDistribution);
+    if (screenshots.statusChart) {
+      await this.addImage(screenshots.statusChart, 'Status Distribution');
+    } else {
+      this.addStatusDistribution(data.statusDistribution);
+    }
     this.currentY += 10;
 
     // Documents Table
     this.addSubsectionHeader('Controle de Documentos');
     this.addDocumentsTable(data.documents);
   }
+  
+  private async captureChartElement(selector: string): Promise<string | null> {
+    try {
+      // Try the specific selector provided
+      const element = document.querySelector(selector);
+      if (element) {
+        const canvas = await html2canvas(element as HTMLElement, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          logging: false,
+          useCORS: true,
+        });
+        return canvas.toDataURL('image/png');
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error capturing chart element:`, error);
+      return null;
+    }
+  }
+  
+  private async addImage(imageData: string, title: string): Promise<void> {
+    try {
+      // Convert data URL to image
+      const img = new Image();
+      img.src = imageData;
+      
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          // Calculate dimensions to fit within page width
+          const maxWidth = this.pageWidth - (this.margin * 2);
+          const maxHeight = 100; // Maximum height per image in mm
+          
+          let imgWidth = img.width;
+          let imgHeight = img.height;
+          
+          // Scale to fit width
+          const scale = maxWidth / imgWidth;
+          imgWidth = maxWidth;
+          imgHeight = imgHeight * scale;
+          
+          // If still too tall, scale down
+          if (imgHeight > maxHeight) {
+            const heightScale = maxHeight / imgHeight;
+            imgWidth = imgWidth * heightScale;
+            imgHeight = maxHeight;
+          }
+          
+          // Center the image
+          const x = (this.pageWidth - imgWidth) / 2;
+          
+          // Check if we need a new page
+          if (this.currentY + imgHeight > this.pageHeight - this.margin) {
+            this.addNewPage();
+          }
+          
+          // Add the image
+          this.pdf.addImage(imageData, 'PNG', x, this.currentY, imgWidth, imgHeight);
+          this.currentY += imgHeight + 5;
+          
+          resolve(null);
+        };
+        img.onerror = reject;
+      });
+    } catch (error) {
+      console.error('Error adding image to PDF:', error);
+      // Fallback to text
+      this.pdf.text(`[Image: ${title}]`, this.margin, this.currentY);
+      this.currentY += this.lineHeight;
+    }
+  }
 
-  private addDocumentMonitorContent(data: any): void {
-    // KPI Cards
+  private async addDocumentMonitorContent(data: any, screenshots: Record<string, string | null>): Promise<void> {
+    // KPI Cards - Try to capture, but skip if not on correct page
     this.addSubsectionHeader('Indicadores de Performance (KPIs)');
-    this.addDocumentMonitorKPIs(data.kpiData);
+    if (screenshots.documentMonitorKPIs) {
+      await this.addImage(screenshots.documentMonitorKPIs, 'Document Monitor KPIs');
+    } else {
+      // Fallback to formatted text display
+      this.addDocumentMonitorKPIsFormatted(data.kpiData);
+    }
     this.currentY += 10;
 
     // Filters applied
@@ -204,14 +379,87 @@ export class PDFReportGenerator {
     this.addDocumentMonitorFilters(data.filters);
     this.currentY += 10;
 
-    // S-Curve Chart
+    // S-Curve Chart - Try to capture, but skip if not on correct page
     this.addSubsectionHeader('Curva "S"');
-    this.addSCurveData(data.sCurveData);
+    if (screenshots.scurveChart) {
+      await this.addImage(screenshots.scurveChart, 'S-Curve Chart');
+    } else {
+      // Fallback to formatted text display
+      this.addSCurveDataFormatted(data.sCurveData);
+    }
     this.currentY += 10;
 
     // Document Status Table
     this.addSubsectionHeader('Status do Documento');
     this.addDocumentStatusTable(data.documentStatusTable);
+  }
+  
+  private addDocumentMonitorKPIsFormatted(kpiData: any): void {
+    this.pdf.setFontSize(10);
+    this.pdf.setFont('helvetica', 'normal');
+    
+    // Create a card-like display
+    const cardWidth = 80;
+    const cardHeight = 20;
+    const cardX = this.margin;
+    
+    // Emitidos card
+    this.pdf.setDrawColor(200, 200, 200);
+    this.pdf.rect(cardX, this.currentY, cardWidth, cardHeight);
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.text('Emitidos', cardX + 2, this.currentY + 5);
+    this.pdf.setFont('helvetica', 'normal');
+    this.pdf.setFontSize(14);
+    this.pdf.text(`${kpiData.emitidos}%`, cardX + 2, this.currentY + 12);
+    
+    // Aprovados card
+    const cardX2 = cardX + cardWidth + 10;
+    this.pdf.setDrawColor(200, 200, 200);
+    this.pdf.rect(cardX2, this.currentY, cardWidth, cardHeight);
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.setFontSize(10);
+    this.pdf.text('Aprovados', cardX2 + 2, this.currentY + 5);
+    this.pdf.setFont('helvetica', 'normal');
+    this.pdf.setFontSize(14);
+    this.pdf.text(`${kpiData.aprovados}%`, cardX2 + 2, this.currentY + 12);
+    
+    this.currentY += cardHeight + 5;
+    this.pdf.setFontSize(10);
+  }
+  
+  private addSCurveDataFormatted(sCurveData: any[]): void {
+    this.pdf.setFontSize(9);
+    this.pdf.setFont('helvetica', 'normal');
+    
+    // Table header
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.text('Data', this.margin, this.currentY);
+    this.pdf.text('Projetado', this.margin + 40, this.currentY);
+    this.pdf.text('Baseline', this.margin + 80, this.currentY);
+    this.pdf.text('Avançado', this.margin + 120, this.currentY);
+    this.currentY += this.lineHeight;
+    
+    // Table rows
+    this.pdf.setFont('helvetica', 'normal');
+    sCurveData.forEach(item => {
+      if (this.currentY > this.pageHeight - 30) {
+        this.addNewPage();
+        // Re-add header
+        this.pdf.setFont('helvetica', 'bold');
+        this.pdf.text('Data', this.margin, this.currentY);
+        this.pdf.text('Projetado', this.margin + 40, this.currentY);
+        this.pdf.text('Baseline', this.margin + 80, this.currentY);
+        this.pdf.text('Avançado', this.margin + 120, this.currentY);
+        this.currentY += this.lineHeight;
+        this.pdf.setFont('helvetica', 'normal');
+      }
+      
+      this.pdf.text(item.time, this.margin, this.currentY);
+      this.pdf.text(item.projetado.toString(), this.margin + 40, this.currentY);
+      this.pdf.text(item.baseline.toString(), this.margin + 80, this.currentY);
+      this.pdf.text(item.avancado.toString(), this.margin + 120, this.currentY);
+      this.currentY += this.lineHeight;
+    });
   }
 
   private addSubsectionHeader(title: string): void {
@@ -333,11 +581,42 @@ export class PDFReportGenerator {
   }
 
   private addDocumentStatusTable(tableData: any[]): void {
-    this.pdf.setFontSize(10);
+    this.pdf.setFontSize(9);
     this.pdf.setFont('helvetica', 'normal');
     
+    // Table header
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.text('Status', this.margin, this.currentY);
+    this.pdf.text('Quantidade', this.margin + 50, this.currentY);
+    this.pdf.text('Início', this.margin + 90, this.currentY);
+    this.pdf.text('Fim', this.margin + 120, this.currentY);
+    this.currentY += this.lineHeight;
+    
+    // Add line under header
+    this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+    this.currentY += 2;
+    
+    // Table rows
+    this.pdf.setFont('helvetica', 'normal');
     tableData.forEach(item => {
-      this.pdf.text(`${item.status}: Qtde ${item.qtde}, Início ${item.inicio || '-'}, Fim ${item.fim || '-'}`, this.margin, this.currentY);
+      if (this.currentY > this.pageHeight - 30) {
+        this.addNewPage();
+        // Re-add header
+        this.pdf.setFont('helvetica', 'bold');
+        this.pdf.text('Status', this.margin, this.currentY);
+        this.pdf.text('Quantidade', this.margin + 50, this.currentY);
+        this.pdf.text('Início', this.margin + 90, this.currentY);
+        this.pdf.text('Fim', this.margin + 120, this.currentY);
+        this.currentY += this.lineHeight;
+        this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+        this.currentY += 2;
+        this.pdf.setFont('helvetica', 'normal');
+      }
+      
+      this.pdf.text(item.status, this.margin, this.currentY);
+      this.pdf.text(item.qtde.toString(), this.margin + 50, this.currentY);
+      this.pdf.text(item.inicio?.toString() || '-', this.margin + 90, this.currentY);
+      this.pdf.text(item.fim?.toString() || '-', this.margin + 120, this.currentY);
       this.currentY += this.lineHeight;
     });
   }
@@ -478,17 +757,21 @@ export class PDFReportGenerator {
 
     // Attachments list
     this.addSubsectionHeader('Lista de Anexos');
-    this.pdf.setFontSize(9);
+    this.pdf.setFontSize(8); // Smaller font for better fit
     this.pdf.setFont('helvetica', 'normal');
     
-    // Table header
+    // Table header - Adjusted column positions
     this.pdf.setFont('helvetica', 'bold');
     this.pdf.text('Documento', this.margin, this.currentY);
-    this.pdf.text('Arquivo', this.margin + 60, this.currentY);
-    this.pdf.text('Tipo', this.margin + 120, this.currentY);
-    this.pdf.text('Tamanho', this.margin + 150, this.currentY);
-    this.pdf.text('Data Upload', this.margin + 180, this.currentY);
+    this.pdf.text('Arquivo', this.margin + 50, this.currentY);
+    this.pdf.text('Tipo', this.margin + 100, this.currentY);
+    this.pdf.text('Tamanho', this.margin + 130, this.currentY);
+    this.pdf.text('Data', this.margin + 165, this.currentY);
     this.currentY += this.lineHeight;
+    
+    // Add line under header
+    this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+    this.currentY += 2;
 
     // Table rows
     this.pdf.setFont('helvetica', 'normal');
@@ -497,22 +780,44 @@ export class PDFReportGenerator {
         this.addNewPage();
         // Re-add header on new page
         this.pdf.setFont('helvetica', 'bold');
+        this.pdf.setFontSize(8);
         this.pdf.text('Documento', this.margin, this.currentY);
-        this.pdf.text('Arquivo', this.margin + 60, this.currentY);
-        this.pdf.text('Tipo', this.margin + 120, this.currentY);
-        this.pdf.text('Tamanho', this.margin + 150, this.currentY);
-        this.pdf.text('Data Upload', this.margin + 180, this.currentY);
+        this.pdf.text('Arquivo', this.margin + 50, this.currentY);
+        this.pdf.text('Tipo', this.margin + 100, this.currentY);
+        this.pdf.text('Tamanho', this.margin + 130, this.currentY);
+        this.pdf.text('Data', this.margin + 165, this.currentY);
         this.currentY += this.lineHeight;
+        this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+        this.currentY += 2;
         this.pdf.setFont('helvetica', 'normal');
       }
       
-      this.pdf.text(attachment.documentName.substring(0, 25), this.margin, this.currentY);
-      this.pdf.text(attachment.fileName.substring(0, 20), this.margin + 60, this.currentY);
-      this.pdf.text(this.getFileTypeDisplay(attachment.fileType), this.margin + 120, this.currentY);
-      this.pdf.text(fileManager.formatFileSize(attachment.fileSize), this.margin + 150, this.currentY);
-      this.pdf.text(this.formatUploadDate(attachment.uploadedAt), this.margin + 180, this.currentY);
+      // Truncate text to fit columns
+      this.pdf.text(attachment.documentName.substring(0, 20), this.margin, this.currentY);
+      this.pdf.text(attachment.fileName.substring(0, 18), this.margin + 50, this.currentY);
+      this.pdf.text(this.getFileTypeDisplay(attachment.fileType), this.margin + 100, this.currentY);
+      this.pdf.text(fileManager.formatFileSize(attachment.fileSize), this.margin + 130, this.currentY);
+      
+      // Format date more compactly
+      const dateStr = this.formatUploadDateCompact(attachment.uploadedAt);
+      this.pdf.text(dateStr, this.margin + 165, this.currentY);
       this.currentY += this.lineHeight;
     });
+  }
+  
+  /**
+   * Format upload date compactly for PDF
+   */
+  private formatUploadDateCompact(uploadedAt: any): string {
+    try {
+      const date = uploadedAt instanceof Date ? uploadedAt : new Date(uploadedAt);
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString().slice(-2);
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      return 'N/A';
+    }
   }
 
   /**

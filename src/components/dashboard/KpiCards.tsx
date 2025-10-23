@@ -78,7 +78,7 @@ export function KpiCards() {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" data-report-section="kpi-cards">
       {cards.map((card) => {
         const Icon = card.icon;
         const isFiltered = card.clickable && card.filterStatus && filters.statusFilter.includes(card.filterStatus);

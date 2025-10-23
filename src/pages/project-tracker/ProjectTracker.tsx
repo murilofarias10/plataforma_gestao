@@ -149,7 +149,7 @@ const ProjectTracker = () => {
 
         {/* Collapsible Charts Section */}
         <section className="space-y-4">
-          <Card className="border-2 border-dashed border-muted-foreground/25">
+          <Card className="border-2 border-dashed border-muted-foreground/25" data-charts-section>
             <CardHeader 
               className="cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => setIsChartsExpanded(!isChartsExpanded)}

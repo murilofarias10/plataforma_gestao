@@ -34,7 +34,7 @@ export function StatusBarChart() {
   };
 
   return (
-    <div className="kpi-card">
+    <div className="kpi-card" data-chart="status">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-foreground mb-2">
           Distribuição por Status

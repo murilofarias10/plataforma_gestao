@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const KpiCards = () => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-report-section="document-monitor-kpis">
       {/* Emitidos Card */}
       <Card className="bg-muted/50">
         <CardHeader className="pb-2">
