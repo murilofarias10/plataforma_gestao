@@ -19,28 +19,15 @@ export function FiltersBar() {
   const areas = getUniqueAreas();
   const responsaveis = getUniqueResponsaveis();
   const filteredCount = getTableDocuments().length;
-  
-  const statusOptions = [
-    { value: "A iniciar", label: "A iniciar" },
-    { value: "Em andamento", label: "Em andamento" },
-    { value: "Finalizado", label: "Finalizado" },
-  ];
 
   const areaOptions = areas.map(area => ({ value: area, label: area }));
   const responsavelOptions = responsaveis.map(resp => ({ value: resp, label: resp }));
 
   const activeFiltersCount = 
-    filters.statusFilter.length + 
     filters.areaFilter.length + 
     filters.responsavelFilter.length +
     (filters.searchQuery ? 1 : 0) +
     (filters.dateRange.start || filters.dateRange.end ? 1 : 0);
-
-  const removeStatusFilter = (status: string) => {
-    setFilters({
-      statusFilter: filters.statusFilter.filter(s => s !== status)
-    });
-  };
 
   const removeAreaFilter = (area: string) => {
     setFilters({
@@ -62,14 +49,6 @@ export function FiltersBar() {
           <Filter className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground whitespace-nowrap">Filtros:</span>
         </div>
-
-        <MultiSelect
-          options={statusOptions}
-          value={filters.statusFilter}
-          onChange={(values) => setFilters({ statusFilter: values })}
-          placeholder="Status"
-          className="w-28 min-w-[112px] flex-shrink-0"
-        />
 
         <MultiSelect
           options={areaOptions}
@@ -198,20 +177,6 @@ export function FiltersBar() {
           <span className="text-sm text-muted-foreground">
             Filtros ativos ({activeFiltersCount}):
           </span>
-          
-          {filters.statusFilter.map((status) => (
-            <Badge key={status} variant="secondary" className="filter-chip active">
-              {status}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => removeStatusFilter(status)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
           
           {filters.areaFilter.map((area) => (
             <Badge key={area} variant="secondary" className="filter-chip active">
