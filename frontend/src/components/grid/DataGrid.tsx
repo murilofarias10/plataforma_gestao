@@ -36,6 +36,23 @@ export function DataGrid() {
   });
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const savedScrollPosition = useRef<number | null>(null);
+
+  // Restore scroll position after any render if it was saved
+  useEffect(() => {
+    if (savedScrollPosition.current !== null) {
+      const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
+      if (scrollContainer instanceof HTMLElement) {
+        // Use double requestAnimationFrame to ensure DOM is fully updated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollContainer.scrollTop = savedScrollPosition.current!;
+            savedScrollPosition.current = null; // Clear after restoration
+          });
+        });
+      }
+    }
+  });
 
   // Update blankRow projectId when selectedProjectId changes
   useEffect(() => {
@@ -53,10 +70,10 @@ export function DataGrid() {
     { key: 'responsavel', label: 'Responsável*', type: 'text', width: '1.2fr' },
     { key: 'status', label: 'Status*', type: 'select', width: '1.2fr' },
     { key: 'participantes', label: 'Participantes', type: 'text', width: '1.5fr' },
-    { key: 'revisao', label: 'Anexo', type: 'file', width: '0.8fr' },
+    { key: 'attachments', label: 'Anexo', type: 'file', width: '0.8fr' },
   ];
 
-  const handleCellEdit = useCallback((id: string, field: string, value: any) => {
+  const handleCellEdit = useCallback(async (id: string, field: string, value: any) => {
     if (id === 'blank-row') {
       setBlankRow(prev => {
         // Build tentative update with auto rules + validation
@@ -90,14 +107,66 @@ export function DataGrid() {
         return next;
       });
     } else {
-      updateDocument(id, { [field]: value });
-    }
-  }, [updateDocument]);
+      // Apply same validation and auto-rules for existing documents
+      const document = documents.find(doc => doc.id === id);
+      if (!document) return;
 
-  const handleBlankRowSave = useCallback(() => {
+      // Store scroll position before updating
+      const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
+      
+      if (scrollContainer instanceof HTMLElement) {
+        savedScrollPosition.current = scrollContainer.scrollTop;
+      }
+
+      // Build tentative update with auto rules + validation
+      let updates: Partial<ProjectDocument> = { [field]: value };
+
+      // Auto: status selection impacts dataFim
+      if (field === 'status') {
+        if (value === 'Finalizado') {
+          updates.dataFim = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        } else {
+          updates.dataFim = '';
+        }
+      }
+
+      // Auto: dataFim filled forces status Finalizado
+      if (field === 'dataFim' && value) {
+        updates.status = 'Finalizado';
+      }
+
+      // Get the updated values for validation
+      // For dataInicio: use new value if that's what changed, otherwise use current document value
+      const updatedDataInicio = field === 'dataInicio' ? value : document.dataInicio;
+      // For dataFim: use new value if that's what changed, otherwise check if auto-rule updated it, otherwise use current document value
+      const updatedDataFim = field === 'dataFim' ? value : (updates.dataFim !== undefined ? updates.dataFim : document.dataFim);
+
+      // Validation: dataFim cannot be earlier than dataInicio
+      const start = parseBRDateLocal(updatedDataInicio || '');
+      const end = parseBRDateLocal(updatedDataFim || '');
+      if (start && end && end < start) {
+        toast({
+          title: 'Validação de datas',
+          description: 'Data Fim não pode ser anterior à Data Início',
+        });
+        return; // Don't update if validation fails
+      }
+
+      await updateDocument(id, updates);
+    }
+  }, [updateDocument, documents]);
+
+  const handleBlankRowSave = useCallback(async () => {
     // Check if blank row has required data
     if (blankRow.dataInicio && blankRow.documento && blankRow.responsavel && blankRow.status) {
-      addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
+      // Store scroll position before saving
+      const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
+      
+      if (scrollContainer instanceof HTMLElement) {
+        savedScrollPosition.current = scrollContainer.scrollTop;
+      }
+      
+      await addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
       
       // Reset blank row
       setBlankRow({
@@ -177,6 +246,7 @@ export function DataGrid() {
             onDelete={() => {}}
             onDuplicate={() => {}}
             onClear={() => setBlankRow({
+              projectId: selectedProjectId || '',
               dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
               dataFim: '',
               documento: '',

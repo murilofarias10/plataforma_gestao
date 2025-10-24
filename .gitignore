@@ -5,6 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+package-lock.json
 
 # Build outputs
 dist/
@@ -18,12 +19,14 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.development
+.env.staging
+.env.production
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea/
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
@@ -34,6 +37,10 @@ build/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+.DS_Store
+.DS_Store?
+ehthumbs_vista.db
+Icon?
 
 # Logs
 logs/
@@ -48,6 +55,7 @@ pids/
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+junit.xml
 
 # nyc test coverage
 .nyc_output
@@ -76,7 +84,7 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache
 .cache
 .parcel-cache
 
@@ -89,10 +97,13 @@ jspm_packages/
 # Storybook build outputs
 .out
 .storybook-out
+storybook-static/
 
 # Temporary folders
 tmp/
 temp/
+*.tmp
+*.temp
 
 # Vite
 .vite
@@ -109,63 +120,29 @@ temp/
 # Turbo
 .turbo
 
+# Local development
+.local
+
+# IDE specific
+*.swp
+*.swo
+*~
+
+# ========================================
 # Backend specific
+# ========================================
 backend/node_modules/
 backend/uploads/
-backend/.env
-backend/.env.local
-backend/.env.development.local
-backend/.env.test.local
-backend/.env.production.local
+backend/data.json
+backend/test-upload.js
 backend/logs/
 backend/*.log
 
-# Upload directories (keep structure but ignore content)
+# Upload directories
 uploads/
-!uploads/.gitkeep
-
-# Temporary files
-*.tmp
-*.temp
+frontend/src/uploads/
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
-
-# IDE specific (additional)
-*.swp
-*.swo
-*~
-
-# OS specific (additional)
-.DS_Store?
-ehthumbs_vista.db
-Icon?
-
-# Project specific
-dist/
-build/
-.vite/
-
-# Environment files (additional)
-.env.development
-.env.staging
-.env.production
-
-# Package manager lock files (optional - uncomment if needed)
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
-# Test coverage
-coverage/
-.nyc_output/
-junit.xml
-
-# Storybook
-storybook-static/
-
-# Local development
-.local
-.cache/

@@ -20,7 +20,9 @@ export function FiltersBar() {
   const responsavelOptions = responsaveis.map(resp => ({ value: resp, label: resp }));
 
   const activeFiltersCount = 
+    filters.statusFilter.length +
     filters.responsavelFilter.length +
+    filters.areaFilter.length +
     (filters.searchQuery ? 1 : 0) +
     (filters.dateRange.start || filters.dateRange.end ? 1 : 0);
 
@@ -159,6 +161,20 @@ export function FiltersBar() {
             Filtros ativos ({activeFiltersCount}):
           </span>
           
+          {filters.statusFilter.map((status) => (
+            <Badge key={status} variant="secondary" className="filter-chip active">
+              Status: {status}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 ml-2"
+                onClick={() => setFilters({ statusFilter: filters.statusFilter.filter(s => s !== status) })}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          ))}
+          
           {filters.responsavelFilter.map((responsavel) => (
             <Badge key={responsavel} variant="secondary" className="filter-chip active">
               {responsavel}
@@ -167,6 +183,20 @@ export function FiltersBar() {
                 size="sm"
                 className="h-auto p-0 ml-2"
                 onClick={() => removeResponsavelFilter(responsavel)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          ))}
+
+          {filters.areaFilter.map((area) => (
+            <Badge key={area} variant="secondary" className="filter-chip active">
+              Área: {area}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 ml-2"
+                onClick={() => setFilters({ areaFilter: filters.areaFilter.filter(a => a !== area) })}
               >
                 <X className="h-3 w-3" />
               </Button>

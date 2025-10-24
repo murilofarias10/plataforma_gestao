@@ -40,25 +40,32 @@ export function GridCell({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setLocalValue(value || '');
-  }, [value]);
+    // Update localValue from prop when value changes
+    // Only update when not editing to prevent clearing user input when switching between cells
+    if (!isEditing) {
+      setLocalValue(value || '');
+    }
+  }, [value, isEditing]);
 
   useEffect(() => {
     if (isEditing) {
+      // Initialize localValue when starting to edit this cell
+      setLocalValue(value || '');
+      
       if (type === 'text' && value && value.length > 50) {
         textareaRef.current?.focus();
       } else {
         inputRef.current?.focus();
       }
     }
-  }, [isEditing, type, value]);
+  }, [isEditing]);
 
   const handleSave = () => {
     onEdit(localValue);
     onStopEdit();
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     handleSave();
   };
 
@@ -93,6 +100,7 @@ export function GridCell({
           projectId={projectId || ''}
           documentId={documentId || ''}
           onModalClose={onStopEdit}
+          autoOpen={true}
         />
       );
     }

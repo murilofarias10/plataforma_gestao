@@ -1,14 +1,85 @@
 import { create } from 'zustand';
 import { Project, ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
-import { persist } from 'zustand/middleware';
 import { parseBRDateLocal } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+
+const API_BASE_URL = 'http://localhost:3001/api';
+
+// API functions
+const apiCall = async (url: string, options: RequestInit = {}) => {
+  try {
+    console.log('apiCall: Making request to:', url, 'with options:', options);
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    console.log('apiCall: Response status:', response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('apiCall: Response data:', data);
+    return data;
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+};
+
+const projectsApi = {
+  getAll: () => {
+    console.log('projectsApi.getAll: Making API call to:', `${API_BASE_URL}/projects`);
+    return apiCall(`${API_BASE_URL}/projects`);
+  },
+  create: (data: { name: string; description?: string }) => 
+    apiCall(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: { name?: string; description?: string }) =>
+    apiCall(`${API_BASE_URL}/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiCall(`${API_BASE_URL}/projects/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+const documentsApi = {
+  getByProject: (projectId: string) => {
+    console.log('documentsApi.getByProject: Making API call to:', `${API_BASE_URL}/projects/${projectId}/documents`);
+    return apiCall(`${API_BASE_URL}/projects/${projectId}/documents`);
+  },
+  create: (projectId: string, data: any) =>
+    apiCall(`${API_BASE_URL}/projects/${projectId}/documents`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: any) =>
+    apiCall(`${API_BASE_URL}/documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiCall(`${API_BASE_URL}/documents/${id}`, {
+      method: 'DELETE',
+    }),
+};
 
 interface ProjectStore {
   projects: Project[];
   documents: ProjectDocument[];
   selectedProjectId: string | null;
   filters: ProjectFilters;
+  isLoading: boolean;
+  isInitialized: boolean;
   
   // Project management
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -38,9 +109,11 @@ interface ProjectStore {
   getUniqueAreas: () => string[];
   getUniqueResponsaveis: () => string[];
   
-  // Sample data
-  loadSampleData: () => void;
-  initializeDefaultProject: () => void;
+  // Data loading
+  loadData: () => Promise<void>;
+  loadDocumentsForProject: (projectId: string) => Promise<void>;
+  loadSampleData: () => Promise<void>;
+  initializeDefaultProject: () => Promise<void>;
   clearAllData: () => void;
 }
 
@@ -55,85 +128,163 @@ const defaultFilters: ProjectFilters = {
   }
 };
 
-export const useProjectStore = create<ProjectStore>()(
-  persist(
-    (set, get) => ({
-      projects: [],
-      documents: [],
-      selectedProjectId: null,
-      filters: defaultFilters,
+export const useProjectStore = create<ProjectStore>()((set, get) => ({
+  projects: [],
+  documents: [],
+  selectedProjectId: null,
+  filters: defaultFilters,
+  isLoading: false,
+  isInitialized: false,
 
-      // Project management
-      addProject: (project) => {
-        const newProject: Project = {
-          ...project,
-          id: crypto.randomUUID(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+  // Project management
+  addProject: async (project) => {
+    try {
+      set({ isLoading: true });
+      const response = await projectsApi.create(project);
+      
+      if (response.success) {
+        const newProject = {
+          ...response.project,
+          createdAt: new Date(response.project.createdAt),
+          updatedAt: new Date(response.project.updatedAt),
         };
         
         set((state) => ({
           projects: [...state.projects, newProject],
-          selectedProjectId: state.selectedProjectId || newProject.id, // Set as selected if none selected
+          selectedProjectId: state.selectedProjectId || newProject.id,
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error adding project:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao criar projeto',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      updateProject: (id, updates) => {
+  updateProject: async (id, updates) => {
+    try {
+      set({ isLoading: true });
+      const response = await projectsApi.update(id, updates);
+      
+      if (response.success) {
+        const updatedProject = {
+          ...response.project,
+          createdAt: new Date(response.project.createdAt),
+          updatedAt: new Date(response.project.updatedAt),
+        };
+        
         set((state) => ({
           projects: state.projects.map((project) => 
-            project.id === id 
-              ? { ...project, ...updates, updatedAt: new Date() }
-              : project
-          )
+            project.id === id ? updatedProject : project
+          ),
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar projeto',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      deleteProject: (id) => {
-        const { projects } = get();
-        
-        // Prevent deleting the last project
-        if (projects.length <= 1) {
-          toast({
-            title: 'Não é possível excluir',
-            description: 'Deve haver pelo menos um projeto. Crie outro projeto antes de excluir este.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        
+  deleteProject: async (id) => {
+    try {
+      const { projects } = get();
+      
+      // Prevent deleting the last project
+      if (projects.length <= 1) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Deve haver pelo menos um projeto. Crie outro projeto antes de excluir este.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      set({ isLoading: true });
+      const response = await projectsApi.delete(id);
+      
+      if (response.success) {
         set((state) => ({
           projects: state.projects.filter((project) => project.id !== id),
           documents: state.documents.filter((doc) => doc.projectId !== id),
           selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId,
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao excluir projeto',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      setSelectedProject: (projectId) => {
-        set({ selectedProjectId: projectId });
-      },
+  setSelectedProject: async (projectId) => {
+    set({ selectedProjectId: projectId });
+    // Load documents for the selected project
+    await get().loadDocumentsForProject(projectId);
+  },
 
-      getSelectedProject: () => {
-        const { projects, selectedProjectId } = get();
-        return projects.find((project) => project.id === selectedProjectId) || null;
-      },
+  getSelectedProject: () => {
+    const { projects, selectedProjectId } = get();
+    return projects.find((project) => project.id === selectedProjectId) || null;
+  },
 
-      addDocument: (document) => {
-        const { selectedProjectId } = get();
-        if (!selectedProjectId) {
-          toast({
-            title: 'Erro',
-            description: 'Nenhum projeto selecionado',
-          });
-          return;
-        }
+  loadDocumentsForProject: async (projectId: string) => {
+    try {
+      console.log('loadDocumentsForProject: Loading documents for project:', projectId);
+      set({ isLoading: true });
+      const response = await documentsApi.getByProject(projectId);
+      console.log('loadDocumentsForProject: Documents response:', response);
+      
+      if (response.success) {
+        const documents = response.documents.map((doc: any) => ({
+          ...doc,
+          createdAt: new Date(doc.createdAt),
+          updatedAt: new Date(doc.updatedAt),
+        }));
+        
+        console.log('loadDocumentsForProject: Processed documents:', documents);
+        set({ documents, isLoading: false });
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      set({ isLoading: false });
+    }
+  },
 
+  addDocument: async (document) => {
+    const { selectedProjectId } = get();
+    if (!selectedProjectId) {
+      toast({
+        title: 'Erro',
+        description: 'Nenhum projeto selecionado',
+      });
+      return;
+    }
+
+    try {
+      set({ isLoading: true });
+      const response = await documentsApi.create(selectedProjectId, document);
+      
+      if (response.success) {
         const newDocument: ProjectDocument = {
-          ...document,
-          projectId: selectedProjectId,
-          id: crypto.randomUUID(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isCleared: false,
+          ...response.document,
+          createdAt: new Date(response.document.createdAt),
+          updatedAt: new Date(response.document.updatedAt),
         };
         
         // Auto rules on create
@@ -164,167 +315,155 @@ export const useProjectStore = create<ProjectStore>()(
         }
         
         set((state) => ({
-          documents: [...state.documents, newDocument]
+          documents: [...state.documents, newDocument],
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error adding document:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao criar documento',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      updateDocument: (id, updates) => {
-        set((state) => ({
-          documents: state.documents.map((doc) => {
-            if (doc.id === id) {
-              const updatedDoc = {
-                ...doc,
-                ...updates,
-                updatedAt: new Date(),
-              };
-              
-              // Validation: prevent dataFim < dataInicio
-              if (typeof updates.dataFim !== 'undefined') {
-                if (updates.dataFim) {
-                  const startDate = parseBRDateLocal(updatedDoc.dataInicio);
-                  const endDate = parseBRDateLocal(updates.dataFim);
-                  if (startDate && endDate && endDate < startDate) {
-                    toast({
-                      title: 'Validação de datas',
-                      description: 'Data Fim não pode ser anterior à Data Início',
-                    });
-                    return doc; // revert to previous
-                  }
-                }
-              }
-              if (typeof updates.dataInicio !== 'undefined') {
-                if (updatedDoc.dataFim) {
-                  const startDate = parseBRDateLocal(updates.dataInicio ?? updatedDoc.dataInicio);
-                  const endDate = parseBRDateLocal(updatedDoc.dataFim);
-                  if (startDate && endDate && endDate < startDate) {
-                    toast({
-                      title: 'Validação de datas',
-                      description: 'Data Fim não pode ser anterior à Data Início',
-                    });
-                    return doc; // revert to previous
-                  }
-                }
-              }
-
-              // Auto rules
-              // If status was changed
-              if (typeof updates.status !== 'undefined') {
-                const previousStatus = doc.status;
-                if (updates.status === 'Finalizado') {
-                  // Allow transition only from A iniciar or Em andamento (or already Finalizado)
-                  const allowedPrev = previousStatus === 'A iniciar' || previousStatus === 'Em andamento' || previousStatus === 'Finalizado';
-                  if (!allowedPrev) {
-                    return doc; // reject invalid transition
-                  }
-                  if (!updatedDoc.dataFim) {
-                    updatedDoc.dataFim = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-                  }
-                } else {
-                  // If moving away from Finalizado, clear dataFim
-                  updatedDoc.dataFim = '' as any;
-                }
-              }
-
-              // If dataFim provided (not empty) -> force status Finalizado
-              if (typeof updates.dataFim !== 'undefined' && updates.dataFim) {
-                updatedDoc.status = 'Finalizado';
-              }
-
-              // If this doc had been cleared, restore visibility once mandatory fields are filled
-              const mandatoryFilled = !!updatedDoc.dataInicio && !!updatedDoc.documento && !!updatedDoc.responsavel && !!updatedDoc.status;
-              if (updatedDoc.isCleared && mandatoryFilled) {
-                (updatedDoc as ProjectDocument).isCleared = false;
-              }
-              
-              return updatedDoc;
-            }
-            return doc;
-          })
-        }));
-      },
-
-      deleteDocument: (id) => {
-        set((state) => ({
-          documents: state.documents.filter((doc) => doc.id !== id)
-        }));
-      },
-
-      duplicateDocument: (id) => {
-        const { documents, selectedProjectId } = get();
-        if (!selectedProjectId) {
-          toast({
-            title: 'Erro',
-            description: 'Nenhum projeto selecionado',
-          });
-          return;
-        }
-
-        const docToDuplicate = documents.find((doc) => doc.id === id);
-        if (docToDuplicate) {
-          const newDocument: ProjectDocument = {
-            id: crypto.randomUUID(),
-            projectId: selectedProjectId,
-            dataInicio: docToDuplicate.dataInicio, // Copy Data Inicio
-            dataFim: '', // Set to blank
-            documento: docToDuplicate.documento, // Copy Tópico (documento)
-            detalhe: '', // Set to blank
-            revisao: '', // Set to blank
-            responsavel: docToDuplicate.responsavel, // Copy Responsável
-            status: 'A iniciar' as const, // Set to default status
-            area: '', // Set to blank
-            participantes: docToDuplicate.participantes, // Copy Participantes
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            isCleared: false,
-          };
-          set((state) => ({
-            documents: [...state.documents, newDocument]
-          }));
-        }
-      },
-
-      clearDocument: (id) => {
+  updateDocument: async (id, updates) => {
+    try {
+      set({ isLoading: true });
+      const response = await documentsApi.update(id, updates);
+      
+      if (response.success) {
+        const updatedDocument = {
+          ...response.document,
+          createdAt: new Date(response.document.createdAt),
+          updatedAt: new Date(response.document.updatedAt),
+        };
+        
         set((state) => ({
           documents: state.documents.map((doc) => 
-            doc.id === id 
-              ? {
-                  ...doc,
-                  dataInicio: '',
-                  dataFim: '',
-                  documento: '',
-                  detalhe: '',
-                  revisao: '',
-                  responsavel: '',
-                  status: 'A iniciar' as const,
-                  area: '',
-                  participantes: '',
-                  isCleared: true,
-                  updatedAt: new Date(),
-                }
-              : doc
-          )
+            doc.id === id ? updatedDocument : doc
+          ),
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error updating document:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar documento',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      bulkUpdateDocuments: (ids, updates) => {
+  deleteDocument: async (id) => {
+    try {
+      set({ isLoading: true });
+      const response = await documentsApi.delete(id);
+      
+      if (response.success) {
         set((state) => ({
-          documents: state.documents.map((doc) => 
-            ids.includes(doc.id) 
-              ? { ...doc, ...updates, updatedAt: new Date() }
-              : doc
-          )
+          documents: state.documents.filter((doc) => doc.id !== id),
+          isLoading: false,
         }));
-      },
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao excluir documento',
+        variant: 'destructive',
+      });
+    }
+  },
 
-      setFilters: (newFilters) => {
-        set((state) => ({
-          filters: { ...state.filters, ...newFilters }
-        }));
-      },
+  duplicateDocument: async (id) => {
+    const { documents, selectedProjectId } = get();
+    if (!selectedProjectId) {
+      toast({
+        title: 'Erro',
+        description: 'Nenhum projeto selecionado',
+      });
+      return;
+    }
 
-      resetFilters: () => {
-        set({ filters: defaultFilters });
-      },
+    const docToDuplicate = documents.find((doc) => doc.id === id);
+    if (docToDuplicate) {
+      const duplicateData = {
+        projectId: selectedProjectId,
+        dataInicio: docToDuplicate.dataInicio,
+        dataFim: '',
+        documento: docToDuplicate.documento,
+        detalhe: '',
+        revisao: '',
+        responsavel: docToDuplicate.responsavel,
+        status: 'A iniciar' as const,
+        area: '',
+        participantes: docToDuplicate.participantes,
+      };
+      
+      await get().addDocument(duplicateData);
+    }
+  },
+
+  clearDocument: async (id) => {
+    const clearData = {
+      dataInicio: '',
+      dataFim: '',
+      documento: '',
+      detalhe: '',
+      revisao: '',
+      responsavel: '',
+      status: 'A iniciar' as const,
+      area: '',
+      participantes: '',
+      isCleared: true,
+    };
+    
+    await get().updateDocument(id, clearData);
+  },
+
+  bulkUpdateDocuments: async (ids, updates) => {
+    try {
+      set({ isLoading: true });
+      
+      // Update each document individually
+      for (const id of ids) {
+        await documentsApi.update(id, updates);
+      }
+      
+      // Reload documents for the current project
+      const { selectedProjectId } = get();
+      if (selectedProjectId) {
+        await get().loadDocumentsForProject(selectedProjectId);
+      }
+      
+      set({ isLoading: false });
+    } catch (error) {
+      console.error('Error bulk updating documents:', error);
+      set({ isLoading: false });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar documentos',
+        variant: 'destructive',
+      });
+    }
+  },
+
+  setFilters: (newFilters) => {
+    set((state) => ({
+      filters: { ...state.filters, ...newFilters }
+    }));
+  },
+
+  resetFilters: () => {
+    set({ filters: defaultFilters });
+  },
 
       getFilteredDocuments: () => {
         const { documents, filters, selectedProjectId } = get();
@@ -562,15 +701,53 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
 
-      loadSampleData: () => {
+  loadData: async () => {
+    try {
+      console.log('loadData: Starting to load data from backend...');
+      set({ isLoading: true });
+      
+      // Load projects
+      console.log('loadData: Calling projectsApi.getAll()...');
+      const projectsResponse = await projectsApi.getAll();
+      console.log('loadData: Projects response:', projectsResponse);
+      if (projectsResponse.success) {
+        const projects = projectsResponse.projects.map((project: any) => ({
+          ...project,
+          createdAt: new Date(project.createdAt),
+          updatedAt: new Date(project.updatedAt),
+        }));
+        
+        set((state) => ({
+          projects,
+          selectedProjectId: state.selectedProjectId || projects[0]?.id || null,
+          isLoading: false,
+          isInitialized: true,
+        }));
+        
+        // Load documents for the selected project
+        const { selectedProjectId } = get();
+        console.log('loadData: Selected project ID:', selectedProjectId);
+        if (selectedProjectId) {
+          console.log('loadData: Loading documents for project:', selectedProjectId);
+          await get().loadDocumentsForProject(selectedProjectId);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      set({ isLoading: false, isInitialized: true });
+      // If API fails, load sample data
+      await get().loadSampleData();
+    }
+  },
+
+  loadSampleData: async () => {
         // First create a sample project
         const sampleProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
           name: 'RUMO 12',
           description: 'Projeto de infraestrutura ferroviária',
         };
         
-        const { addProject } = get();
-        addProject(sampleProject);
+        await get().addProject(sampleProject);
         
         // Get the created project ID
         const { projects, selectedProjectId } = get();
@@ -678,98 +855,28 @@ export const useProjectStore = create<ProjectStore>()(
         ];
 
         // Add sample documents
-        sampleDocuments.forEach(doc => {
-          get().addDocument(doc);
-        });
+        for (const doc of sampleDocuments) {
+          await get().addDocument(doc);
+        }
       },
 
-      initializeDefaultProject: () => {
+  initializeDefaultProject: async () => {
         const { projects } = get();
         if (projects.length === 0) {
           const defaultProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
             name: 'RUMO 12',
             description: 'Projeto de infraestrutura ferroviária',
           };
-          get().addProject(defaultProject);
+          await get().addProject(defaultProject);
         }
       },
 
-      clearAllData: () => {
-        set({
-          projects: [],
-          documents: [],
-          selectedProjectId: null,
-          filters: defaultFilters,
-        });
-      },
-    }),
-    {
-      name: 'project-tracker-storage',
-      version: 5,
-      migrate: (persistedState: any) => {
-        try {
-          const prev = persistedState?.state ?? {};
-          const docs: ProjectDocument[] = Array.isArray(prev.documents) ? prev.documents : [];
-          
-          // Migrate date format from dd/mm/yyyy to dd-mm-aaaa and add isCleared field
-          const normalized = docs.map((doc) => {
-            let migratedDoc = { ...doc };
-            
-            // Convert date format from dd/mm/yyyy to dd-mm-aaaa
-            if (migratedDoc.dataInicio && migratedDoc.dataInicio.includes('/')) {
-              migratedDoc.dataInicio = migratedDoc.dataInicio.replace(/\//g, '-');
-            }
-            if (migratedDoc.dataFim && migratedDoc.dataFim.includes('/')) {
-              migratedDoc.dataFim = migratedDoc.dataFim.replace(/\//g, '-');
-            }
-            
-            // Add isCleared field if missing
-            if (migratedDoc.isCleared === undefined) {
-              migratedDoc.isCleared = false;
-            }
-            
-            // Add projectId if missing (migrate existing documents to default project)
-            if (!migratedDoc.projectId) {
-              migratedDoc.projectId = 'default-project-id';
-            }
-            
-            // Ensure status consistency
-            if (migratedDoc.dataFim && migratedDoc.status !== 'Finalizado') {
-              migratedDoc.status = 'Finalizado';
-            }
-            
-            return migratedDoc as ProjectDocument;
-          });
-          
-          // Create default project for migrated documents
-          const defaultProject: Project = {
-            id: 'default-project-id',
-            name: 'RUMO 12',
-            description: 'Projeto de infraestrutura ferroviária',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          return {
-            state: {
-              projects: [defaultProject],
-              documents: normalized,
-              selectedProjectId: 'default-project-id',
-              filters: prev.filters ?? defaultFilters,
-            }
-          } as any;
-        } catch {
-          // If migration fails, return empty state and let loadSampleData handle it
-          return {
-            state: {
-              projects: [],
-              documents: [],
-              selectedProjectId: null,
-              filters: defaultFilters,
-            }
-          } as any;
-        }
-      },
-    }
-  )
-);
+  clearAllData: () => {
+    set({
+      projects: [],
+      documents: [],
+      selectedProjectId: null,
+      filters: defaultFilters,
+    });
+  },
+}));

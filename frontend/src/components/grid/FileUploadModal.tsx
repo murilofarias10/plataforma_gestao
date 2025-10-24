@@ -137,7 +137,10 @@ export function FileUploadModal({
   };
 
   const downloadAttachment = (attachment: ProjectAttachment) => {
-    const downloadUrl = `http://localhost:3001${attachment.filePath}`;
+    // Extract server filename from filePath
+    const serverFileName = attachment.filePath.split('/').pop();
+    // Use the new download API endpoint which sets proper Content-Disposition header
+    const downloadUrl = `http://localhost:3001/api/download/${projectId}/${documentId}/${serverFileName}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = attachment.fileName;

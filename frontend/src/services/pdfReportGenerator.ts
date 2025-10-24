@@ -697,18 +697,32 @@ export class PDFReportGenerator {
    */
   private async collectAllAttachments(projectId: string): Promise<any[]> {
     try {
-      const folderStructure = fileManager.getProjectFolderStructure(projectId);
-      if (!folderStructure) return [];
-
       const allAttachments: any[] = [];
       
       // Get FILTERED documents from the project store (same as used in the report)
       const projectStore = useProjectStore.getState();
       const filteredDocuments = projectStore.getFilteredDocuments(); // This respects current filters
       
+      // Log for debugging
+      console.log('Collecting attachments for filtered documents:', {
+        totalFilteredDocuments: filteredDocuments.length,
+        activeFilters: projectStore.filters,
+        documentIds: filteredDocuments.map(d => ({ id: d.id, name: d.documento, status: d.status }))
+      });
+      
       // Collect attachments only for filtered documents
       for (const document of filteredDocuments) {
-        const documentAttachments = fileManager.getDocumentAttachments(projectId, document.id);
+        // Get attachments from fileManager (which stores original names in localStorage)
+        let documentAttachments = fileManager.getDocumentAttachments(projectId, document.id);
+        
+        // If no attachments in localStorage, fetch from backend
+        if (documentAttachments.length === 0) {
+          documentAttachments = await this.fetchAttachmentsFromBackend(projectId, document.id);
+        }
+        
+        console.log(`Document ${document.documento} (${document.id}): ${documentAttachments.length} attachments`);
+        documentAttachments.forEach(att => console.log(`  - ${att.fileName}`));
+        
         documentAttachments.forEach(attachment => {
           // Ensure uploadedAt is properly handled
           const processedAttachment = {
@@ -721,11 +735,64 @@ export class PDFReportGenerator {
         });
       }
       
+      console.log(`Total attachments collected: ${allAttachments.length}`);
+      
       return allAttachments;
     } catch (error) {
       console.error('Error collecting attachments:', error);
       return [];
     }
+  }
+
+  /**
+   * Fetch attachments from backend API
+   */
+  private async fetchAttachmentsFromBackend(projectId: string, documentId: string): Promise<any[]> {
+    try {
+      const cacheBuster = `?t=${Date.now()}`;
+      const response = await fetch(`http://localhost:3001/api/files/${projectId}/${documentId}${cacheBuster}`, {
+        cache: 'no-store' // Prevent caching
+      });
+      const result = await response.json();
+
+      if (!result.success || !result.files) {
+        console.log(`No files found for document ${documentId}`);
+        return [];
+      }
+
+      // Convert backend files to attachment format
+      const attachments = result.files.map((file: any) => ({
+        id: `${documentId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        fileType: this.getFileTypeFromExtension(file.fileName),
+        uploadedAt: new Date(file.uploadedAt),
+        filePath: file.filePath,
+      }));
+
+      return attachments;
+    } catch (error) {
+      console.error(`Error fetching attachments for document ${documentId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get file type from file extension
+   */
+  private getFileTypeFromExtension(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    const typeMap: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+    };
+    return typeMap[extension || ''] || 'application/octet-stream';
   }
 
   /**

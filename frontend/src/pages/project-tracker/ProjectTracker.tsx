@@ -12,66 +12,59 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const ProjectTracker = () => {
-  const { documents, projects, loadSampleData, getSelectedProject, initializeDefaultProject } = useProjectStore();
+  const { documents, projects, loadData, loadSampleData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
   const selectedProject = getSelectedProject();
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
 
-  // Initialize default project if none exists
+  // Load data from backend on component mount
   useEffect(() => {
-    if (projects.length === 0) {
-      initializeDefaultProject();
-    }
-  }, [projects.length, initializeDefaultProject]);
-
-  // Load sample data when there are no projects
-  useEffect(() => {
-    if (projects.length === 0) {
-      try {
-        const stored = localStorage.getItem('project-tracker-storage');
-        const parsed = stored ? JSON.parse(stored) : null;
-        const persistedProjectsCount = parsed?.state?.projects?.length ?? 0;
-        if (persistedProjectsCount === 0) {
-          loadSampleData();
+    const initializeData = async () => {
+      if (!isInitialized) {
+        console.log('ProjectTracker: Loading data from backend...');
+        try {
+          await loadData();
+        } catch (error) {
+          console.error('ProjectTracker: Error loading data:', error);
         }
-      } catch {
-        loadSampleData();
       }
-    }
-  }, [projects.length, loadSampleData]);
+    };
+    
+    initializeData();
+  }, [isInitialized, loadData]);
 
-  // Clear any persisted store created before version bump or with Dec/2023 anomaly
+  // Initialize default project if none exists after loading
   useEffect(() => {
-    const storedData = localStorage.getItem('project-tracker-storage');
-    if (storedData) {
-      try {
-        const parsed = JSON.parse(storedData);
-        const hasDec2023 = parsed.state?.documents?.some((doc: any) =>
-          doc?.dataInicio?.includes('12/2023')
-        );
-        const needsMigration = parsed.version === 1;
-        if (hasDec2023 || needsMigration) {
-          console.log('Found December 2023 data, clearing localStorage');
-          localStorage.removeItem('project-tracker-storage');
-          loadSampleData();
-        }
-      } catch (e) {
-        console.log('Corrupted localStorage data, clearing');
-        localStorage.removeItem('project-tracker-storage');
-        loadSampleData();
+    const initializeDefault = async () => {
+      if (isInitialized && projects.length === 0) {
+        console.log('No projects found, initializing default project...');
+        await initializeDefaultProject();
       }
-    }
-  }, [loadSampleData]);
+    };
+    
+    initializeDefault();
+  }, [isInitialized, projects.length, initializeDefaultProject]);
+
 
   const handleSave = () => {
-    // Data is automatically saved to localStorage, but we can show confirmation
+    // Data is automatically saved to backend, but we can show confirmation
     toast.success("Dados salvos com sucesso!");
   };
 
-  const handleReloadData = () => {
-    localStorage.removeItem('project-tracker-storage');
-    loadSampleData();
+  const handleReloadData = async () => {
+    await loadData();
     toast.success("Dados recarregados com sucesso!");
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-background">

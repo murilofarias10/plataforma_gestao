@@ -44,8 +44,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from uploads directory with no cache
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+}));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -470,8 +476,22 @@ app.get('/api/files/:projectId/:documentId', async (req, res) => {
       const stats = await fs.stat(filePath);
       
       if (stats.isFile()) {
+        // Try to find original filename from documents data
+        let originalFileName = file;
+        const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
+        if (document && document.attachments) {
+          const attachment = document.attachments.find((att) => {
+            const serverFileName = att.filePath.split('/').pop();
+            return serverFileName === file;
+          });
+          if (attachment) {
+            originalFileName = attachment.fileName || attachment.originalName || file;
+          }
+        }
+        
         fileList.push({
-          fileName: file,
+          fileName: originalFileName,
+          serverFileName: file, // Keep server filename for reference
           fileSize: stats.size,
           uploadedAt: stats.mtime.toISOString(),
           filePath: `/uploads/${projectId}/${documentId}/${file}`
@@ -489,6 +509,53 @@ app.get('/api/files/:projectId/:documentId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erro ao buscar arquivos'
+    });
+  }
+});
+
+// Download file endpoint with proper filename
+app.get('/api/download/:projectId/:documentId/:filename', async (req, res) => {
+  try {
+    const { projectId, documentId, filename } = req.params;
+    const filePath = path.join(__dirname, 'uploads', projectId, documentId, filename);
+    
+    // Check if file exists
+    if (!await fs.pathExists(filePath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo não encontrado'
+      });
+    }
+
+    // Find the document to get the original filename
+    const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
+    let originalFileName = filename; // Fallback to server filename
+    
+    if (document && document.attachments) {
+      const attachment = document.attachments.find((att) => {
+        const serverFileName = att.filePath.split('/').pop();
+        return serverFileName === filename;
+      });
+      if (attachment) {
+        originalFileName = attachment.fileName || attachment.originalName || filename;
+      }
+    }
+
+    // Set headers to force download with original filename
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Send the file
+    res.sendFile(path.resolve(filePath));
+
+  } catch (error) {
+    console.error('Download file error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao baixar arquivo'
     });
   }
 });

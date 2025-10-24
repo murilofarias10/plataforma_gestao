@@ -11,6 +11,7 @@ interface FileUploadCellProps {
   projectId: string;
   documentId: string;
   onModalClose?: () => void;
+  autoOpen?: boolean;
 }
 
 export function FileUploadCell({ 
@@ -18,14 +19,17 @@ export function FileUploadCell({
   onAttachmentsChange, 
   projectId, 
   documentId,
-  onModalClose
+  onModalClose,
+  autoOpen = false
 }: FileUploadCellProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Automatically open modal when component mounts
+  // Auto-open modal when component mounts if autoOpen is true
   useEffect(() => {
-    setIsModalOpen(true);
-  }, []);
+    if (autoOpen) {
+      setIsModalOpen(true);
+    }
+  }, [autoOpen]);
 
   const handleModalClose = () => {
     setIsModalOpen(false);
