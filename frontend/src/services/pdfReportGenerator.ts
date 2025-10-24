@@ -67,6 +67,20 @@ export class PDFReportGenerator {
     this.currentY = this.margin;
   }
 
+  /**
+   * Format date and time for display (e.g., 24/10/2025 14:30:52)
+   */
+  private formatDateTimeForDisplay(): string {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  }
+
   async generateComprehensiveReport(): Promise<void> {
     try {
       // Capture screenshots from both pages
@@ -79,6 +93,10 @@ export class PDFReportGenerator {
       if (!selectedProject) {
         throw new Error('Nenhum projeto selecionado');
       }
+
+      // Generate timestamp once to use consistently
+      const timestamp = this.formatDateTimeForDisplay();
+      const timestampForFilename = timestamp.replace(/[:\/ ]/g, (match) => match === '/' ? '-' : '_');
 
       // Collect all attachments for the project
       const allAttachments = await this.collectAllAttachments(selectedProject.id);
@@ -101,7 +119,7 @@ export class PDFReportGenerator {
         projectInfo: {
           name: selectedProject.name,
           description: selectedProject.description,
-          generatedAt: new Date().toLocaleDateString('pt-BR')
+          generatedAt: timestamp
         },
         attachments: {
           allAttachments: allAttachments,
@@ -113,8 +131,8 @@ export class PDFReportGenerator {
       // Generate PDF content with screenshots
       await this.generatePDFContent(reportData, screenshots);
       
-      // Save the PDF
-      const fileName = `Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Save the PDF with same timestamp
+      const fileName = `Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${timestampForFilename}.pdf`;
       this.pdf.save(fileName);
       
     } catch (error) {

@@ -48,6 +48,10 @@ export class ZIPReportGenerator {
         throw new Error('Nenhum projeto selecionado');
       }
 
+      // Generate timestamp once to use consistently
+      const timestamp = this.formatDateTimeForDisplay();
+      const timestampForFilename = timestamp.replace(/[:\/ ]/g, (match) => match === '/' ? '-' : '_');
+
       // Collect all attachments for the project
       console.log('=== Starting report generation ===');
       const allAttachments = await this.collectAllAttachments(selectedProject.id);
@@ -72,7 +76,7 @@ export class ZIPReportGenerator {
         projectInfo: {
           name: selectedProject.name,
           description: selectedProject.description,
-          generatedAt: new Date().toLocaleDateString('pt-BR')
+          generatedAt: timestamp
         },
         attachments: {
           allAttachments: allAttachments,
@@ -85,8 +89,8 @@ export class ZIPReportGenerator {
       const pdfGenerator = new PDFReportGenerator();
       const pdfBlob = await pdfGenerator.generatePDFBlob(reportData);
       
-      // Add PDF to ZIP
-      this.zip.file(`Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`, pdfBlob);
+      // Add PDF to ZIP with same timestamp
+      this.zip.file(`Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${timestampForFilename}.pdf`, pdfBlob);
 
       // Add all attachment files to ZIP
       if (allAttachments.length > 0) {
@@ -98,7 +102,7 @@ export class ZIPReportGenerator {
 
       // Generate and download ZIP
       console.log('Generating ZIP file...');
-      await this.generateAndDownloadZip(selectedProject.name);
+      await this.generateAndDownloadZip(selectedProject.name, timestampForFilename);
       console.log('=== Report generation complete ===');
 
     } catch (error) {
@@ -268,14 +272,14 @@ export class ZIPReportGenerator {
   /**
    * Generate and download the ZIP file
    */
-  private async generateAndDownloadZip(projectName: string): Promise<void> {
+  private async generateAndDownloadZip(projectName: string, timestampForFilename: string): Promise<void> {
     const zipBlob = await this.zip.generateAsync({ type: 'blob' });
     
     // Create download link
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Relatorio_Completo_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.zip`;
+    link.download = `Relatorio_Completo_${projectName.replace(/\s+/g, '_')}_${timestampForFilename}.zip`;
     
     // Trigger download
     document.body.appendChild(link);
@@ -284,6 +288,20 @@ export class ZIPReportGenerator {
     
     // Clean up
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Format date and time for display (e.g., 24/10/2025 14:30:52)
+   */
+  private formatDateTimeForDisplay(): string {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   }
 
   /**
