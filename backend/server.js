@@ -7,6 +7,38 @@ const fs = require('fs-extra');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// In-memory storage for projects and documents (in production, use a real database)
+let projectsData = [];
+let documentsData = [];
+let nextProjectId = 1;
+let nextDocumentId = 1;
+
+// Load existing data from file if it exists
+const dataFilePath = path.join(__dirname, 'data.json');
+try {
+  if (fs.existsSync(dataFilePath)) {
+    const data = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
+    projectsData = data.projects || [];
+    documentsData = data.documents || [];
+    nextProjectId = Math.max(...projectsData.map(p => parseInt(p.id) || 0), 0) + 1;
+    nextDocumentId = Math.max(...documentsData.map(d => parseInt(d.id) || 0), 0) + 1;
+  }
+} catch (error) {
+  console.error('Error loading data file:', error);
+}
+
+// Save data to file
+const saveData = () => {
+  try {
+    fs.writeFileSync(dataFilePath, JSON.stringify({
+      projects: projectsData,
+      documents: documentsData
+    }, null, 2));
+  } catch (error) {
+    console.error('Error saving data:', error);
+  }
+};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -111,6 +143,235 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Projects API endpoints
+app.get('/api/projects', (req, res) => {
+  res.json({
+    success: true,
+    projects: projectsData
+  });
+});
+
+app.post('/api/projects', (req, res) => {
+  try {
+    const { name, description } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project name is required'
+      });
+    }
+
+    const newProject = {
+      id: nextProjectId.toString(),
+      name,
+      description: description || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    projectsData.push(newProject);
+    nextProjectId++;
+    saveData();
+
+    res.json({
+      success: true,
+      project: newProject
+    });
+  } catch (error) {
+    console.error('Create project error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error creating project'
+    });
+  }
+});
+
+app.put('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    const projectIndex = projectsData.findIndex(p => p.id === id);
+    if (projectIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    projectsData[projectIndex] = {
+      ...projectsData[projectIndex],
+      name: name || projectsData[projectIndex].name,
+      description: description !== undefined ? description : projectsData[projectIndex].description,
+      updatedAt: new Date().toISOString()
+    };
+
+    saveData();
+
+    res.json({
+      success: true,
+      project: projectsData[projectIndex]
+    });
+  } catch (error) {
+    console.error('Update project error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error updating project'
+    });
+  }
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const projectIndex = projectsData.findIndex(p => p.id === id);
+    if (projectIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    // Remove project and all its documents
+    projectsData.splice(projectIndex, 1);
+    documentsData = documentsData.filter(d => d.projectId !== id);
+    saveData();
+
+    res.json({
+      success: true,
+      message: 'Project deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete project error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error deleting project'
+    });
+  }
+});
+
+// Documents API endpoints
+app.get('/api/projects/:projectId/documents', (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const projectDocuments = documentsData.filter(d => d.projectId === projectId);
+    
+    res.json({
+      success: true,
+      documents: projectDocuments
+    });
+  } catch (error) {
+    console.error('Get documents error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error fetching documents'
+    });
+  }
+});
+
+app.post('/api/projects/:projectId/documents', (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const documentData = req.body;
+
+    // Check if project exists
+    const project = projectsData.find(p => p.id === projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    const newDocument = {
+      id: nextDocumentId.toString(),
+      projectId,
+      ...documentData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    documentsData.push(newDocument);
+    nextDocumentId++;
+    saveData();
+
+    res.json({
+      success: true,
+      document: newDocument
+    });
+  } catch (error) {
+    console.error('Create document error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error creating document'
+    });
+  }
+});
+
+app.put('/api/documents/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const documentIndex = documentsData.findIndex(d => d.id === id);
+    if (documentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found'
+      });
+    }
+
+    documentsData[documentIndex] = {
+      ...documentsData[documentIndex],
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+
+    saveData();
+
+    res.json({
+      success: true,
+      document: documentsData[documentIndex]
+    });
+  } catch (error) {
+    console.error('Update document error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error updating document'
+    });
+  }
+});
+
+app.delete('/api/documents/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const documentIndex = documentsData.findIndex(d => d.id === id);
+    if (documentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found'
+      });
+    }
+
+    documentsData.splice(documentIndex, 1);
+    saveData();
+
+    res.json({
+      success: true,
+      message: 'Document deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete document error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error deleting document'
+    });
+  }
 });
 
 // File upload endpoint
