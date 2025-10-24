@@ -20,6 +20,7 @@ export function DataGrid() {
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
     projectId: selectedProjectId || '',
+    numeroItem: documents.length + 1,
     dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
     dataFim: '',
     documento: '',
@@ -28,7 +29,6 @@ export function DataGrid() {
     responsavel: '',
     status: 'A iniciar',
     area: '',
-    participantes: '',
     attachments: [],
   });
 
@@ -55,18 +55,19 @@ export function DataGrid() {
   useEffect(() => {
     setBlankRow(prev => ({
       ...prev,
-      projectId: selectedProjectId || ''
+      projectId: selectedProjectId || '',
+      numeroItem: documents.length + 1
     }));
-  }, [selectedProjectId]);
+  }, [selectedProjectId, documents.length]);
 
   const columns = [
+    { key: 'numeroItem', label: 'Nº Item', type: 'number', width: '0.8fr' },
     { key: 'dataInicio', label: 'Data Início*', type: 'date', width: '1fr' },
     { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
     { key: 'documento', label: 'Tópico*', type: 'text', width: '2fr' },
     { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
     { key: 'responsavel', label: 'Responsável*', type: 'text', width: '1.2fr' },
     { key: 'status', label: 'Status*', type: 'select', width: '1.2fr' },
-    { key: 'participantes', label: 'Participantes', type: 'text', width: '1.5fr' },
     { key: 'attachments', label: 'Anexo', type: 'file', width: '0.8fr' },
   ];
 
@@ -168,6 +169,7 @@ export function DataGrid() {
       // Reset blank row
       setBlankRow({
         projectId: selectedProjectId || '',
+        numeroItem: documents.length + 2,
         dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
         dataFim: '',
         documento: '',
@@ -176,7 +178,6 @@ export function DataGrid() {
         responsavel: '',
         status: 'A iniciar',
         area: '',
-        participantes: '',
         attachments: [],
       });
     } else {

@@ -9,6 +9,7 @@ export interface Project {
 export interface ProjectDocument {
   id: string;
   projectId: string; // Reference to the project this document belongs to
+  numeroItem: number; // Sequential item number
   dataInicio: string; // dd/mm/yyyy
   dataFim: string; // dd/mm/yyyy
   documento: string;
@@ -17,7 +18,6 @@ export interface ProjectDocument {
   responsavel: string;
   status: "A iniciar" | "Em andamento" | "Finalizado";
   area: string;
-  participantes: string; // semicolon separated
   createdAt: Date;
   updatedAt: Date;
   // When true, this row was cleared by the user and should be ignored by dashboards

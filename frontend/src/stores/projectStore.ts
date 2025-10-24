@@ -251,10 +251,11 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
       console.log('loadDocumentsForProject: Documents response:', response);
       
       if (response.success) {
-        const documents = response.documents.map((doc: any) => ({
+        const documents = response.documents.map((doc: any, index: number) => ({
           ...doc,
           createdAt: new Date(doc.createdAt),
           updatedAt: new Date(doc.updatedAt),
+          numeroItem: doc.numeroItem || index + 1, // Assign sequential number if missing
         }));
         
         console.log('loadDocumentsForProject: Processed documents:', documents);
@@ -404,7 +405,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         responsavel: docToDuplicate.responsavel,
         status: 'A iniciar' as const,
         area: '',
-        participantes: docToDuplicate.participantes,
+        numeroItem: Math.max(...get().documents.map(d => d.numeroItem || 0)) + 1,
       };
       
       await get().addDocument(duplicateData);
@@ -421,7 +422,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
       responsavel: '',
       status: 'A iniciar' as const,
       area: '',
-      participantes: '',
+      numeroItem: Math.max(...get().documents.map(d => d.numeroItem || 0)) + 1,
       isCleared: true,
     };
     
@@ -766,7 +767,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'João Silva',
             status: 'Finalizado',
             area: 'Estrutural',
-            participantes: 'João Silva; Maria Santos; Pedro Costa'
+            numeroItem: 1
           },
           {
             projectId: projectId,
@@ -778,7 +779,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Maria Santos',
             status: 'Em andamento',
             area: 'Hidráulica',
-            participantes: 'Maria Santos; Ana Oliveira'
+            numeroItem: 2
           },
           {
             projectId: projectId,
@@ -790,7 +791,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Pedro Costa',
             status: 'A iniciar',
             area: 'Geotécnica',
-            participantes: 'Pedro Costa; Carlos Lima'
+            numeroItem: 3
           },
           {
             projectId: projectId,
@@ -802,7 +803,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Ana Oliveira',
             status: 'Finalizado',
             area: 'Estrutural',
-            participantes: 'Ana Oliveira; João Silva; Rafael Torres'
+            numeroItem: 4
           },
           {
             projectId: projectId,
@@ -814,7 +815,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Carlos Lima',
             status: 'Em andamento',
             area: 'Elétrica',
-            participantes: 'Carlos Lima; Fernanda Rocha'
+            numeroItem: 5
           },
           {
             projectId: projectId,
@@ -826,7 +827,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Fernanda Rocha',
             status: 'A iniciar',
             area: 'Sustentabilidade',
-            participantes: 'Fernanda Rocha; Carlos Lima'
+            numeroItem: 6
           },
           {
             projectId: projectId,
@@ -838,7 +839,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Rafael Torres',
             status: 'Finalizado',
             area: 'Ambiental',
-            participantes: 'Rafael Torres; Fernanda Rocha; Ana Oliveira'
+            numeroItem: 7
           },
           {
             projectId: projectId,
@@ -850,7 +851,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
             responsavel: 'Marina Campos',
             status: 'Em andamento',
             area: 'Arquitetura',
-            participantes: 'Marina Campos; João Silva; Ana Oliveira'
+            numeroItem: 8
           }
         ];
 

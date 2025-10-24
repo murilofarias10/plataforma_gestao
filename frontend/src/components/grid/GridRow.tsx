@@ -81,6 +81,10 @@ export function GridRow({
                   {value as string}
                 </Badge>
               </button>
+            ) : column.key === 'numeroItem' ? (
+              <div className="p-1 text-center text-sm font-medium text-muted-foreground">
+                {value as number}
+              </div>
             ) : (
               <GridCell
                 value={value}
