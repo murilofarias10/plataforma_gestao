@@ -13,7 +13,7 @@ interface GridHeaderProps {
 export function GridHeader({ columns, totalCount }: GridHeaderProps) {
   return (
     <div className="grid-header">
-      <div className="flex items-center" style={{ display: 'grid', gridTemplateColumns: `${columns.map(col => col.width).join(' ')} 80px` }}>
+      <div className="flex items-center" style={{ display: 'grid', gridTemplateColumns: columns.map(col => col.width).join(' ') }}>
         {columns.map((column) => (
           <div
             key={column.key}
@@ -22,9 +22,6 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
             {column.label}
           </div>
         ))}
-        <div className="p-1 text-center text-xs font-medium text-muted-foreground">
-          Ações
-        </div>
       </div>
     </div>
   );

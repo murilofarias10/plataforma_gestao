@@ -12,9 +12,6 @@ export function DataGrid() {
     getTableDocuments,
     addDocument, 
     updateDocument, 
-    deleteDocument,
-    duplicateDocument,
-    clearDocument,
     selectedProjectId
   } = useProjectStore();
   
@@ -227,9 +224,6 @@ export function DataGrid() {
               onStartEdit={(field) => setEditingCell({ id: document.id, field })}
               onStopEdit={() => setEditingCell(null)}
               onKeyDown={handleKeyDown}
-              onDelete={() => deleteDocument(document.id)}
-              onDuplicate={() => duplicateDocument(document.id)}
-              onClear={() => clearDocument(document.id)}
               isEven={index % 2 === 0}
             />
           ))}
@@ -243,21 +237,6 @@ export function DataGrid() {
             onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
             onStopEdit={() => setEditingCell(null)}
             onKeyDown={handleKeyDown}
-            onDelete={() => {}}
-            onDuplicate={() => {}}
-            onClear={() => setBlankRow({
-              projectId: selectedProjectId || '',
-              dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
-              dataFim: '',
-              documento: '',
-              detalhe: '',
-              revisao: '',
-              responsavel: '',
-              status: 'A iniciar',
-              area: '',
-              participantes: '',
-              attachments: [],
-            })}
             onAdd={handleBlankRowSave}
             isBlankRow={true}
             isEven={documents.length % 2 === 0}
