@@ -624,6 +624,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           aIniciar: filteredDocs.filter(doc => doc.status === 'A iniciar').length,
           emAndamento: filteredDocs.filter(doc => doc.status === 'Em andamento').length,
           finalizado: filteredDocs.filter(doc => doc.status === 'Finalizado').length,
+          info: filteredDocs.filter(doc => doc.status === 'Info').length,
         };
       },
 
@@ -678,6 +679,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           'A iniciar': filteredDocs.filter(doc => doc.status === 'A iniciar').length,
           'Em andamento': filteredDocs.filter(doc => doc.status === 'Em andamento').length,
           'Finalizado': filteredDocs.filter(doc => doc.status === 'Finalizado').length,
+          'Info': filteredDocs.filter(doc => doc.status === 'Info').length,
         };
         
         return Object.entries(statusCounts).map(([status, count]) => ({

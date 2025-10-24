@@ -1,4 +1,3 @@
-import { FileText, Clock, CheckCircle } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
 import { cn } from "@/lib/utils";
 
@@ -7,10 +6,11 @@ export function KpiCards() {
   const { filters, setFilters } = useProjectStore();
   const kpiData = getKpiData();
 
-  const total = kpiData.aIniciar + kpiData.emAndamento + kpiData.finalizado;
+  const total = kpiData.aIniciar + kpiData.emAndamento + kpiData.finalizado + kpiData.info;
   const finalizadosPercent = total > 0 ? Math.round((kpiData.finalizado / total) * 100) : 0;
   const emAndamentoPercent = total > 0 ? Math.round((kpiData.emAndamento / total) * 100) : 0;
   const aIniciarPercent = total > 0 ? Math.round((kpiData.aIniciar / total) * 100) : 0;
+  const infoPercent = total > 0 ? Math.round((kpiData.info / total) * 100) : 0;
 
   const handleKpiClick = (status: string) => {
     const isCurrentlyFiltered = filters.statusFilter.includes(status);
@@ -30,102 +30,97 @@ export function KpiCards() {
 
   const cards = [
     {
-      title: "Total de Documentos",
+      title: "Total Itens",
       value: total,
       subtitle: "",
-      icon: FileText,
-      color: "text-foreground",
       bgColor: "bg-muted/30",
+      textColor: "text-foreground",
+      clickable: false,
     },
     {
-      title: "Finalizados",
-      value: kpiData.finalizado,
-      subtitle: `(${finalizadosPercent}%)`,
-      icon: CheckCircle,
-      color: "text-status-done",
-      bgColor: "bg-status-done/10",
-      filterStatus: "Finalizado",
+      title: "A iniciar",
+      value: kpiData.aIniciar,
+      subtitle: `(${aIniciarPercent}%)`,
+      bgColor: "bg-status-todo",
+      textColor: "text-status-todo-foreground",
+      filterStatus: "A iniciar",
       clickable: true,
     },
     {
       title: "Em andamento",
       value: kpiData.emAndamento,
       subtitle: `(${emAndamentoPercent}%)`,
-      icon: Clock,
-      color: "text-status-doing",
-      bgColor: "bg-status-doing/10",
+      bgColor: "bg-status-doing",
+      textColor: "text-status-doing-foreground",
       filterStatus: "Em andamento",
       clickable: true,
     },
     {
-      title: "A iniciar",
-      value: kpiData.aIniciar,
-      subtitle: `(${aIniciarPercent}%)`,
-      icon: FileText,
-      color: "text-status-todo",
-      bgColor: "bg-status-todo/10",
-      filterStatus: "A iniciar",
+      title: "Finalizados",
+      value: kpiData.finalizado,
+      subtitle: `(${finalizadosPercent}%)`,
+      bgColor: "bg-status-done",
+      textColor: "text-status-done-foreground",
+      filterStatus: "Finalizado",
       clickable: true,
     },
     {
-      title: "Progresso Geral",
-      value: `${finalizadosPercent}%`,
-      subtitle: "concluído",
-      icon: CheckCircle,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      title: "Info",
+      value: kpiData.info,
+      subtitle: `(${infoPercent}%)`,
+      bgColor: "bg-secondary",
+      textColor: "text-secondary-foreground",
+      filterStatus: "Info",
+      clickable: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" data-report-section="kpi-cards">
+    <div className="flex flex-wrap gap-2" data-report-section="kpi-cards">
       {cards.map((card) => {
-        const Icon = card.icon;
         const isFiltered = card.clickable && card.filterStatus && filters.statusFilter.includes(card.filterStatus);
         
         return (
           <div 
             key={card.title} 
             className={cn(
-              "kpi-card group transition-all duration-200 relative",
+              "group transition-all duration-200 relative border border-border rounded-lg p-2 w-[160px]",
+              card.bgColor,
               card.clickable && "cursor-pointer hover:scale-[1.02]",
-              card.clickable && card.title !== "Total de Documentos" && card.title !== "Progresso Geral" && "hover:shadow-green-500/20 hover:shadow-lg",
-              card.clickable && card.title === "Total de Documentos" && "hover:shadow-md",
-              card.clickable && card.title === "Progresso Geral" && "hover:shadow-md",
               isFiltered && "ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]"
             )}
+            style={{ 
+              boxShadow: 'var(--shadow-elegant)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (card.clickable) {
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(36, 143, 132, 0.3), 0 0 1px rgba(36, 143, 132, 0.2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (card.clickable) {
+                e.currentTarget.style.boxShadow = 'var(--shadow-elegant)';
+              }
+            }}
             onClick={card.clickable && card.filterStatus ? () => handleKpiClick(card.filterStatus!) : undefined}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  {card.title}
+            <div>
+              <p className={cn("text-xs font-medium mb-0.5", card.textColor, "opacity-80")}>
+                {card.title}
+              </p>
+              <p className={cn("text-xl font-bold", card.textColor)}>
+                {card.value}
+              </p>
+              {card.subtitle && (
+                <p className={cn("text-xs", card.textColor, "opacity-70")}>
+                  {card.subtitle}
                 </p>
-                <p className="text-2xl font-bold text-foreground">
-                  {card.value}
-                </p>
-                {card.subtitle && (
-                  <p className="text-sm text-muted-foreground">
-                    {card.subtitle}
-                  </p>
-                )}
-              </div>
-              <div className={cn(
-                "p-2 rounded-xl transition-all duration-200",
-                card.bgColor,
-                card.clickable && "group-hover:scale-110",
-                isFiltered && "scale-110 bg-primary/20"
-              )}>
-                <Icon className={cn(
-                  "h-5 w-5 transition-colors duration-200",
-                  card.color,
-                  isFiltered && "text-primary"
-                )} />
-              </div>
+              )}
             </div>
             {isFiltered && (
               <div className="absolute top-2 right-2">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
               </div>
             )}
           </div>

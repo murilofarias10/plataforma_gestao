@@ -123,6 +123,7 @@ export function GridCell({
               <SelectItem value="A iniciar">A iniciar</SelectItem>
               <SelectItem value="Em andamento">Em andamento</SelectItem>
               <SelectItem value="Finalizado">Finalizado</SelectItem>
+              <SelectItem value="Info">Info</SelectItem>
             </SelectContent>
           </Select>
         </div>

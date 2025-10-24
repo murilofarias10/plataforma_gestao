@@ -16,7 +16,7 @@ export interface ProjectDocument {
   detalhe: string;
   revisao: string; // R0, R1, etc.
   responsavel: string;
-  status: "A iniciar" | "Em andamento" | "Finalizado";
+  status: "A iniciar" | "Em andamento" | "Finalizado" | "Info";
   area: string;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +50,7 @@ export interface KpiData {
   aIniciar: number;
   emAndamento: number;
   finalizado: number;
+  info: number;
 }
 
 export interface TimelineDataPoint {

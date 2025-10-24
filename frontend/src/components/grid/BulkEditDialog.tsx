@@ -29,7 +29,7 @@ interface BulkEditDialogProps {
 export function BulkEditDialog({ open, onOpenChange, selectedIds, onComplete }: BulkEditDialogProps) {
   const { bulkUpdateDocuments, getUniqueResponsaveis } = useProjectStore();
   const [updates, setUpdates] = useState<{
-    status?: "A iniciar" | "Em andamento" | "Finalizado";
+    status?: "A iniciar" | "Em andamento" | "Finalizado" | "Info";
     responsavel?: string;
   }>({});
 
@@ -67,7 +67,7 @@ export function BulkEditDialog({ open, onOpenChange, selectedIds, onComplete }: 
             <div className="col-span-3">
               <Select
                 value={updates.status || ""}
-                onValueChange={(value: "A iniciar" | "Em andamento" | "Finalizado") => setUpdates(prev => ({ ...prev, status: value }))}
+                onValueChange={(value: "A iniciar" | "Em andamento" | "Finalizado" | "Info") => setUpdates(prev => ({ ...prev, status: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecionar status" />
@@ -76,6 +76,7 @@ export function BulkEditDialog({ open, onOpenChange, selectedIds, onComplete }: 
                   <SelectItem value="A iniciar">A iniciar</SelectItem>
                   <SelectItem value="Em andamento">Em andamento</SelectItem>
                   <SelectItem value="Finalizado">Finalizado</SelectItem>
+                  <SelectItem value="Info">Info</SelectItem>
                 </SelectContent>
               </Select>
             </div>

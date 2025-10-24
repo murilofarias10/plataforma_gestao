@@ -44,6 +44,8 @@ export function GridRow({
         return "doing";
       case "Finalizado":
         return "done";
+      case "Info":
+        return "secondary";
       default:
         return "secondary";
     }
