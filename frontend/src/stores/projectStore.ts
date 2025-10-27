@@ -8,25 +8,28 @@ const API_BASE_URL = 'http://localhost:3001/api';
 // API functions
 const apiCall = async (url: string, options: RequestInit = {}) => {
   try {
-    console.log('apiCall: Making request to:', url, 'with options:', options);
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        ...(options.headers || {}),
       },
       ...options,
+      cache: 'no-store', // Prevent caching
     });
 
-    console.log('apiCall: Response status:', response.status);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
     }
 
-    const data = await response.json();
-    console.log('apiCall: Response data:', data);
-    return data;
+    return await response.json();
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error(`API call to ${url} failed:`, error);
     throw error;
   }
 };
@@ -80,6 +83,7 @@ interface ProjectStore {
   filters: ProjectFilters;
   isLoading: boolean;
   isInitialized: boolean;
+  lastUpdated: string | null;
   
   // Project management
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -135,6 +139,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   filters: defaultFilters,
   isLoading: false,
   isInitialized: false,
+  lastUpdated: null,
 
   // Project management
   addProject: async (project) => {
@@ -259,7 +264,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         }));
         
         console.log('loadDocumentsForProject: Processed documents:', documents);
-        set({ documents, isLoading: false });
+        set({ documents, isLoading: false, lastUpdated: new Date().toISOString() });
       }
     } catch (error) {
       console.error('Error loading documents:', error);
@@ -301,7 +306,13 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         if (newDocument.dataInicio && newDocument.dataFim) {
           const startDate = parseBRDateLocal(newDocument.dataInicio);
           const endDate = parseBRDateLocal(newDocument.dataFim);
-          if (startDate && endDate && endDate < startDate) {
+          
+          if (!startDate || !endDate) return;
+          
+          // Document must be completely within the filter range:
+          // 1. Document start date >= filter start date
+          // 2. Document end date <= filter end date
+          if (endDate < startDate) {
             toast({
               title: 'Validação de datas',
               description: 'Data Fim não pode ser anterior à Data Início',
@@ -318,6 +329,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         set((state) => ({
           documents: [...state.documents, newDocument],
           isLoading: false,
+          lastUpdated: new Date().toISOString()
         }));
       }
     } catch (error) {
@@ -334,30 +346,63 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   updateDocument: async (id, updates) => {
     try {
       set({ isLoading: true });
+      
+      // Get current state
+      const currentDocs = [...get().documents];
+      const docIndex = currentDocs.findIndex(doc => doc.id === id);
+      
+      if (docIndex === -1) {
+        throw new Error('Documento não encontrado');
+      }
+      
+      // Create optimistic update
+      const originalDoc = currentDocs[docIndex];
+      const optimisticUpdate = { ...originalDoc, ...updates };
+      
+      // Update UI immediately
+      set({
+        documents: currentDocs.map(doc => 
+          doc.id === id ? optimisticUpdate : doc
+        ),
+        lastUpdated: new Date().toISOString()
+      });
+      
+      // Make API call
       const response = await documentsApi.update(id, updates);
       
       if (response.success) {
-        const updatedDocument = {
-          ...response.document,
-          createdAt: new Date(response.document.createdAt),
-          updatedAt: new Date(response.document.updatedAt),
-        };
+        // Refresh data from server to ensure consistency
+        const { selectedProjectId } = get();
+        if (selectedProjectId) {
+          await get().loadDocumentsForProject(selectedProjectId);
+        }
         
-        set((state) => ({
-          documents: state.documents.map((doc) => 
-            doc.id === id ? updatedDocument : doc
-          ),
-          isLoading: false,
-        }));
+        toast({
+          title: 'Sucesso',
+          description: 'Documento atualizado com sucesso',
+          variant: 'default',
+        });
+        
+        return true;
+      } else {
+        // Revert optimistic update if API call fails
+        set({
+          documents: currentDocs,
+          lastUpdated: new Date().toISOString()
+        });
+        
+        throw new Error(response.error || 'Falha ao atualizar o documento');
       }
     } catch (error) {
       console.error('Error updating document:', error);
-      set({ isLoading: false });
       toast({
         title: 'Erro',
-        description: 'Erro ao atualizar documento',
+        description: error instanceof Error ? error.message : 'Erro ao atualizar documento',
         variant: 'destructive',
       });
+      return false;
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -365,100 +410,90 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     try {
       set({ isLoading: true });
       const response = await documentsApi.delete(id);
-      
       if (response.success) {
         set((state) => ({
           documents: state.documents.filter((doc) => doc.id !== id),
           isLoading: false,
+          lastUpdated: new Date().toISOString(),
         }));
+        toast({ title: 'Sucesso', description: 'Documento excluído', variant: 'default' });
       }
     } catch (error) {
       console.error('Error deleting document:', error);
       set({ isLoading: false });
-      toast({
-        title: 'Erro',
-        description: 'Erro ao excluir documento',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Erro ao excluir documento', variant: 'destructive' });
     }
   },
 
   duplicateDocument: async (id) => {
     const { documents, selectedProjectId } = get();
-    if (!selectedProjectId) {
-      toast({
-        title: 'Erro',
-        description: 'Nenhum projeto selecionado',
-      });
-      return;
-    }
+    if (!selectedProjectId) return;
+    const doc = documents.find((d) => d.id === id);
+    if (!doc) return;
 
-    const docToDuplicate = documents.find((doc) => doc.id === id);
-    if (docToDuplicate) {
-      const duplicateData = {
-        projectId: selectedProjectId,
-        dataInicio: docToDuplicate.dataInicio,
-        dataFim: '',
-        documento: docToDuplicate.documento,
-        detalhe: '',
-        revisao: '',
-        responsavel: docToDuplicate.responsavel,
-        status: 'A iniciar' as const,
-        area: '',
-        numeroItem: Math.max(...get().documents.map(d => d.numeroItem || 0)) + 1,
-      };
-      
-      await get().addDocument(duplicateData);
-    }
+    const nextNumero =
+      documents
+        .filter((d) => d.projectId === selectedProjectId)
+        .reduce((max, d) => Math.max(max, d.numeroItem || 0), 0) + 1;
+
+    const clone: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'> = {
+      projectId: selectedProjectId,
+      numeroItem: nextNumero,
+      dataInicio: doc.dataInicio || '',
+      dataFim: doc.dataFim || '',
+      documento: doc.documento,
+      detalhe: doc.detalhe,
+      revisao: doc.revisao,
+      responsavel: doc.responsavel,
+      status: doc.status,
+      area: doc.area,
+      attachments: doc.attachments,
+      isCleared: doc.isCleared,
+    } as any;
+
+    await get().addDocument(clone);
   },
 
   clearDocument: async (id) => {
-    const clearData = {
-      dataInicio: '',
-      dataFim: '',
-      documento: '',
-      detalhe: '',
-      revisao: '',
-      responsavel: '',
-      status: 'A iniciar' as const,
-      area: '',
-      numeroItem: Math.max(...get().documents.map(d => d.numeroItem || 0)) + 1,
-      isCleared: true,
-    };
-    
-    await get().updateDocument(id, clearData);
+    await get().updateDocument(id, { isCleared: true } as Partial<ProjectDocument>);
   },
 
-  bulkUpdateDocuments: async (ids, updates) => {
-    try {
-      set({ isLoading: true });
-      
-      // Update each document individually
-      for (const id of ids) {
-        await documentsApi.update(id, updates);
-      }
-      
-      // Reload documents for the current project
-      const { selectedProjectId } = get();
-      if (selectedProjectId) {
-        await get().loadDocumentsForProject(selectedProjectId);
-      }
-      
-      set({ isLoading: false });
-    } catch (error) {
-      console.error('Error bulk updating documents:', error);
-      set({ isLoading: false });
-      toast({
-        title: 'Erro',
-        description: 'Erro ao atualizar documentos',
-        variant: 'destructive',
-      });
-    }
+  bulkUpdateDocuments: (ids, updates) => {
+    ids.forEach((docId) => {
+      void get().updateDocument(docId, updates);
+    });
   },
 
-  setFilters: (newFilters) => {
+  getUniqueResponsaveis: () => {
+    const { documents, selectedProjectId } = get();
+    if (!selectedProjectId) return [];
+    const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
+    return Array.from(new Set(projectDocuments
+      .map(doc => doc.responsavel)
+      .filter((responsavel): responsavel is string => Boolean(responsavel))
+    ));
+  },
+
+  getUniqueAreas: () => {
+    const { documents, selectedProjectId } = get();
+    if (!selectedProjectId) return [];
+    const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
+    return Array.from(new Set(projectDocuments
+      .map(doc => doc.area)
+      .filter((area): area is string => Boolean(area))
+    ));
+  },
+
+  setFilters: (filters) => {
     set((state) => ({
-      filters: { ...state.filters, ...newFilters }
+      filters: {
+        ...state.filters,
+        ...filters,
+        dateRange: {
+          ...state.filters.dateRange,
+          ...(filters.dateRange || {}),
+        },
+      },
     }));
   },
 
@@ -466,243 +501,92 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     set({ filters: defaultFilters });
   },
 
-      getFilteredDocuments: () => {
-        const { documents, filters, selectedProjectId } = get();
-        
-        if (!selectedProjectId) return [];
-        
-        // Filter by selected project first
-        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
-        
-        // Exclude cleared rows and rows missing mandatory fields
-        const mandatoryFilled = (doc: ProjectDocument) =>
-          !!doc.dataInicio && !!doc.documento && !!doc.responsavel && !!doc.status;
+  getFilteredDocuments: () => {
+    const { documents, selectedProjectId, filters } = get();
+    if (!selectedProjectId) return [];
+    const { searchQuery, statusFilter, areaFilter, responsavelFilter, dateRange } = filters;
 
-        const filtered = projectDocuments.filter((doc) => {
-          if (doc.isCleared) return false;
-          if (!mandatoryFilled(doc)) return false;
-          // Search filter
-          if (filters.searchQuery) {
-            const query = filters.searchQuery.toLowerCase();
-            if (
-              !doc.documento.toLowerCase().includes(query) &&
-              !doc.detalhe.toLowerCase().includes(query)
-            ) {
-              return false;
-            }
-          }
-          
-          // Status filter
-          if (filters.statusFilter.length > 0 && !filters.statusFilter.includes(doc.status)) {
-            return false;
-          }
-          
-          // Area filter
-          if (filters.areaFilter.length > 0 && !filters.areaFilter.includes(doc.area)) {
-            return false;
-          }
-          
-          // Responsavel filter
-          if (filters.responsavelFilter.length > 0 && !filters.responsavelFilter.includes(doc.responsavel)) {
-            return false;
-          }
-          
-          // Date range filter
-          if (filters.dateRange.start || filters.dateRange.end) {
-            const docStartDate = parseBRDateLocal(doc.dataInicio);
-            const docEndDate = parseBRDateLocal(doc.dataFim);
-            
-            // If both start and end filters are provided, check if document is completely within the range
-            if (filters.dateRange.start && filters.dateRange.end) {
-              const filterStartDate = parseBRDateLocal(filters.dateRange.start);
-              const filterEndDate = parseBRDateLocal(filters.dateRange.end);
-              
-              if (!filterStartDate || !filterEndDate) return false;
-              
-              // Document must be completely within the filter range:
-              // 1. Document start date >= filter start date
-              // 2. Document end date <= filter end date
-              if (!docStartDate || docStartDate < filterStartDate) return false;
-              if (!docEndDate || docEndDate > filterEndDate) return false;
-            } else {
-              // Only start date filter: document must start on or after this date
-              if (filters.dateRange.start) {
-                const filterStartDate = parseBRDateLocal(filters.dateRange.start);
-                if (!docStartDate || !filterStartDate || docStartDate < filterStartDate) return false;
-              }
-              
-              // Only end date filter: document must end on or before this date
-              if (filters.dateRange.end) {
-                const filterEndDate = parseBRDateLocal(filters.dateRange.end);
-                if (!docEndDate || !filterEndDate || docEndDate > filterEndDate) return false;
-              }
-            }
-          }
-          
-          return true;
-        });
-        
-        return filtered;
-      },
+    const q = (searchQuery || '').toLowerCase().trim();
+    const start = dateRange.start ? parseBRDateLocal(dateRange.start) : null;
+    const end = dateRange.end ? parseBRDateLocal(dateRange.end) : null;
 
-      getTableDocuments: () => {
-        const { documents, filters, selectedProjectId } = get();
-        
-        if (!selectedProjectId) return [];
-        
-        // Filter by selected project first
-        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
-        
-        // For table: show all rows (including cleared/incomplete) but apply filters
-        return projectDocuments.filter((doc) => {
-          // Search filter
-          if (filters.searchQuery) {
-            const query = filters.searchQuery.toLowerCase();
-            if (
-              !doc.documento.toLowerCase().includes(query) &&
-              !doc.detalhe.toLowerCase().includes(query)
-            ) {
-              return false;
-            }
-          }
-          
-          // Status filter
-          if (filters.statusFilter.length > 0 && !filters.statusFilter.includes(doc.status)) {
-            return false;
-          }
-          
-          // Area filter
-          if (filters.areaFilter.length > 0 && !filters.areaFilter.includes(doc.area)) {
-            return false;
-          }
-          
-          // Responsavel filter
-          if (filters.responsavelFilter.length > 0 && !filters.responsavelFilter.includes(doc.responsavel)) {
-            return false;
-          }
-          
-          // Date range filter
-          if (filters.dateRange.start || filters.dateRange.end) {
-            const docStartDate = parseBRDateLocal(doc.dataInicio);
-            const docEndDate = parseBRDateLocal(doc.dataFim);
-            
-            // If both start and end filters are provided, check if document is completely within the range
-            if (filters.dateRange.start && filters.dateRange.end) {
-              const filterStartDate = parseBRDateLocal(filters.dateRange.start);
-              const filterEndDate = parseBRDateLocal(filters.dateRange.end);
-              
-              if (!filterStartDate || !filterEndDate) return false;
-              
-              // Document must be completely within the filter range:
-              // 1. Document start date >= filter start date
-              // 2. Document end date <= filter end date
-              if (!docStartDate || docStartDate < filterStartDate) return false;
-              if (!docEndDate || docEndDate > filterEndDate) return false;
-            } else {
-              // Only start date filter: document must start on or after this date
-              if (filters.dateRange.start) {
-                const filterStartDate = parseBRDateLocal(filters.dateRange.start);
-                if (!docStartDate || !filterStartDate || docStartDate < filterStartDate) return false;
-              }
-              
-              // Only end date filter: document must end on or before this date
-              if (filters.dateRange.end) {
-                const filterEndDate = parseBRDateLocal(filters.dateRange.end);
-                if (!docEndDate || !filterEndDate || docEndDate > filterEndDate) return false;
-              }
-            }
-          }
-          
-          return true;
-        });
-      },
+    return documents
+      .filter((d) => d.projectId === selectedProjectId && !d.isCleared)
+      .filter((d) => {
+        if (q) {
+          const hay = `${d.documento} ${d.detalhe}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (statusFilter && statusFilter.length && !statusFilter.includes(d.status)) return false;
+        if (areaFilter && areaFilter.length && !areaFilter.includes(d.area)) return false;
+        if (responsavelFilter && responsavelFilter.length && !responsavelFilter.includes(d.responsavel)) return false;
 
-      getKpiData: () => {
-        const filteredDocs = get().getFilteredDocuments();
-        
-        return {
-          aIniciar: filteredDocs.filter(doc => doc.status === 'A iniciar').length,
-          emAndamento: filteredDocs.filter(doc => doc.status === 'Em andamento').length,
-          finalizado: filteredDocs.filter(doc => doc.status === 'Finalizado').length,
-          info: filteredDocs.filter(doc => doc.status === 'Info').length,
-        };
-      },
+        if (start) {
+          const di = d.dataInicio ? parseBRDateLocal(d.dataInicio) : null;
+          if (!di || di < start) return false;
+        }
+        if (end) {
+          const df = d.dataFim ? parseBRDateLocal(d.dataFim) : null;
+          if (!df || df > end) return false;
+        }
+        return true;
+      });
+  },
 
-      getTimelineData: () => {
-        const filteredDocs = get().getFilteredDocuments();
-        const monthlyData: Record<string, { created: number; finished: number }> = {};
-        
-        filteredDocs.forEach((doc) => {
-          if (doc.dataInicio) {
-            const startDate = parseBRDateLocal(doc.dataInicio);
-            if (!startDate) return;
-            const startMonthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-            if (!monthlyData[startMonthKey]) {
-              monthlyData[startMonthKey] = { created: 0, finished: 0 };
-            }
-            monthlyData[startMonthKey].created++;
-          }
-          
-          // Count finalizados based solely on presence of dataFim
-          if (doc.dataFim) {
-            const endDate = parseBRDateLocal(doc.dataFim);
-            if (!endDate) return;
-            const endMonthKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
-            if (!monthlyData[endMonthKey]) {
-              monthlyData[endMonthKey] = { created: 0, finished: 0 };
-            }
-            monthlyData[endMonthKey].finished++;
-          }
-        });
-        
-        // Sort months using the YYYY-MM key to ensure chronological order
-        const sortedMonthKeys = Object.keys(monthlyData).sort();
-        return sortedMonthKeys.map((monthKey) => {
-          const [yyyyStr, mmStr] = monthKey.split('-');
-          const yyyy = parseInt(yyyyStr, 10);
-          const mm = parseInt(mmStr, 10);
-          const labelDate = new Date(yyyy, (mm || 1) - 1, 1);
-          return {
-            month: labelDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
-            ...monthlyData[monthKey]
-          };
-        });
-      },
+  getTableDocuments: () => {
+    return get()
+      .getFilteredDocuments()
+      .slice()
+      .sort((a, b) => (a.numeroItem || 0) - (b.numeroItem || 0));
+  },
 
-      getStatusDistribution: () => {
-        const filteredDocs = get().getFilteredDocuments();
-        const total = filteredDocs.length;
-        
-        if (total === 0) return [];
-        
-        const statusCounts = {
-          'A iniciar': filteredDocs.filter(doc => doc.status === 'A iniciar').length,
-          'Em andamento': filteredDocs.filter(doc => doc.status === 'Em andamento').length,
-          'Finalizado': filteredDocs.filter(doc => doc.status === 'Finalizado').length,
-          'Info': filteredDocs.filter(doc => doc.status === 'Info').length,
-        };
-        
-        return Object.entries(statusCounts).map(([status, count]) => ({
-          status,
-          count,
-          percentage: Math.round((count / total) * 100)
-        }));
-      },
+  getKpiData: () => {
+    const docs = get().getFilteredDocuments();
+    const kpi: KpiData = { aIniciar: 0, emAndamento: 0, finalizado: 0, info: 0 };
+    docs.forEach((d) => {
+      if (d.status === 'A iniciar') kpi.aIniciar += 1;
+      else if (d.status === 'Em andamento') kpi.emAndamento += 1;
+      else if (d.status === 'Finalizado') kpi.finalizado += 1;
+      else if (d.status === 'Info') kpi.info += 1;
+    });
+    return kpi;
+  },
 
-      getUniqueAreas: () => {
-        const { documents, selectedProjectId } = get();
-        if (!selectedProjectId) return [];
-        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
-        return [...new Set(projectDocuments.map(doc => doc.area).filter(Boolean))];
-      },
+  getTimelineData: () => {
+    const docs = get().getFilteredDocuments();
+    const map = new Map<string, { created: number; finished: number }>();
 
-      getUniqueResponsaveis: () => {
-        const { documents, selectedProjectId } = get();
-        if (!selectedProjectId) return [];
-        const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
-        return [...new Set(projectDocuments.map(doc => doc.responsavel).filter(Boolean))];
-      },
+    const add = (dateStr: string | undefined, key: 'created' | 'finished') => {
+      if (!dateStr) return;
+      const d = parseBRDateLocal(dateStr);
+      if (!d) return;
+      const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const cur = map.get(label) || { created: 0, finished: 0 };
+      cur[key] += 1;
+      map.set(label, cur);
+    };
 
+    docs.forEach((d) => {
+      add(d.dataInicio, 'created');
+      if (d.dataFim) add(d.dataFim, 'finished');
+    });
+
+    return Array.from(map.entries())
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([month, { created, finished }]) => ({ month, created, finished })) as TimelineDataPoint[];
+  },
+
+  getStatusDistribution: () => {
+    const docs = get().getFilteredDocuments();
+    const total = docs.length || 1;
+    const counts = new Map<string, number>();
+    docs.forEach((d) => counts.set(d.status, (counts.get(d.status) || 0) + 1));
+    return Array.from(counts.entries()).map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / total) * 100),
+    })) as StatusDistribution[];
+  },
 
   loadData: async () => {
     try {
