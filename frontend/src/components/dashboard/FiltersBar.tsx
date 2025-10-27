@@ -1,11 +1,16 @@
-import { X, Filter, RotateCcw, Search, Calendar } from "lucide-react";
+import { X, Filter, RotateCcw, Search, Calendar, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProjectStore } from "@/stores/projectStore";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from "@/components/ui/input";
+import React from "react";
 
-export function FiltersBar() {
+interface FiltersBarProps {
+  onSave?: () => void;
+}
+
+export function FiltersBar({ onSave }: FiltersBarProps): React.ReactElement {
   const { 
     filters, 
     setFilters, 
@@ -140,6 +145,16 @@ export function FiltersBar() {
           />
         </div>
 
+        {onSave && (
+          <Button 
+            onClick={onSave}
+            className="flex items-center gap-2 flex-shrink-0"
+          >
+            <Save className="h-4 w-4" />
+            Salvar
+          </Button>
+        )}
+
         {activeFiltersCount > 0 && (
           <Button
             variant="outline"
@@ -154,89 +169,6 @@ export function FiltersBar() {
         )}
       </div>
 
-      {/* Active Filters Display */}
-      {activeFiltersCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Filtros ativos ({activeFiltersCount}):
-          </span>
-          
-          {filters.statusFilter.map((status) => (
-            <Badge key={status} variant="secondary" className="filter-chip active">
-              Status: {status}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => setFilters({ statusFilter: filters.statusFilter.filter(s => s !== status) })}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
-          
-          {filters.responsavelFilter.map((responsavel) => (
-            <Badge key={responsavel} variant="secondary" className="filter-chip active">
-              {responsavel}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => removeResponsavelFilter(responsavel)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
-
-          {filters.areaFilter.map((area) => (
-            <Badge key={area} variant="secondary" className="filter-chip active">
-              Área: {area}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => setFilters({ areaFilter: filters.areaFilter.filter(a => a !== area) })}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
-
-          {filters.searchQuery && (
-            <Badge variant="secondary" className="filter-chip active">
-              Busca: "{filters.searchQuery}"
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => setFilters({ searchQuery: "" })}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          )}
-
-          {(filters.dateRange.start || filters.dateRange.end) && (
-            <Badge variant="secondary" className="filter-chip active">
-              Período: {filters.dateRange.start || "..."} - {filters.dateRange.end || "..."}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 ml-2"
-                onClick={() => setFilters({ dateRange: { start: "", end: "" } })}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Results Count */}
-      <div className="text-sm text-muted-foreground">
-        Mostrando {filteredCount} documentos
-      </div>
     </div>
   );
 }

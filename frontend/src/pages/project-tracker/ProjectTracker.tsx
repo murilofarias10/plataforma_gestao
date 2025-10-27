@@ -82,7 +82,6 @@ const ProjectTracker = () => {
                   </span>
                 )}
               </h2>
-              <p className="text-muted-foreground">Controle de documentos e acompanhamento de projetos</p>
             </div>
             
             {projects.length === 0 && (
@@ -112,7 +111,7 @@ const ProjectTracker = () => {
 
           {/* Filters - Always Visible */}
           <div className="mt-6">
-            <FiltersBar />
+            <FiltersBar onSave={handleSave} />
           </div>
         </section>
 
@@ -122,18 +121,7 @@ const ProjectTracker = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-foreground">Controle de Documentos</h2>
-                <p className="text-muted-foreground">
-                  Planilha interativa para gerenciamento de documentos do projeto
-                </p>
               </div>
-              
-              <Button 
-                onClick={handleSave}
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Salvar
-              </Button>
             </div>
 
             <DataGrid />
