@@ -77,6 +77,43 @@ const storage = multer.diskStorage({
   }
 });
 
+// Maintenance: Renumber numeroItem sequentially for a project
+app.post('/api/projects/:projectId/renumber', (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const project = projectsData.find(p => p.id === projectId);
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    // Get docs of project (ignore cleared) and sort by current numeroItem (numeric), then createdAt, then id
+    const projectDocs = documentsData
+      .filter(d => d.projectId === projectId && d.isCleared !== true)
+      .sort((a, b) => {
+        const an = parseInt(a.numeroItem, 10);
+        const bn = parseInt(b.numeroItem, 10);
+        if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;
+        const ad = new Date(a.createdAt).getTime();
+        const bd = new Date(b.createdAt).getTime();
+        if (ad !== bd) return ad - bd;
+        return (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0);
+      });
+
+    // Assign sequential numbers starting at 1
+    projectDocs.forEach((d, idx) => {
+      d.numeroItem = idx + 1;
+      d.updatedAt = new Date().toISOString();
+    });
+
+    saveData();
+
+    return res.json({ success: true, documents: projectDocs });
+  } catch (error) {
+    console.error('Renumber error:', error);
+    return res.status(500).json({ success: false, error: 'Error renumbering documents' });
+  }
+});
+
 // File filter for validation
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
@@ -293,10 +330,24 @@ app.post('/api/projects/:projectId/documents', (req, res) => {
       });
     }
 
+    // Determine next sequential numeroItem within this project (smallest missing positive integer)
+    const projectDocs = documentsData.filter(d => d.projectId === projectId && d.isCleared !== true);
+    const used = new Set(
+      projectDocs
+        .map(d => parseInt(d.numeroItem, 10))
+        .filter(n => Number.isFinite(n) && n > 0)
+    );
+    let nextNumeroItem = 1;
+    while (used.has(nextNumeroItem)) nextNumeroItem++;
+
     const newDocument = {
       id: nextDocumentId.toString(),
       projectId,
       ...documentData,
+      // enforce sequential numeroItem if not provided or invalid
+      numeroItem: Number.isFinite(parseInt(documentData.numeroItem, 10))
+        ? parseInt(documentData.numeroItem, 10)
+        : nextNumeroItem,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

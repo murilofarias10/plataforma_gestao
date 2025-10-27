@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+
 import { ProjectDocument } from "@/types/project";
 import { useProjectStore } from "@/stores/projectStore";
 import { GridHeader } from "./GridHeader";
@@ -17,10 +18,23 @@ export function DataGrid() {
   
   // Use table documents (includes cleared/incomplete rows for editing)
   const documents = getTableDocuments();
+
+  // Compute next sequential numeroItem as the smallest missing positive integer
+  const nextNumeroItem = useMemo(() => {
+    const used = new Set<number>();
+    for (const d of documents) {
+      const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
+      if (Number.isFinite(n) && n > 0) used.add(n);
+    }
+    let candidate = 1;
+    while (used.has(candidate)) candidate++;
+    return candidate;
+  }, [documents]);
+
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
     projectId: selectedProjectId || '',
-    numeroItem: documents.length + 1,
+    numeroItem: nextNumeroItem,
     dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
     dataFim: '',
     documento: '',
@@ -51,14 +65,14 @@ export function DataGrid() {
     }
   });
 
-  // Update blankRow projectId when selectedProjectId changes
+  // Update blankRow projectId/numeroItem when selection or documents change
   useEffect(() => {
     setBlankRow(prev => ({
       ...prev,
       projectId: selectedProjectId || '',
-      numeroItem: documents.length + 1
+      numeroItem: nextNumeroItem
     }));
-  }, [selectedProjectId, documents.length]);
+  }, [selectedProjectId, nextNumeroItem]);
 
   const columns = [
     { key: 'numeroItem', label: 'Nº Item', type: 'number', width: '0.8fr' },
@@ -166,10 +180,10 @@ export function DataGrid() {
       
       await addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
       
-      // Reset blank row
+      // Reset blank row with freshly computed nextNumeroItem
       setBlankRow({
         projectId: selectedProjectId || '',
-        numeroItem: documents.length + 2,
+        numeroItem: nextNumeroItem + 1,
         dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
         dataFim: '',
         documento: '',
@@ -186,7 +200,7 @@ export function DataGrid() {
         description: 'Preencha Data Início, Documento, Responsável e Status.',
       });
     }
-  }, [blankRow, addDocument, selectedProjectId]);
+  }, [blankRow, addDocument, selectedProjectId, nextNumeroItem]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === 'Enter') {

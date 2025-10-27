@@ -74,6 +74,10 @@ const documentsApi = {
     apiCall(`${API_BASE_URL}/documents/${id}`, {
       method: 'DELETE',
     }),
+  renumber: (projectId: string) =>
+    apiCall(`${API_BASE_URL}/projects/${projectId}/renumber`, {
+      method: 'POST',
+    }),
 };
 
 interface ProjectStore {
@@ -116,9 +120,10 @@ interface ProjectStore {
   // Data loading
   loadData: () => Promise<void>;
   loadDocumentsForProject: (projectId: string) => Promise<void>;
-  loadSampleData: () => Promise<void>;
   initializeDefaultProject: () => Promise<void>;
   clearAllData: () => void;
+  renumberCurrentProject: () => Promise<void>;
+  renumberAllProjects: () => Promise<void>;
 }
 
 const defaultFilters: ProjectFilters = {
@@ -260,7 +265,8 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           ...doc,
           createdAt: new Date(doc.createdAt),
           updatedAt: new Date(doc.updatedAt),
-          numeroItem: doc.numeroItem || index + 1, // Assign sequential number if missing
+          // Convert numeroItem to number if it exists, otherwise use index + 1
+          numeroItem: typeof doc.numeroItem === 'number' ? doc.numeroItem : (typeof doc.numeroItem === 'string' ? parseInt(doc.numeroItem, 10) : index + 1),
         }));
         
         console.log('loadDocumentsForProject: Processed documents:', documents);
@@ -431,10 +437,15 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     const doc = documents.find((d) => d.id === id);
     if (!doc) return;
 
-    const nextNumero =
+    // Smallest missing positive integer within the project
+    const used = new Set<number>(
       documents
         .filter((d) => d.projectId === selectedProjectId)
-        .reduce((max, d) => Math.max(max, d.numeroItem || 0), 0) + 1;
+        .map((d) => (typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10)))
+        .filter((n) => Number.isFinite(n) && n > 0) as number[]
+    );
+    let nextNumero = 1;
+    while (used.has(nextNumero)) nextNumero++;
 
     const clone: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'> = {
       projectId: selectedProjectId,
@@ -464,6 +475,40 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     });
   },
 
+  renumberCurrentProject: async () => {
+    try {
+      const { selectedProjectId } = get();
+      if (!selectedProjectId) return;
+      set({ isLoading: true });
+      const response = await documentsApi.renumber(selectedProjectId);
+      if (response.success) {
+        const documents = response.documents.map((doc: any) => ({
+          ...doc,
+          createdAt: new Date(doc.createdAt),
+          updatedAt: new Date(doc.updatedAt),
+        }));
+        set({ documents, isLoading: false, lastUpdated: new Date().toISOString() });
+        toast({ title: 'Sucesso', description: 'Números reorganizados', variant: 'default' });
+      }
+    } catch (error) {
+      console.error('Error renumbering documents:', error);
+      set({ isLoading: false });
+      toast({ title: 'Erro', description: 'Erro ao reorganizar números', variant: 'destructive' });
+    }
+  },
+
+  renumberAllProjects: async () => {
+    const { projects } = get();
+    for (const p of projects) {
+      try {
+        await documentsApi.renumber(p.id);
+      } catch (e) {
+        console.error('Renumber project failed:', p.id, e);
+      }
+    }
+    const { selectedProjectId } = get();
+    if (selectedProjectId) await get().loadDocumentsForProject(selectedProjectId);
+  },
   getUniqueResponsaveis: () => {
     const { documents, selectedProjectId } = get();
     if (!selectedProjectId) return [];
@@ -622,130 +667,8 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     } catch (error) {
       console.error('Error loading data:', error);
       set({ isLoading: false, isInitialized: true });
-      // If API fails, load sample data
-      await get().loadSampleData();
     }
   },
-
-  loadSampleData: async () => {
-        // First create a sample project
-        const sampleProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
-          name: 'RUMO 12',
-          description: 'Projeto de infraestrutura ferroviária',
-        };
-        
-        await get().addProject(sampleProject);
-        
-        // Get the created project ID
-        const { projects, selectedProjectId } = get();
-        const projectId = selectedProjectId || projects[0]?.id;
-        
-        if (!projectId) return;
-        
-        const sampleDocuments: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>[] = [
-          {
-            projectId: projectId,
-            dataInicio: '15-01-2024',
-            dataFim: '28-02-2024',
-            documento: 'Projeto Estrutural Edifício Alpha',
-            detalhe: 'Cálculo estrutural completo para edifício comercial de 15 andares',
-            revisao: 'R2',
-            responsavel: 'João Silva',
-            status: 'Finalizado',
-            area: 'Estrutural',
-            numeroItem: 1
-          },
-          {
-            projectId: projectId,
-            dataInicio: '03-02-2024',
-            dataFim: '',
-            documento: 'Instalações Hidráulicas Residencial Beta',
-            detalhe: 'Projeto de instalações hidráulicas e sanitárias para condomínio residencial',
-            revisao: 'R1',
-            responsavel: 'Maria Santos',
-            status: 'Em andamento',
-            area: 'Hidráulica',
-            numeroItem: 2
-          },
-          {
-            projectId: projectId,
-            dataInicio: '10-03-2024',
-            dataFim: '',
-            documento: 'Análise Geotécnica Terreno Gamma',
-            detalhe: 'Estudo de solo e fundações para complexo industrial',
-            revisao: 'R0',
-            responsavel: 'Pedro Costa',
-            status: 'A iniciar',
-            area: 'Geotécnica',
-            numeroItem: 3
-          },
-          {
-            projectId: projectId,
-            dataInicio: '20-03-2024',
-            dataFim: '15-05-2024',
-            documento: 'Memorial de Cálculo Ponte Delta',
-            detalhe: 'Dimensionamento estrutural de ponte rodoviária em concreto armado',
-            revisao: 'R3',
-            responsavel: 'Ana Oliveira',
-            status: 'Finalizado',
-            area: 'Estrutural',
-            numeroItem: 4
-          },
-          {
-            projectId: projectId,
-            dataInicio: '05-04-2024',
-            dataFim: '',
-            documento: 'Projeto Elétrico Centro Comercial',
-            detalhe: 'Sistema elétrico completo para centro comercial de 3 pavimentos',
-            revisao: 'R1',
-            responsavel: 'Carlos Lima',
-            status: 'Em andamento',
-            area: 'Elétrica',
-            numeroItem: 5
-          },
-          {
-            projectId: projectId,
-            dataInicio: '12-05-2024',
-            dataFim: '',
-            documento: 'Estudo de Viabilidade Solar',
-            detalhe: 'Análise de implementação de sistema fotovoltaico em indústria',
-            revisao: 'R0',
-            responsavel: 'Fernanda Rocha',
-            status: 'A iniciar',
-            area: 'Sustentabilidade',
-            numeroItem: 6
-          },
-          {
-            projectId: projectId,
-            dataInicio: '25-05-2024',
-            dataFim: '10-07-2024',
-            documento: 'Relatório de Impacto Ambiental',
-            detalhe: 'RIA para aprovação de projeto industrial em área de preservação',
-            revisao: 'R2',
-            responsavel: 'Rafael Torres',
-            status: 'Finalizado',
-            area: 'Ambiental',
-            numeroItem: 7
-          },
-          {
-            projectId: projectId,
-            dataInicio: '15-06-2024',
-            dataFim: '',
-            documento: 'Projeto Arquitetônico Hospital',
-            detalhe: 'Anteprojeto arquitetônico para hospital público de médio porte',
-            revisao: 'R1',
-            responsavel: 'Marina Campos',
-            status: 'Em andamento',
-            area: 'Arquitetura',
-            numeroItem: 8
-          }
-        ];
-
-        // Add sample documents
-        for (const doc of sampleDocuments) {
-          await get().addDocument(doc);
-        }
-      },
 
   initializeDefaultProject: async () => {
         const { projects } = get();
