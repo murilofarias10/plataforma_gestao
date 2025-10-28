@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Project, ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, StatusDistribution } from '@/types/project';
 import { parseBRDateLocal } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { generateFieldChanges, createChangeLogEntry, debounce } from '@/lib/changeTracking';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -97,7 +98,8 @@ interface ProjectStore {
   
   // Document management
   addDocument: (document: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateDocument: (id: string, updates: Partial<ProjectDocument>) => void;
+  updateDocument: (id: string, updates: Partial<ProjectDocument>, skipChangeTracking?: boolean) => void;
+  updateDocumentWithChangeTracking: (id: string, updates: Partial<ProjectDocument>, meetingContext?: { meetingId: string; meetingData: string; meetingNumber: string }) => Promise<boolean>;
   deleteDocument: (id: string) => void;
   duplicateDocument: (id: string) => void;
   clearDocument: (id: string) => void;
@@ -267,6 +269,10 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           updatedAt: new Date(doc.updatedAt),
           // Convert numeroItem to number if it exists, otherwise use index + 1
           numeroItem: typeof doc.numeroItem === 'number' ? doc.numeroItem : (typeof doc.numeroItem === 'string' ? parseInt(doc.numeroItem, 10) : index + 1),
+          // Ensure change tracking arrays are initialized
+          participants: Array.isArray(doc.participants) ? doc.participants : [],
+          history: Array.isArray(doc.history) ? doc.history : [],
+          meetings: Array.isArray(doc.meetings) ? doc.meetings : [],
         }));
         
         console.log('loadDocumentsForProject: Processed documents:', documents);
@@ -349,7 +355,12 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
   },
 
-  updateDocument: async (id, updates) => {
+  updateDocument: async (id, updates, skipChangeTracking = false) => {
+    if (!skipChangeTracking) {
+      // Use change tracking version for regular updates
+      return await get().updateDocumentWithChangeTracking(id, updates);
+    }
+    
     try {
       set({ isLoading: true });
       
@@ -412,6 +423,80 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
   },
 
+  updateDocumentWithChangeTracking: async (id, updates, meetingContext) => {
+    try {
+      set({ isLoading: true });
+      
+      // Get current state
+      const currentDocs = [...get().documents];
+      const docIndex = currentDocs.findIndex(doc => doc.id === id);
+      
+      if (docIndex === -1) {
+        throw new Error('Documento não encontrado');
+      }
+      
+      const originalDoc = currentDocs[docIndex];
+      
+      // Generate field-level changes
+      const fieldChanges = generateFieldChanges(originalDoc, updates);
+      
+      // Only create change log if there are actual field changes
+      let updatedHistory = originalDoc.history || [];
+      if (fieldChanges.length > 0) {
+        const changeLogEntry = createChangeLogEntry(fieldChanges, meetingContext);
+        updatedHistory = [...updatedHistory, changeLogEntry];
+      }
+      
+      // Merge updates with history
+      const finalUpdates = {
+        ...updates,
+        history: updatedHistory,
+      };
+      
+      // Create optimistic update
+      const optimisticUpdate = { ...originalDoc, ...finalUpdates };
+      
+      // Update UI immediately
+      set({
+        documents: currentDocs.map(doc => 
+          doc.id === id ? optimisticUpdate : doc
+        ),
+        lastUpdated: new Date().toISOString()
+      });
+      
+      // Make API call
+      const response = await documentsApi.update(id, finalUpdates);
+      
+      if (response.success) {
+        // Refresh data from server to ensure consistency
+        const { selectedProjectId } = get();
+        if (selectedProjectId) {
+          await get().loadDocumentsForProject(selectedProjectId);
+        }
+        
+        return true;
+      } else {
+        // Revert optimistic update if API call fails
+        set({
+          documents: currentDocs,
+          lastUpdated: new Date().toISOString()
+        });
+        
+        throw new Error(response.error || 'Falha ao atualizar o documento');
+      }
+    } catch (error) {
+      console.error('Error updating document with change tracking:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao atualizar documento',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   deleteDocument: async (id) => {
     try {
       set({ isLoading: true });
@@ -460,13 +545,18 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
       area: doc.area,
       attachments: doc.attachments,
       isCleared: doc.isCleared,
+      // Don't copy change tracking data to duplicates
+      participants: [],
+      history: [],
+      meetings: [],
     } as any;
 
     await get().addDocument(clone);
   },
 
   clearDocument: async (id) => {
-    await get().updateDocument(id, { isCleared: true } as Partial<ProjectDocument>);
+    // Skip change tracking for clearing operations
+    await get().updateDocument(id, { isCleared: true } as Partial<ProjectDocument>, true);
   },
 
   bulkUpdateDocuments: (ids, updates) => {

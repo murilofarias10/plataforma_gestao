@@ -4,6 +4,7 @@ import { ProjectDocument } from "@/types/project";
 import { useProjectStore } from "@/stores/projectStore";
 import { GridHeader } from "./GridHeader";
 import { GridRow } from "./GridRow";
+import { ExpandableGridRow } from "./ExpandableGridRow";
 import { EmptyState } from "./EmptyState";
 import { parseBRDateLocal } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -12,7 +13,9 @@ export function DataGrid() {
   const { 
     getTableDocuments,
     addDocument, 
-    updateDocument, 
+    updateDocument,
+    duplicateDocument,
+    deleteDocument,
     selectedProjectId
   } = useProjectStore();
   
@@ -32,6 +35,7 @@ export function DataGrid() {
   }, [documents]);
 
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [blankRow, setBlankRow] = useState<Partial<ProjectDocument>>({
     projectId: selectedProjectId || '',
     numeroItem: nextNumeroItem,
@@ -214,6 +218,28 @@ export function DataGrid() {
     }
   }, [handleBlankRowSave]);
 
+  const handleSelectionChange = useCallback((id: string, selected: boolean) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleDuplicate = useCallback(async (id: string) => {
+    await duplicateDocument(id);
+  }, [duplicateDocument]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este documento?')) {
+      await deleteDocument(id);
+    }
+  }, [deleteDocument]);
+
 
   if (documents.length === 0 && !Object.values(blankRow).some(v => v)) {
     return <EmptyState onAddFirst={() => setEditingCell({ id: 'blank-row', field: 'documento' })} />;
@@ -228,9 +254,9 @@ export function DataGrid() {
         />
         
         <div className="max-h-[600px] overflow-auto">
-          {/* Existing documents */}
+          {/* Existing documents with expandable rows */}
           {documents.map((document, index) => (
-            <GridRow
+            <ExpandableGridRow
               key={document.id}
               document={document}
               columns={columns}
@@ -244,18 +270,23 @@ export function DataGrid() {
           ))}
 
           {/* Always-present blank row */}
-          <GridRow
-            document={{ id: 'blank-row', ...blankRow } as ProjectDocument}
-            columns={columns}
-            editingCell={editingCell}
-            onCellEdit={handleCellEdit}
-            onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
-            onStopEdit={() => setEditingCell(null)}
-            onKeyDown={handleKeyDown}
-            onAdd={handleBlankRowSave}
-            isBlankRow={true}
-            isEven={documents.length % 2 === 0}
-          />
+          <div className="border-t-2 border-gray-300 bg-gray-50/50 flex">
+            <div className="w-[40px] border-r border-border"></div>
+            <div className="flex-1">
+              <GridRow
+                document={{ id: 'blank-row', ...blankRow } as ProjectDocument}
+                columns={columns}
+                editingCell={editingCell}
+                onCellEdit={handleCellEdit}
+                onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
+                onStopEdit={() => setEditingCell(null)}
+                onKeyDown={handleKeyDown}
+                onAdd={handleBlankRowSave}
+                isBlankRow={true}
+                isEven={documents.length % 2 === 0}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

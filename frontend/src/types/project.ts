@@ -24,6 +24,10 @@ export interface ProjectDocument {
   isCleared?: boolean;
   // File attachment support
   attachments?: ProjectAttachment[];
+  // Change tracking and audit trail
+  participants?: string[]; // Array of participant names (tag-based)
+  history?: DocumentChange[]; // Immutable audit trail
+  meetings?: MeetingMetadata[]; // Meeting metadata for this document
 }
 
 export interface ProjectAttachment {
@@ -33,6 +37,31 @@ export interface ProjectAttachment {
   fileType: string;
   uploadedAt: Date;
   filePath: string; // Path within the project's folder structure
+}
+
+export interface FieldChange {
+  field: string;
+  oldValue: string | number | null;
+  newValue: string | number | null;
+}
+
+export interface DocumentChange {
+  id: string;
+  timestamp: string;
+  meetingId?: string; // Reference to meeting if change occurred during meeting
+  meetingData?: string; // Date of meeting in dd-mm-yyyy format
+  meetingNumber?: string; // Number of the meeting minutes (Numero da Ata)
+  isQuickEdit?: boolean; // true if edited directly without meeting context
+  changes: FieldChange[];
+  modifiedBy?: string; // Who made the change (optional for future auth)
+}
+
+export interface MeetingMetadata {
+  id: string;
+  data: string; // dd-mm-yyyy format
+  numeroAta: string;
+  participants: string[]; // Array of participant names
+  createdAt: string;
 }
 
 export interface ProjectFilters {

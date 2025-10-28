@@ -12,8 +12,11 @@ interface GridHeaderProps {
 
 export function GridHeader({ columns, totalCount }: GridHeaderProps) {
   return (
-    <div className="grid-header">
-      <div className="flex items-center" style={{ display: 'grid', gridTemplateColumns: columns.map(col => col.width).join(' ') }}>
+    <div className="grid-header flex">
+      {/* Space for expand button */}
+      <div className="w-[40px] border-r border-border bg-muted/20"></div>
+      
+      <div className="flex-1 flex items-center" style={{ display: 'grid', gridTemplateColumns: columns.map(col => col.width).join(' ') }}>
         {columns.map((column) => (
           <div
             key={column.key}
