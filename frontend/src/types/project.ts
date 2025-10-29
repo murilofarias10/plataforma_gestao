@@ -63,6 +63,7 @@ export interface MeetingMetadata {
   numeroAta: string;
   detalhes?: string; // Meeting details/notes
   participants: string[]; // Array of participant names
+  relatedItems?: number[]; // Array of item numbers discussed in this meeting
   createdAt: string;
 }
 

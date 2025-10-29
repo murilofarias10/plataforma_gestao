@@ -14,6 +14,7 @@ export function MeetingRegistrationSection() {
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
+  const documents = useProjectStore((state) => state.documents);
   
   const selectedProject = getSelectedProject();
   
@@ -22,6 +23,7 @@ export function MeetingRegistrationSection() {
   const [meetingDetalhes, setMeetingDetalhes] = useState('');
   const [newParticipant, setNewParticipant] = useState('');
   const [tempParticipants, setTempParticipants] = useState<string[]>([]);
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [expandedMeetings, setExpandedMeetings] = useState<Set<string>>(new Set());
 
   // Get meetings from the project directly from store to ensure reactivity
@@ -40,6 +42,16 @@ export function MeetingRegistrationSection() {
     return meetingsArray;
   }, [projects, selectedProjectId]);
 
+  // Get available items from documents
+  const availableItems = React.useMemo(() => {
+    if (!selectedProjectId) return [];
+    return documents
+      .filter(doc => doc.projectId === selectedProjectId && !doc.isCleared)
+      .map(doc => doc.numeroItem)
+      .filter((num): num is number => typeof num === 'number' && num > 0)
+      .sort((a, b) => a - b);
+  }, [documents, selectedProjectId]);
+
   const handleAddParticipant = useCallback(() => {
     if (newParticipant.trim()) {
       setTempParticipants([...tempParticipants, newParticipant.trim()]);
@@ -50,6 +62,16 @@ export function MeetingRegistrationSection() {
   const handleRemoveParticipant = useCallback((index: number) => {
     setTempParticipants(tempParticipants.filter((_, i) => i !== index));
   }, [tempParticipants]);
+
+  const toggleItemSelection = useCallback((itemNumber: number) => {
+    setSelectedItems(prev => {
+      if (prev.includes(itemNumber)) {
+        return prev.filter(num => num !== itemNumber);
+      } else {
+        return [...prev, itemNumber].sort((a, b) => a - b);
+      }
+    });
+  }, []);
 
   const handleAddMeeting = useCallback(async () => {
     if (!meetingData.trim() || !meetingNumero.trim() || !selectedProjectId) {
@@ -68,6 +90,7 @@ export function MeetingRegistrationSection() {
         numeroAta: meetingNumero,
         detalhes: meetingDetalhes.trim() || undefined,
         participants: tempParticipants,
+        relatedItems: selectedItems.length > 0 ? selectedItems : undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -80,13 +103,14 @@ export function MeetingRegistrationSection() {
       setMeetingNumero('');
       setMeetingDetalhes('');
       setTempParticipants([]);
+      setSelectedItems([]);
       
       toast.success('Reunião adicionada com sucesso!');
     } catch (error) {
       console.error('Error adding meeting:', error);
       toast.error('Erro ao adicionar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, tempParticipants, projects, selectedProjectId, updateProject]);
+  }, [meetingData, meetingNumero, meetingDetalhes, tempParticipants, selectedItems, projects, selectedProjectId, updateProject]);
 
   const handleRemoveMeeting = useCallback(async (meetingId: string) => {
     if (!selectedProjectId) return;
@@ -176,6 +200,37 @@ export function MeetingRegistrationSection() {
         </div>
       </div>
 
+      {/* Item Selection */}
+      {availableItems.length > 0 && (
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Itens Discutidos (Nº Item)
+          </label>
+          <div className="flex flex-wrap gap-1.5 p-2 border border-border rounded-md bg-muted/30 min-h-[40px]">
+            {availableItems.map((itemNum) => {
+              const isSelected = selectedItems.includes(itemNum);
+              return (
+                <Badge
+                  key={itemNum}
+                  variant={isSelected ? "default" : "outline"}
+                  className={`text-xs cursor-pointer transition-all hover:scale-105 ${
+                    isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => toggleItemSelection(itemNum)}
+                >
+                  {itemNum}
+                </Badge>
+              );
+            })}
+          </div>
+          {selectedItems.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {selectedItems.length} {selectedItems.length === 1 ? 'item selecionado' : 'itens selecionados'}
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">
           Participantes
@@ -247,7 +302,7 @@ export function MeetingRegistrationSection() {
           </div>
           {meetings.map((meeting) => {
             const isExpanded = expandedMeetings.has(meeting.id);
-            const hasDetails = meeting.detalhes;
+            const hasDetails = meeting.detalhes || (meeting.relatedItems && meeting.relatedItems.length > 0);
             
             return (
               <div
@@ -296,11 +351,26 @@ export function MeetingRegistrationSection() {
 
                 {/* Expandable Details Section */}
                 {isExpanded && hasDetails && (
-                  <div className="mt-2 pt-2 border-t border-border">
+                  <div className="mt-2 pt-2 border-t border-border space-y-2">
+                    {/* Related Items */}
+                    {meeting.relatedItems && meeting.relatedItems.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Itens Discutidos:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {meeting.relatedItems.map((itemNum) => (
+                            <Badge key={itemNum} variant="default" className="text-xs">
+                              Nº {itemNum}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {/* Details Text */}
-                    <div className="text-xs text-foreground">
-                      {meeting.detalhes}
-                    </div>
+                    {meeting.detalhes && (
+                      <div className="text-xs text-foreground">
+                        {meeting.detalhes}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
