@@ -7,14 +7,16 @@ import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Save, ChevronDown, ChevronUp, BarChart3 } from "lucide-react";
+import { Database, Save, ChevronDown, ChevronUp, BarChart3, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MeetingRegistrationSection } from "@/components/project/MeetingRegistrationSection";
 
 const ProjectTracker = () => {
   const { documents, projects, loadData, loadSampleData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
   const selectedProject = getSelectedProject();
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
+  const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
 
   // Load data from backend on component mount
   useEffect(() => {
@@ -113,6 +115,46 @@ const ProjectTracker = () => {
           <div className="mt-6">
             <FiltersBar onSave={handleSave} />
           </div>
+        </section>
+
+        {/* Collapsible Meeting Registration Section */}
+        <section className="space-y-4">
+          <Card className="border-2 border-dashed border-muted-foreground/25">
+            <CardHeader 
+              className="cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => setIsMeetingsExpanded(!isMeetingsExpanded)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Registrar Reunião</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Registro de reuniões do projeto
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  {isMeetingsExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            
+            <div className={cn(
+              "overflow-hidden transition-all duration-300 ease-in-out",
+              isMeetingsExpanded ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+            )}>
+              <CardContent className="pt-0">
+                <MeetingRegistrationSection />
+              </CardContent>
+            </div>
+          </Card>
         </section>
 
         {/* Main Data Grid Section - Primary Focus */}

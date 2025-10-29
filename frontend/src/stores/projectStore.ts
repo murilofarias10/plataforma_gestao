@@ -36,16 +36,13 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
 };
 
 const projectsApi = {
-  getAll: () => {
-    console.log('projectsApi.getAll: Making API call to:', `${API_BASE_URL}/projects`);
-    return apiCall(`${API_BASE_URL}/projects`);
-  },
+  getAll: () => apiCall(`${API_BASE_URL}/projects`),
   create: (data: { name: string; description?: string }) => 
     apiCall(`${API_BASE_URL}/projects`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: { name?: string; description?: string }) =>
+  update: (id: string, data: { name?: string; description?: string; meetings?: any[] }) => 
     apiCall(`${API_BASE_URL}/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -57,10 +54,8 @@ const projectsApi = {
 };
 
 const documentsApi = {
-  getByProject: (projectId: string) => {
-    console.log('documentsApi.getByProject: Making API call to:', `${API_BASE_URL}/projects/${projectId}/documents`);
-    return apiCall(`${API_BASE_URL}/projects/${projectId}/documents`);
-  },
+  getByProject: (projectId: string) => 
+    apiCall(`${API_BASE_URL}/projects/${projectId}/documents`),
   create: (projectId: string, data: any) =>
     apiCall(`${API_BASE_URL}/projects/${projectId}/documents`, {
       method: 'POST',
@@ -159,6 +154,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           ...response.project,
           createdAt: new Date(response.project.createdAt),
           updatedAt: new Date(response.project.updatedAt),
+          meetings: Array.isArray(response.project.meetings) ? response.project.meetings : [],
         };
         
         set((state) => ({
@@ -181,21 +177,44 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   updateProject: async (id, updates) => {
     try {
       set({ isLoading: true });
+      console.log('[updateProject] Sending update:', { id, updates });
       const response = await projectsApi.update(id, updates);
+      console.log('[updateProject] Response received:', response);
       
       if (response.success) {
         const updatedProject = {
           ...response.project,
           createdAt: new Date(response.project.createdAt),
           updatedAt: new Date(response.project.updatedAt),
+          meetings: Array.isArray(response.project.meetings) ? [...response.project.meetings] : [],
         };
         
-        set((state) => ({
-          projects: state.projects.map((project) => 
-            project.id === id ? updatedProject : project
-          ),
-          isLoading: false,
-        }));
+        console.log('[updateProject] Updated project with meetings:', updatedProject.meetings);
+        console.log('[updateProject] Meetings count:', updatedProject.meetings.length);
+        
+        set((state) => {
+          const newProjects = state.projects.map((project) => 
+            project.id === id ? { ...updatedProject } : project
+          );
+          console.log('[updateProject] New projects array:', newProjects);
+          console.log('[updateProject] Updated project in array:', newProjects.find(p => p.id === id));
+          return {
+            projects: [...newProjects], // Force new array reference
+            isLoading: false,
+          };
+        });
+        
+        // Verify the state was updated
+        setTimeout(() => {
+          const currentState = get();
+          const project = currentState.projects.find(p => p.id === id);
+          console.log('[updateProject] State after update:', {
+            projectId: id,
+            projectFound: !!project,
+            meetings: project?.meetings,
+            meetingsCount: project?.meetings?.length
+          });
+        }, 100);
       }
     } catch (error) {
       console.error('Error updating project:', error);
@@ -737,6 +756,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           ...project,
           createdAt: new Date(project.createdAt),
           updatedAt: new Date(project.updatedAt),
+          meetings: Array.isArray(project.meetings) ? project.meetings : [],
         }));
         
         set((state) => ({

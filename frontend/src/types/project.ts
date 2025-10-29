@@ -4,6 +4,7 @@ export interface Project {
   description?: string;
   createdAt: Date;
   updatedAt: Date;
+  meetings?: MeetingMetadata[]; // Project-level meetings
 }
 
 export interface ProjectDocument {
@@ -60,6 +61,7 @@ export interface MeetingMetadata {
   id: string;
   data: string; // dd-mm-yyyy format
   numeroAta: string;
+  detalhes?: string; // Meeting details/notes
   participants: string[]; // Array of participant names
   createdAt: string;
 }

@@ -30,10 +30,13 @@ try {
 // Save data to file
 const saveData = () => {
   try {
-    fs.writeFileSync(dataFilePath, JSON.stringify({
+    const dataToSave = {
       projects: projectsData,
       documents: documentsData
-    }, null, 2));
+    };
+    console.log('[saveData] Saving data - Projects count:', projectsData.length);
+    fs.writeFileSync(dataFilePath, JSON.stringify(dataToSave, null, 2));
+    console.log('[saveData] Data saved successfully');
   } catch (error) {
     console.error('Error saving data:', error);
   }
@@ -190,9 +193,23 @@ app.get('/api/health', (req, res) => {
 
 // Projects API endpoints
 app.get('/api/projects', (req, res) => {
+  // Ensure all projects have a meetings array and persist the change
+  const normalizedProjects = projectsData.map(project => {
+    if (!project.meetings) {
+      project.meetings = []; // Add meetings field if missing
+    }
+    return {
+      ...project,
+      meetings: Array.isArray(project.meetings) ? project.meetings : []
+    };
+  });
+  
+  // Save the normalized data to persist the meetings field
+  saveData();
+  
   res.json({
     success: true,
-    projects: projectsData
+    projects: normalizedProjects
   });
 });
 
@@ -211,6 +228,7 @@ app.post('/api/projects', (req, res) => {
       id: nextProjectId.toString(),
       name,
       description: description || '',
+      meetings: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -235,7 +253,9 @@ app.post('/api/projects', (req, res) => {
 app.put('/api/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, meetings } = req.body;
+
+    console.log('[Backend] PUT /api/projects/:id - Request:', { id, name, description, meetings });
 
     const projectIndex = projectsData.findIndex(p => p.id === id);
     if (projectIndex === -1) {
@@ -245,18 +265,34 @@ app.put('/api/projects/:id', (req, res) => {
       });
     }
 
+    // Ensure meetings array exists
+    const currentMeetings = projectsData[projectIndex].meetings || [];
+    const updatedMeetings = meetings !== undefined ? meetings : currentMeetings;
+    
+    console.log('[Backend] Current meetings:', currentMeetings);
+    console.log('[Backend] Updated meetings:', updatedMeetings);
+    
     projectsData[projectIndex] = {
       ...projectsData[projectIndex],
       name: name || projectsData[projectIndex].name,
       description: description !== undefined ? description : projectsData[projectIndex].description,
+      meetings: updatedMeetings,
       updatedAt: new Date().toISOString()
     };
 
     saveData();
 
+    // Ensure the response includes meetings
+    const responseProject = {
+      ...projectsData[projectIndex],
+      meetings: updatedMeetings
+    };
+
+    console.log('[Backend] Response project:', JSON.stringify(responseProject, null, 2));
+
     res.json({
       success: true,
-      project: projectsData[projectIndex]
+      project: responseProject
     });
   } catch (error) {
     console.error('Update project error:', error);
