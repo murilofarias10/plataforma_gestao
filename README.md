@@ -9,15 +9,22 @@ Uma plataforma completa de gestão de projetos com funcionalidades de upload de 
 - **React 18** - Biblioteca de interface
 - **TypeScript** - Tipagem estática
 - **Tailwind CSS** - Framework CSS
-- **shadcn/ui** - Componentes de interface
+- **shadcn/ui** - Componentes de interface (baseado em Radix UI)
+- **Radix UI** - Componentes primitivos acessíveis
 - **React Router** - Roteamento
 - **Zustand** - Gerenciamento de estado
 - **React Hook Form** - Formulários
+- **Zod** - Validação de schemas
 - **Recharts** - Gráficos e visualizações
 - **TanStack Query** - Cache e sincronização de dados
 - **jsPDF** - Geração de PDFs
 - **html2canvas** - Captura de telas para PDFs
 - **JSZip** - Criação de arquivos ZIP
+- **UUID** - Geração de identificadores únicos
+- **date-fns** - Manipulação de datas
+- **Lucide React** - Biblioteca de ícones
+- **Sonner** - Sistema de notificações toast
+- **next-themes** - Gerenciamento de temas (claro/escuro)
 
 ### Backend
 - **Node.js** - Runtime JavaScript
@@ -36,14 +43,16 @@ plataforma_gestao/
 │   │   ├── components/         # Componentes reutilizáveis
 │   │   │   ├── dashboard/      # Componentes do dashboard
 │   │   │   ├── grid/           # Componentes da grade de dados
-│   │   │   ├── layout/         # Layout principal
-│   │   │   ├── project/        # Componentes de projeto
-│   │   │   └── ui/             # Componentes base (shadcn/ui)
+│   │   │   ├── layout/         # Layout principal (Sidebar, MainLayout)
+│   │   │   ├── project/        # Componentes de projeto (ProjectSelector, MeetingRegistrationSection)
+│   │   │   └── ui/             # Componentes base (shadcn/ui + ReportGenerationDialog)
 │   │   ├── pages/              # Páginas da aplicação
 │   │   │   ├── document-monitor/ # Monitor de documentos
 │   │   │   └── project-tracker/  # Rastreador de projetos
 │   │   ├── services/           # Serviços e APIs
 │   │   ├── stores/             # Estado global (Zustand)
+│   │   ├── lib/                # Utilitários (changeTracking, utils)
+│   │   ├── hooks/              # Hooks customizados
 │   │   └── types/              # Definições TypeScript
 │   ├── public/                 # Arquivos estáticos públicos
 │   ├── dist/                   # Build de produção (gitignored)
@@ -54,6 +63,7 @@ plataforma_gestao/
     ├── server.js               # Servidor principal
     ├── data.json               # Armazenamento de dados (gitignored)
     ├── uploads/                # Diretório de uploads (gitignored)
+    │   └── {projectId}/{documentId}/{filename}
     └── package.json            # Dependências do backend
 ```
 
@@ -138,7 +148,12 @@ npm start
 - **Edição em Massa**: Capacidade de editar múltiplos registros
 - **Filtros Dinâmicos**: Sistema de filtros para navegação eficiente
 - **Gerenciamento de Projetos**: Criação, edição e exclusão de projetos
+- **Seletor de Projetos**: Interface para alternar entre múltiplos projetos
 - **Persistência de Dados**: Armazenamento automático em localStorage e JSON
+- **Documentos Numerados**: Sistema de numeração sequencial para itens de documento
+- **Documentos Ocultos**: Funcionalidade para marcar documentos como "limpos" (isCleared)
+- **Rastreamento de Mudanças**: Sistema completo de auditoria e histórico de alterações
+- **Gestão de Participantes**: Sistema de tags para participantes em documentos
 
 ### Sistema de Upload
 - **Tipos Suportados**: PDF, Excel, Word, PNG, JPEG
@@ -148,12 +163,31 @@ npm start
 - **Upload Múltiplo**: Suporte para múltiplos arquivos simultâneos
 - **Download de Arquivos**: Sistema de download integrado
 
+### Sistema de Reuniões
+- **Registro de Reuniões**: Sistema completo para registrar reuniões de projeto
+- **Metadados de Reunião**: Data, número da ata, detalhes e participantes
+- **Itens Relacionados**: Vinculação de documentos discutidos em reuniões
+- **Navegação Rápida**: Links para navegar diretamente aos itens discutidos
+- **Histórico de Reuniões**: Lista expansível de todas as reuniões registradas
+- **Integração com Documentos**: Mudanças podem ser vinculadas a reuniões específicas
+
+### Rastreamento de Mudanças e Auditoria
+- **Histórico Completo**: Todas as alterações em documentos são rastreadas
+- **Rastreamento por Campo**: Mudanças granulares por campo individual
+- **Contexto de Reunião**: Mudanças podem ser vinculadas a reuniões específicas
+- **Timestamps**: Registro completo de quando cada mudança ocorreu
+- **Modo de Edição**: Distinção entre edições rápidas e mudanças em reuniões
+- **Formatação de Mudanças**: Visualização clara do histórico de alterações
+
 ### Geração de Relatórios
 - **Relatórios PDF**: Geração de relatórios completos em PDF
 - **Captura de Telas**: Screenshots automáticos de gráficos e tabelas
 - **Relatórios ZIP**: Pacotes completos com PDF e anexos
-- **Inclusão de Anexos**: Todos os arquivos do projeto incluídos
+- **Inclusão de Anexos**: Todos os arquivos do projeto incluídos (com filtros aplicados)
 - **Visualizações Profissionais**: Layout formatado com logos e tabelas
+- **Relatórios Abrangentes**: Inclui dados do Project Tracker e Monitor de Documentos
+- **Barra de Progresso**: Feedback visual durante a geração de relatórios
+- **Filtros Aplicados**: Relatórios respeitam filtros ativos no momento da geração
 
 ## 🔧 Scripts Disponíveis
 
@@ -205,6 +239,7 @@ interface Project {
   description?: string;
   createdAt: Date;
   updatedAt: Date;
+  meetings?: MeetingMetadata[]; // Reuniões do projeto
 }
 ```
 
@@ -213,16 +248,22 @@ interface Project {
 interface ProjectDocument {
   id: string;
   projectId: string;
-  dataInicio: string;
-  dataFim: string;
+  numeroItem: number; // Número sequencial do item
+  dataInicio: string; // dd/mm/yyyy
+  dataFim: string; // dd/mm/yyyy
   documento: string;
   detalhe: string;
-  revisao: string;
+  revisao: string; // R0, R1, etc.
   responsavel: string;
-  status: "A iniciar" | "Em andamento" | "Finalizado";
+  status: "A iniciar" | "Em andamento" | "Finalizado" | "Info";
   area: string;
-  participantes: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isCleared?: boolean; // Quando true, documento é ignorado pelos dashboards
   attachments?: ProjectAttachment[];
+  participants?: string[]; // Array de participantes (tags)
+  history?: DocumentChange[]; // Trilha de auditoria
+  meetings?: MeetingMetadata[]; // Reuniões relacionadas ao documento
 }
 ```
 
@@ -230,11 +271,47 @@ interface ProjectDocument {
 ```typescript
 interface ProjectAttachment {
   id: string;
-  name: string;
-  size: number;
-  type: string;
-  url: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
   uploadedAt: Date;
+  filePath: string; // Caminho dentro da estrutura de pastas
+}
+```
+
+### MeetingMetadata
+```typescript
+interface MeetingMetadata {
+  id: string;
+  data: string; // dd-mm-yyyy format
+  numeroAta: string;
+  detalhes?: string; // Detalhes/notas da reunião
+  participants: string[]; // Array de nomes de participantes
+  relatedItems?: number[]; // Array de números de itens discutidos
+  createdAt: string;
+}
+```
+
+### DocumentChange
+```typescript
+interface DocumentChange {
+  id: string;
+  timestamp: string;
+  meetingId?: string; // Referência à reunião se mudança ocorreu durante reunião
+  meetingData?: string; // Data da reunião em dd-mm-yyyy format
+  meetingNumber?: string; // Número da ata
+  isQuickEdit?: boolean; // true se editado diretamente sem contexto de reunião
+  changes: FieldChange[]; // Array de mudanças por campo
+  modifiedBy?: string; // Quem fez a mudança (opcional para futura autenticação)
+}
+```
+
+### FieldChange
+```typescript
+interface FieldChange {
+  field: string; // Nome do campo alterado
+  oldValue: string | number | null;
+  newValue: string | number | null;
 }
 ```
 
@@ -250,14 +327,19 @@ interface ProjectAttachment {
 - **Zustand**: Gerenciamento de estado com persistência automática
 - **Migração de Dados**: Sistema de versionamento e migração automática
 
-## 🎨 Interface
+## 🎨 Interface e Navegação
 
 A aplicação utiliza o sistema de design shadcn/ui com Tailwind CSS, proporcionando:
+- **Sidebar Colapsável**: Navegação lateral que pode ser expandida/recolhida
+- **Seletor de Projetos**: Interface integrada na sidebar para alternar projetos
+- **Navegação Intuitiva**: Links diretos para Project Tracker e Monitor de Documentos
+- **Geração de Relatórios**: Botão dedicado na sidebar para gerar relatórios completos
 - Interface moderna e responsiva
-- Componentes acessíveis
-- Tema escuro/claro
+- Componentes acessíveis (baseados em Radix UI)
+- Tema escuro/claro (suporte completo via next-themes)
 - Animações suaves
 - Design system consistente
+- Notificações toast (Sonner) para feedback do usuário
 
 ## 📝 Desenvolvimento
 
@@ -277,7 +359,16 @@ A aplicação utiliza o sistema de design shadcn/ui com Tailwind CSS, proporcion
 ### Serviços Principais
 - **fileManager**: Gerenciamento de upload e download de arquivos
 - **pdfReportGenerator**: Geração de relatórios PDF completos
-- **zipReportGenerator**: Criação de pacotes ZIP com relatórios e anexos
+- **zipReportGenerator**: Criação de pacotes ZIP com relatórios e anexos filtrados
+
+### Utilitários Principais
+- **changeTracking**: Sistema de rastreamento de mudanças e auditoria
+  - `generateFieldChanges()`: Compara dois documentos e gera mudanças por campo
+  - `createChangeLogEntry()`: Cria entrada de log de mudanças
+  - `formatFieldChange()`: Formata mudanças para exibição
+  - `formatTimestamp()`: Formata timestamps para exibição
+  - `debounce()`: Utilitário de debounce para autosave
+- **utils**: Funções utilitárias gerais (cn para classes CSS, etc.)
 
 ## 🚀 Deploy
 
@@ -352,6 +443,16 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 - Verifique se há arquivos anexados ao projeto
 - Confirme que o navegador permite downloads automáticos
 - Verifique o console do navegador para erros de JavaScript
+- Certifique-se de que um projeto está selecionado antes de gerar relatório
+
+#### Reuniões não são salvas
+- Verifique se um projeto está selecionado
+- Confirme que a data e número da ata foram preenchidos
+- Verifique o console do navegador para erros
+
+#### Histórico de mudanças não aparece
+- Certifique-se de que os documentos foram editados após a implementação do sistema de rastreamento
+- Verifique se há mudanças nos campos rastreados (não todos os campos são rastreados)
 
 ### Logs e Debug
 
