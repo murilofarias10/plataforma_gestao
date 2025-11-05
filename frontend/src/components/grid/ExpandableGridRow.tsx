@@ -44,7 +44,10 @@ export function ExpandableGridRow({
   }, []);
 
   return (
-    <>
+    <div 
+      id={`document-item-${document.numeroItem}`}
+      className="scroll-mt-4 transition-all duration-300"
+    >
       {/* Main Row with Expand Button */}
       <div className="flex">
         <button
@@ -134,6 +137,6 @@ export function ExpandableGridRow({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

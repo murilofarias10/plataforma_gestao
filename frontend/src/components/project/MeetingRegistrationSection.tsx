@@ -132,6 +132,16 @@ export function MeetingRegistrationSection() {
     });
   }, []);
 
+  // Handle scroll to document item
+  const scrollToDocumentItem = useCallback((itemNumber: number) => {
+    const element = document.getElementById(`document-item-${itemNumber}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      toast.error(`Item ${itemNumber} não encontrado na seção de Controle de Documentos`);
+    }
+  }, []);
+
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
   if (!selectedProject) {
@@ -358,7 +368,13 @@ export function MeetingRegistrationSection() {
                         <p className="text-xs text-muted-foreground mb-1">Itens Discutidos:</p>
                         <div className="flex flex-wrap gap-1">
                           {meeting.relatedItems.map((itemNum) => (
-                            <Badge key={itemNum} variant="default" className="text-xs">
+                            <Badge 
+                              key={itemNum} 
+                              variant="default" 
+                              className="text-xs cursor-pointer hover:bg-primary/80 transition-all hover:scale-105"
+                              onClick={() => scrollToDocumentItem(itemNum)}
+                              title="Clique para ir ao item no Controle de Documentos"
+                            >
                               Nº {itemNum}
                             </Badge>
                           ))}

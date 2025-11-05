@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { TimelineChart } from "@/components/dashboard/TimelineChart";
 import { StatusBarChart } from "@/components/dashboard/StatusBarChart";
@@ -7,16 +7,17 @@ import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Save, ChevronDown, ChevronUp, BarChart3, Calendar } from "lucide-react";
+import { Database, Save, ChevronDown, ChevronUp, BarChart3, Calendar, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MeetingRegistrationSection } from "@/components/project/MeetingRegistrationSection";
 
 const ProjectTracker = () => {
-  const { documents, projects, loadData, loadSampleData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
+  const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
   const selectedProject = getSelectedProject();
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Load data from backend on component mount
   useEffect(() => {
@@ -46,6 +47,57 @@ const ProjectTracker = () => {
     initializeDefault();
   }, [isInitialized, projects.length, initializeDefaultProject]);
 
+  // Scroll to top handler
+  const scrollToTop = useCallback(() => {
+    // Find the scrollable main container (from MainLayout)
+    const scrollableContainer = document.querySelector('main.overflow-auto');
+    if (scrollableContainer) {
+      scrollableContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Fallback to window scroll if container not found
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  // Listen to scroll events to show/hide scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Find the scrollable main container (from MainLayout)
+      const scrollableContainer = document.querySelector('main.overflow-auto');
+      
+      if (scrollableContainer) {
+        // Show button when user has scrolled down past 300px
+        const scrollThreshold = 300;
+        setShowScrollTop(scrollableContainer.scrollTop > scrollThreshold);
+      } else {
+        // Fallback to window scroll if container not found
+        const scrollThreshold = 300;
+        setShowScrollTop(window.scrollY > scrollThreshold);
+      }
+    };
+
+    // Find the scrollable container
+    const scrollableContainer = document.querySelector('main.overflow-auto');
+    
+    if (scrollableContainer) {
+      // Listen to scroll events on the container
+      scrollableContainer.addEventListener('scroll', handleScroll, { passive: true });
+      // Check initial scroll position
+      handleScroll();
+      
+      return () => {
+        scrollableContainer.removeEventListener('scroll', handleScroll);
+      };
+    } else {
+      // Fallback to window scroll listener
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      handleScroll();
+      
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, []);
 
   const handleSave = () => {
     // Data is automatically saved to backend, but we can show confirmation
@@ -88,14 +140,6 @@ const ProjectTracker = () => {
             
             {projects.length === 0 && (
               <div className="flex gap-2">
-                <Button 
-                  onClick={loadSampleData}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Database className="h-4 w-4" />
-                  Carregar dados de exemplo
-                </Button>
                 <Button 
                   onClick={handleReloadData}
                   variant="outline"
@@ -158,7 +202,7 @@ const ProjectTracker = () => {
         </section>
 
         {/* Main Data Grid Section - Primary Focus */}
-        <section className="space-y-6">
+        <section id="controle-documentos-section" className="space-y-6">
           <div className="border-t border-border pt-6">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -213,6 +257,17 @@ const ProjectTracker = () => {
           </Card>
         </section>
       </main>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 bg-primary text-primary-foreground rounded-full p-3 shadow-lg hover:bg-primary/90 transition-all hover:scale-110 z-50"
+          title="Voltar ao topo"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 };
