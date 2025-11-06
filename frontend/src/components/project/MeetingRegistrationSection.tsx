@@ -119,7 +119,18 @@ export function MeetingRegistrationSection() {
 
   return (
     <div className="space-y-4">
-      <div className="text-sm font-semibold text-foreground">Registrar Reunião</div>
+      <div className="flex items-center gap-3">
+        <div className="text-sm font-semibold text-foreground">Registrar Reunião</div>
+        <Button 
+          size="sm" 
+          className="h-8 text-xs px-3"
+          onClick={handleAddMeeting}
+          disabled={!canAddMeeting}
+          type="button"
+        >
+          Adicionar Reunião
+        </Button>
+      </div>
       
       <div className="grid grid-cols-4 gap-3">
         <div>
@@ -211,7 +222,7 @@ export function MeetingRegistrationSection() {
       <div>
         {/* Participant Tags - Display below input */}
         {tempParticipants.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <div className="flex flex-wrap gap-1">
             {tempParticipants.map((participant, index) => (
               <Badge
                 key={index}
@@ -229,17 +240,6 @@ export function MeetingRegistrationSection() {
             ))}
           </div>
         )}
-
-        {/* Add Meeting Button */}
-        <Button 
-          size="sm" 
-          className="h-8 text-xs px-3"
-          onClick={handleAddMeeting}
-          disabled={!canAddMeeting}
-          type="button"
-        >
-          Adicionar Reunião
-        </Button>
       </div>
 
       {/* Registered Meetings */}
