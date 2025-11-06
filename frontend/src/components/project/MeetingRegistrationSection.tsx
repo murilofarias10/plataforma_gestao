@@ -165,7 +165,7 @@ export function MeetingRegistrationSection() {
             onChange={(e) => setMeetingNumero(e.target.value)}
           />
         </div>
-        <div className="col-span-2">
+        <div>
           <label className="text-xs text-muted-foreground mb-1 block">
             Detalhes
           </label>
@@ -177,38 +177,38 @@ export function MeetingRegistrationSection() {
             onChange={(e) => setMeetingDetalhes(e.target.value)}
           />
         </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Participantes
+          </label>
+          {/* Add Participant - Input with button */}
+          <div className="flex items-center gap-1">
+            <Input
+              type="text"
+              placeholder="Nome do participante"
+              className="h-8 text-sm flex-1"
+              value={newParticipant}
+              onChange={(e) => setNewParticipant(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddParticipant();
+                }
+              }}
+            />
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="h-8 px-2 flex-shrink-0"
+              onClick={handleAddParticipant}
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div>
-        <label className="text-xs text-muted-foreground mb-1 block">
-          Participantes
-        </label>
-        
-        {/* Add Participant - Shorter input with button close */}
-        <div className="flex items-center gap-1 mb-2">
-          <Input
-            type="text"
-            placeholder="Nome do participante"
-            className="h-8 text-sm w-48"
-            value={newParticipant}
-            onChange={(e) => setNewParticipant(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddParticipant();
-              }
-            }}
-          />
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="h-8 px-2 flex-shrink-0"
-            onClick={handleAddParticipant}
-          >
-            <Plus className="w-3 h-3" />
-          </Button>
-        </div>
-
         {/* Participant Tags - Display below input */}
         {tempParticipants.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
