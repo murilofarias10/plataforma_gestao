@@ -101,8 +101,15 @@ export function ExpandableGridRow({
                 <div className="space-y-1 max-h-60 overflow-y-auto pr-2">
                   {document.history.slice().reverse().map((change) => {
                     // Only show changes where BOTH old and new values exist
+                    // Exception: attachment changes are shown if newValue exists (contains change details)
                     const meaningfulChanges = change.changes.filter(
-                      (fc) => fc.oldValue !== null && fc.newValue !== null
+                      (fc) => {
+                        if (fc.field === 'attachments') {
+                          // For attachments, show if newValue exists (contains change details)
+                          return fc.newValue !== null;
+                        }
+                        return fc.oldValue !== null && fc.newValue !== null;
+                      }
                     );
 
                     if (meaningfulChanges.length === 0) return null;

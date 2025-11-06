@@ -1,4 +1,4 @@
-import { ProjectDocument, FieldChange, DocumentChange } from '@/types/project';
+import { ProjectDocument, FieldChange, DocumentChange, ProjectAttachment } from '@/types/project';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -38,6 +38,42 @@ export function generateFieldChanges(
         newValue: normalizedNew as string | number | null,
       });
     }
+  }
+
+  // Track attachment changes separately
+  const oldAttachments = oldDoc.attachments || [];
+  const newAttachments = newDoc.attachments || [];
+  
+  // Compare attachments by their IDs
+  const oldAttachmentIds = new Set(oldAttachments.map(att => att.id));
+  const newAttachmentIds = new Set(newAttachments.map(att => att.id));
+  
+  // Find added and removed attachments
+  const addedAttachments = newAttachments.filter(att => !oldAttachmentIds.has(att.id));
+  const removedAttachments = oldAttachments.filter(att => !newAttachmentIds.has(att.id));
+  
+  // Only create a change entry if there are actual changes
+  if (addedAttachments.length > 0 || removedAttachments.length > 0) {
+    const oldValueStr = oldAttachments.length === 0 
+      ? null 
+      : `${oldAttachments.length} arquivo${oldAttachments.length !== 1 ? 's' : ''}`;
+    
+    // Create a detailed description of what changed
+    const changeDetails: string[] = [];
+    if (addedAttachments.length > 0) {
+      const fileNames = addedAttachments.map(att => att.fileName).join(', ');
+      changeDetails.push(`Adicionado${addedAttachments.length > 1 ? 's' : ''}: ${fileNames}`);
+    }
+    if (removedAttachments.length > 0) {
+      const fileNames = removedAttachments.map(att => att.fileName).join(', ');
+      changeDetails.push(`Removido${removedAttachments.length > 1 ? 's' : ''}: ${fileNames}`);
+    }
+    
+    changes.push({
+      field: 'attachments',
+      oldValue: oldValueStr,
+      newValue: changeDetails.join(' | '),
+    });
   }
 
   return changes;
@@ -83,9 +119,21 @@ export function formatFieldChange(change: FieldChange): string {
     responsavel: 'Responsável',
     status: 'Status',
     area: 'Área',
+    attachments: 'Anexo',
   };
 
   const fieldName = fieldLabels[change.field] || change.field;
+  
+  // Special handling for attachments
+  if (change.field === 'attachments') {
+    // For attachments, newValue contains the change details (Added/Removed info)
+    if (change.newValue) {
+      return `${fieldName}: ${change.newValue}`;
+    }
+    return `${fieldName}`;
+  }
+  
+  // Standard formatting for other fields
   const oldVal = change.oldValue ? `"${change.oldValue}"` : '';
   const newVal = change.newValue ? `"${change.newValue}"` : '';
   
