@@ -54,27 +54,29 @@ const MeetingEnvironment = () => {
     <div className="h-full bg-background">
       <main className="container mx-auto px-6 py-6 space-y-6">
         <section className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Ambiente de Reuniões</h2>
-              {selectedProject && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedProject.name}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={handleNavigateToRegistration}
-                className="flex items-center gap-2"
-              >
-                <ListPlus className="h-4 w-4" />
-                Registrar nova reunião
-              </Button>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CalendarDays className="h-4 w-4" />
-                {meetings.length} reuniões registradas
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Ambiente de Reuniões</h2>
+                {selectedProject && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedProject.name}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:mt-0">
+                <Button
+                  variant="outline"
+                  onClick={handleNavigateToRegistration}
+                  className="flex items-center gap-2"
+                >
+                  <ListPlus className="h-4 w-4" />
+                  Registrar nova reunião
+                </Button>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarDays className="h-4 w-4" />
+                  {meetings.length} reuniões registradas
+                </div>
               </div>
             </div>
           </div>
