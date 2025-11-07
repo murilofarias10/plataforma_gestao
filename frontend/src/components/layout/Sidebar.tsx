@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, BarChart3, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { FileSpreadsheet, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { ProjectSelector } from "@/components/project/ProjectSelector";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
 import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
@@ -33,6 +33,13 @@ const Sidebar = ({ className }: SidebarProps) => {
       icon: BarChart3,
       path: "/document-monitor",
       description: "Monitoramento de status de documentos técnicos"
+    },
+    {
+      id: "meeting-environment",
+      label: "Ambiente de Reuniões",
+      icon: CalendarClock,
+      path: "/meeting-environment",
+      description: "Histórico e gestão de reuniões registradas"
     }
   ];
 

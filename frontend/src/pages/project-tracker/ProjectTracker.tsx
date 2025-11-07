@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { TimelineChart } from "@/components/dashboard/TimelineChart";
 import { StatusBarChart } from "@/components/dashboard/StatusBarChart";
@@ -14,9 +15,16 @@ import { MeetingRegistrationSection } from "@/components/project/MeetingRegistra
 
 const ProjectTracker = () => {
   const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
+  const location = useLocation();
   const selectedProject = getSelectedProject();
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
+  useEffect(() => {
+    if (location.state && typeof location.state === "object" && (location.state as { focus?: string }).focus === "meetings") {
+      setIsMeetingsExpanded(true);
+    }
+  }, [location.state]);
+
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Load data from backend on component mount

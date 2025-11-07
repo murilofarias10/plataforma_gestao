@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import ProjectTracker from "./pages/project-tracker";
 import DocumentMonitor from "./pages/document-monitor";
+import MeetingEnvironment from "./pages/meeting-environment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
             <Route index element={<Navigate to="/project-tracker" replace />} />
             <Route path="project-tracker" element={<ProjectTracker />} />
             <Route path="document-monitor" element={<DocumentMonitor />} />
+            <Route path="meeting-environment" element={<MeetingEnvironment />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

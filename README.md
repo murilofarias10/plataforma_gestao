@@ -47,8 +47,9 @@ plataforma_gestao/
 │   │   │   ├── project/        # Componentes de projeto (ProjectSelector, MeetingRegistrationSection)
 │   │   │   └── ui/             # Componentes base (shadcn/ui + ReportGenerationDialog)
 │   │   ├── pages/              # Páginas da aplicação
-│   │   │   ├── document-monitor/ # Monitor de documentos
-│   │   │   └── project-tracker/  # Rastreador de projetos
+│   │   │   ├── document-monitor/   # Monitor de documentos
+│   │   │   ├── meeting-environment/ # Ambiente dedicado às reuniões
+│   │   │   └── project-tracker/     # Rastreador de projetos
 │   │   ├── services/           # Serviços e APIs
 │   │   ├── stores/             # Estado global (Zustand)
 │   │   ├── lib/                # Utilitários (changeTracking, utils)
@@ -168,6 +169,7 @@ npm start
 - **Metadados de Reunião**: Data, número da ata, detalhes e participantes
 - **Itens Relacionados**: Vinculação de documentos discutidos em reuniões
 - **Navegação Rápida**: Links para navegar diretamente aos itens discutidos
+- **Ambiente de Reuniões**: Página dedicada com histórico completo, filtros e ações
 - **Histórico de Reuniões**: Lista expansível de todas as reuniões registradas
 - **Integração com Documentos**: Mudanças podem ser vinculadas a reuniões específicas
 
