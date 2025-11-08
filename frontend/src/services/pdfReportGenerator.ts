@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
+import { MeetingMetadata } from '@/types/project';
 
 // Helper function to capture element as image
 async function captureElement(selector: string): Promise<string | null> {
@@ -50,6 +51,7 @@ export interface ReportData {
     totalFiles: number;
     totalSize: string;
   };
+  meeting?: MeetingMetadata;
 }
 
 export class PDFReportGenerator {
@@ -81,7 +83,7 @@ export class PDFReportGenerator {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   }
 
-  async generateComprehensiveReport(): Promise<void> {
+  async generateComprehensiveReport(meeting?: MeetingMetadata): Promise<void> {
     try {
       // Capture screenshots from both pages
       const screenshots = await this.captureAllScreenshots();
@@ -128,11 +130,25 @@ export class PDFReportGenerator {
         }
       };
 
+      if (meeting) {
+        reportData.meeting = {
+          ...meeting,
+          participants: Array.isArray(meeting.participants) ? meeting.participants : []
+        };
+      }
+
       // Generate PDF content with screenshots
       await this.generatePDFContent(reportData, screenshots);
       
       // Save the PDF with same timestamp
-      const fileName = `Relatorio_${selectedProject.name.replace(/\s+/g, '_')}_${timestampForFilename}.pdf`;
+      const sanitizedProject = selectedProject.name.replace(/\s+/g, '_');
+      let fileName = `Relatorio_${sanitizedProject}_${timestampForFilename}.pdf`;
+      if (meeting) {
+        const meetingIdentifier = (meeting.numeroAta || meeting.data || meeting.id || 'reuniao')
+          .toString()
+          .replace(/[^\w\-]+/g, '_');
+        fileName = `Relatorio_Reuniao_${meetingIdentifier}_${timestampForFilename}.pdf`;
+      }
       this.pdf.save(fileName);
       
     } catch (error) {
@@ -208,6 +224,10 @@ export class PDFReportGenerator {
 
     // Project Tracker section
     this.addSectionHeader('PROJECT TRACKER');
+    if (data.meeting) {
+      this.addMeetingOverview(data.meeting);
+      this.currentY += 10;
+    }
     await this.addProjectTrackerContent(data.projectTracker, screenshots);
     this.addNewPage();
 
@@ -269,6 +289,58 @@ export class PDFReportGenerator {
     // Add line separator
     this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
     this.currentY += 10;
+  }
+
+  private addMeetingOverview(meeting: MeetingMetadata): void {
+    this.pdf.setFontSize(12);
+    this.pdf.setFont('helvetica', 'bold');
+    this.pdf.text('Resumo da Reunião', this.margin, this.currentY);
+    this.currentY += 8;
+
+    this.pdf.setFontSize(10);
+    this.pdf.setFont('helvetica', 'normal');
+
+    const infoRows: Array<{ label: string; value: string }> = [
+      { label: 'Data', value: meeting.data || '-' },
+      { label: 'Número da Ata', value: meeting.numeroAta || '-' },
+      {
+        label: 'Participantes',
+        value: (meeting.participants && meeting.participants.length > 0)
+          ? meeting.participants.join(', ')
+          : '-'
+      },
+    ];
+
+    const labelWidth = 35;
+    const valueWidth = this.pageWidth - this.margin * 2 - labelWidth;
+
+    infoRows.forEach((row) => {
+      const valueLines = this.pdf.splitTextToSize(row.value, valueWidth);
+      this.pdf.setFont('helvetica', 'bold');
+      this.pdf.text(`${row.label}:`, this.margin, this.currentY);
+      this.pdf.setFont('helvetica', 'normal');
+      valueLines.forEach((line, index) => {
+        const lineY = this.currentY + index * this.lineHeight;
+        this.pdf.text(line, this.margin + labelWidth, lineY);
+      });
+      this.currentY += valueLines.length * this.lineHeight;
+    });
+
+    if (meeting.detalhes) {
+      this.currentY += 5;
+      this.pdf.setFont('helvetica', 'bold');
+      this.pdf.text('Detalhes:', this.margin, this.currentY);
+      this.currentY += this.lineHeight;
+      this.pdf.setFont('helvetica', 'normal');
+      const detailLines = this.pdf.splitTextToSize(meeting.detalhes, this.pageWidth - this.margin * 2);
+      detailLines.forEach((line) => {
+        if (this.currentY > this.pageHeight - this.margin) {
+          this.addNewPage();
+        }
+        this.pdf.text(line, this.margin, this.currentY);
+        this.currentY += this.lineHeight;
+      });
+    }
   }
 
   private async addProjectTrackerContent(data: any, screenshots: Record<string, string | null>): Promise<void> {
@@ -1097,4 +1169,9 @@ export class PDFReportGenerator {
 export const generateComprehensiveReport = async (): Promise<void> => {
   const generator = new PDFReportGenerator();
   await generator.generateComprehensiveReport();
+};
+
+export const generateMeetingReportForMeeting = async (meeting: MeetingMetadata): Promise<void> => {
+  const generator = new PDFReportGenerator();
+  await generator.generateComprehensiveReport(meeting);
 };
