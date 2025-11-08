@@ -273,6 +273,7 @@ export class PDFReportGenerator {
 
   private async addProjectTrackerContent(data: any, screenshots: Record<string, string | null>): Promise<void> {
     // KPI Cards - Capture the entire grid
+    this.ensureSpaceForSection(screenshots.kpiCards ? 120 : 70);
     this.addSubsectionHeader('Indicadores de Performance (KPIs)');
     if (screenshots.kpiCards) {
       await this.addImage(screenshots.kpiCards, 'KPI Cards');
@@ -282,11 +283,21 @@ export class PDFReportGenerator {
     this.currentY += 10;
 
     // Filters applied
+    const filtersHeightEstimate =
+      40 +
+      (data.filters?.statusFilter?.length ? this.lineHeight : 0) +
+      (data.filters?.areaFilter?.length ? this.lineHeight : 0) +
+      (data.filters?.responsavelFilter?.length ? this.lineHeight : 0);
+    this.ensureSpaceForSection(filtersHeightEstimate);
     this.addSubsectionHeader('Filtros Aplicados');
     this.addFiltersInfo(data.filters);
     this.currentY += 10;
 
     // Timeline Chart
+    const timelineHeightEstimate = screenshots.timelineChart
+      ? 130
+      : Math.min((data.timelineData?.length || 1) * this.lineHeight + 50, 120);
+    this.ensureSpaceForSection(timelineHeightEstimate);
     this.addSubsectionHeader('Timeline de Documentos');
     if (screenshots.timelineChart) {
       await this.addImage(screenshots.timelineChart, 'Timeline Chart');
@@ -296,6 +307,10 @@ export class PDFReportGenerator {
     this.currentY += 10;
 
     // Status Distribution
+    const statusHeightEstimate = screenshots.statusChart
+      ? 130
+      : Math.min((data.statusDistribution?.length || 1) * this.lineHeight + 50, 120);
+    this.ensureSpaceForSection(statusHeightEstimate);
     this.addSubsectionHeader('Distribuição por Status');
     if (screenshots.statusChart) {
       await this.addImage(screenshots.statusChart, 'Status Distribution');
@@ -384,6 +399,7 @@ export class PDFReportGenerator {
 
   private async addDocumentMonitorContent(data: any, screenshots: Record<string, string | null>): Promise<void> {
     // KPI Cards - Try to capture, but skip if not on correct page
+    this.ensureSpaceForSection(screenshots.documentMonitorKPIs ? 120 : 70);
     this.addSubsectionHeader('Indicadores de Performance (KPIs)');
     if (screenshots.documentMonitorKPIs) {
       await this.addImage(screenshots.documentMonitorKPIs, 'Document Monitor KPIs');
@@ -394,11 +410,17 @@ export class PDFReportGenerator {
     this.currentY += 10;
 
     // Filters applied
+    const filtersHeightEstimate = 40;
+    this.ensureSpaceForSection(filtersHeightEstimate);
     this.addSubsectionHeader('Filtros Aplicados');
     this.addDocumentMonitorFilters(data.filters);
     this.currentY += 10;
 
     // S-Curve Chart - Try to capture, but skip if not on correct page
+    const sCurveHeightEstimate = screenshots.scurveChart
+      ? 130
+      : Math.min((data.sCurveData?.length || 1) * this.lineHeight + 60, 130);
+    this.ensureSpaceForSection(sCurveHeightEstimate);
     this.addSubsectionHeader('Curva "S"');
     if (screenshots.scurveChart) {
       await this.addImage(screenshots.scurveChart, 'S-Curve Chart');
@@ -409,6 +431,8 @@ export class PDFReportGenerator {
     this.currentY += 10;
 
     // Document Status Table
+    const statusTableHeightEstimate = Math.min((data.documentStatusTable?.length || 1) * this.lineHeight + 70, 140);
+    this.ensureSpaceForSection(statusTableHeightEstimate);
     this.addSubsectionHeader('Status do Documento');
     this.addDocumentStatusTable(data.documentStatusTable);
   }
@@ -486,6 +510,13 @@ export class PDFReportGenerator {
     this.pdf.setFont('helvetica', 'bold');
     this.pdf.text(title, this.margin, this.currentY);
     this.currentY += 8;
+  }
+
+  private ensureSpaceForSection(estimatedHeight: number): void {
+    const minHeight = estimatedHeight > 0 ? estimatedHeight : this.lineHeight * 4;
+    if (this.currentY + minHeight > this.pageHeight - this.margin) {
+      this.addNewPage();
+    }
   }
 
   private addKPICards(kpiData: any): void {
