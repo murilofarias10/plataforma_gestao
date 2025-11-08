@@ -61,7 +61,7 @@ export class PDFReportGenerator {
   private lineHeight: number = 7;
 
   constructor() {
-    this.pdf = new jsPDF('p', 'mm', 'a4');
+    this.pdf = new jsPDF('l', 'mm', 'a4');
     this.pageHeight = this.pdf.internal.pageSize.height;
     this.pageWidth = this.pdf.internal.pageSize.width;
     this.currentY = this.margin;
@@ -305,6 +305,7 @@ export class PDFReportGenerator {
     this.currentY += 10;
 
     // Documents Table
+    this.ensureNewPageForWideTable();
     this.addSubsectionHeader('Controle de Documentos');
     this.addDocumentsTable(data.documents);
   }
@@ -639,6 +640,16 @@ export class PDFReportGenerator {
     });
   }
 
+  private ensureNewPageForWideTable(): void {
+    const threshold = this.margin + 10;
+    if (this.currentY > threshold) {
+      this.addNewPage();
+    } else {
+      // Ensure a little breathing room at top of page
+      this.currentY = this.margin;
+    }
+  }
+
   private addDocumentsTable(documents: any[]): void {
     if (documents.length === 0) {
       this.pdf.text('Nenhum documento encontrado', this.margin, this.currentY);
@@ -646,37 +657,158 @@ export class PDFReportGenerator {
       return;
     }
 
-    this.pdf.setFontSize(9);
-    this.pdf.setFont('helvetica', 'normal');
-    
-    // Table header
-    this.pdf.setFont('helvetica', 'bold');
-    this.pdf.text('Documento', this.margin, this.currentY);
-    this.pdf.text('Status', this.margin + 60, this.currentY);
-    this.pdf.text('Responsável', this.margin + 90, this.currentY);
-    this.pdf.text('Data Início', this.margin + 130, this.currentY);
-    this.pdf.text('Data Fim', this.margin + 160, this.currentY);
-    this.currentY += this.lineHeight;
+    type ColumnAlign = 'left' | 'center' | 'right';
+    type DocumentsColumn = {
+      label: string;
+      width: number;
+      align: ColumnAlign;
+      getValue: (doc: any) => string;
+    };
 
-    // Table rows
-    this.pdf.setFont('helvetica', 'normal');
-    documents.slice(0, 20).forEach(doc => { // Limit to 20 rows to avoid page overflow
-      if (this.currentY > this.pageHeight - 30) {
+    const columns: DocumentsColumn[] = [
+      {
+        label: 'Nº Item',
+        width: 16,
+        align: 'center',
+        getValue: (doc) => (doc.numeroItem !== undefined && doc.numeroItem !== null ? String(doc.numeroItem) : '-'),
+      },
+      {
+        label: 'Data Início',
+        width: 22,
+        align: 'center',
+        getValue: (doc) => doc.dataInicio || '-',
+      },
+      {
+        label: 'Data Fim',
+        width: 22,
+        align: 'center',
+        getValue: (doc) => doc.dataFim || '-',
+      },
+      {
+        label: 'Tópico',
+        width: 64,
+        align: 'left',
+        getValue: (doc) => doc.documento || '-',
+      },
+      {
+        label: 'Detalhe',
+        width: 80,
+        align: 'left',
+        getValue: (doc) => doc.detalhe || '-',
+      },
+      {
+        label: 'Responsável',
+        width: 28,
+        align: 'left',
+        getValue: (doc) => doc.responsavel || '-',
+      },
+      {
+        label: 'Status',
+        width: 23,
+        align: 'left',
+        getValue: (doc) => doc.status || '-',
+      },
+    ];
+
+    const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
+    const startX = this.margin;
+    const headerLineSpacing = 6;
+    const rowLineSpacing = 4.6;
+
+    const drawHeader = () => {
+      this.pdf.setFontSize(9);
+      this.pdf.setFont('helvetica', 'bold');
+      let x = startX;
+      columns.forEach((col) => {
+        const textX =
+          col.align === 'center'
+            ? x + col.width / 2
+            : col.align === 'right'
+              ? x + col.width
+              : x;
+        const options = col.align === 'left' ? undefined : { align: col.align };
+        this.pdf.text(col.label, textX, this.currentY, options as any);
+        x += col.width;
+      });
+      this.currentY += headerLineSpacing;
+      this.pdf.setDrawColor(200, 200, 200);
+      this.pdf.line(startX, this.currentY, startX + tableWidth, this.currentY);
+      this.pdf.setDrawColor(0, 0, 0);
+      this.currentY += 2;
+      this.pdf.setFont('helvetica', 'normal');
+    };
+
+    const getColumnXPositions = () => {
+      const positions: number[] = [];
+      let x = startX;
+      columns.forEach((col) => {
+        positions.push(x);
+        x += col.width;
+      });
+      return positions;
+    };
+
+    const columnPositions = getColumnXPositions();
+
+    drawHeader();
+    this.pdf.setFontSize(8);
+
+    documents.forEach((doc, index) => {
+      const cellContents = columns.map((col) => {
+        const value = col.getValue(doc);
+        const text = value || '-';
+        const padding = col.align === 'left' ? 3 : 2;
+        const lines = this.pdf.splitTextToSize(text, Math.max(col.width - padding, 8));
+        return { lines, align: col.align };
+      });
+
+      const linesPerColumn = cellContents.map((cell) => Math.max(cell.lines.length, 1));
+      const maxLines = Math.max(...linesPerColumn);
+      const rowHeight = maxLines * rowLineSpacing + 1;
+
+      if (this.currentY + rowHeight > this.pageHeight - this.margin) {
         this.addNewPage();
+        this.pdf.setFontSize(8);
+        columnPositions.splice(0, columnPositions.length, ...getColumnXPositions());
+        drawHeader();
+        this.pdf.setFontSize(8);
       }
-      
-      this.pdf.text(doc.documento.substring(0, 30), this.margin, this.currentY);
-      this.pdf.text(doc.status, this.margin + 60, this.currentY);
-      this.pdf.text(doc.responsavel.substring(0, 15), this.margin + 90, this.currentY);
-      this.pdf.text(doc.dataInicio, this.margin + 130, this.currentY);
-      this.pdf.text(doc.dataFim || '-', this.margin + 160, this.currentY);
-      this.currentY += this.lineHeight;
+
+      // Optional zebra striping for readability
+      if (index % 2 === 1) {
+        this.pdf.setFillColor(245, 245, 245);
+        this.pdf.rect(startX, this.currentY - 1, tableWidth, rowHeight + 1, 'F');
+        this.pdf.setDrawColor(0, 0, 0);
+      }
+
+      cellContents.forEach((cell, colIndex) => {
+        const baseX = columnPositions[colIndex];
+        const col = columns[colIndex];
+        const textX =
+          col.align === 'center'
+            ? baseX + col.width / 2
+            : col.align === 'right'
+              ? baseX + col.width
+              : baseX;
+
+        cell.lines.forEach((line, lineIdx) => {
+          const lineY = this.currentY + (lineIdx + 1) * rowLineSpacing;
+          if (col.align === 'left') {
+            this.pdf.text(line, textX, lineY);
+          } else {
+            this.pdf.text(line, textX, lineY, { align: col.align });
+          }
+        });
+      });
+
+      this.currentY += rowHeight;
+      this.pdf.setDrawColor(230, 230, 230);
+      this.pdf.line(startX, this.currentY, startX + tableWidth, this.currentY);
+      this.pdf.setDrawColor(0, 0, 0);
     });
 
-    if (documents.length > 20) {
-      this.pdf.text(`... e mais ${documents.length - 20} documentos`, this.margin, this.currentY);
-      this.currentY += this.lineHeight;
-    }
+    this.currentY += 2;
+    this.pdf.setFontSize(10);
   }
 
   private addNewPage(): void {
