@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import MeetingReportModal from "@/components/meeting/MeetingReportModal";
 
 const MainLayout = () => {
   return (
@@ -8,6 +9,7 @@ const MainLayout = () => {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
+      <MeetingReportModal />
     </div>
   );
 };
