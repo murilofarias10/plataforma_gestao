@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Login from "./pages/auth/Login";
 import ProjectTracker from "./pages/project-tracker";
 import DocumentMonitor from "./pages/document-monitor";
 import MeetingEnvironment from "./pages/meeting-environment";
@@ -18,12 +20,24 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<MainLayout />}>
+          {/* Public route - Login */}
+          <Route path="/login" element={<Login />} />
+          
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Navigate to="/project-tracker" replace />} />
             <Route path="project-tracker" element={<ProjectTracker />} />
             <Route path="document-monitor" element={<DocumentMonitor />} />
             <Route path="meeting-environment" element={<MeetingEnvironment />} />
           </Route>
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

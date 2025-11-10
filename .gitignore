@@ -135,7 +135,6 @@ temp/
 backend/node_modules/
 backend/uploads/
 backend/data.json
-backend/test-upload.js
 backend/logs/
 backend/*.log
 
@@ -190,5 +189,18 @@ coverage/
 # Environment files (additional)
 .env.backup
 .env.test
-.env.example
 .env*.local
+
+# Keep .env.example for documentation
+!.env.example
+!frontend/.env.example
+
+# ========================================
+# Supabase / Authentication
+# ========================================
+# Keep these files - they're part of documentation
+# AUTHENTICATION_SETUP_COMPLETE.md
+
+# Ignore these if they exist
+supabase/.temp/
+.supabase/

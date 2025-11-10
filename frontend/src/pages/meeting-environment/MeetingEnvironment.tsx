@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ChevronDown, ChevronRight, CalendarDays, ListPlus, Trash2, Download, AlertTriangle } from "lucide-react";
 import type { MeetingMetadata } from "@/types/project";
 
@@ -38,6 +39,7 @@ const MeetingEnvironment = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
   const { openMeetingDialog } = useMeetingReportStore();
+  const { canCreate, canDelete } = usePermissions();
 
   const toggleMeetingExpansion = useCallback((meetingId: string) => {
     setExpandedMeetings((prev) => {
@@ -91,14 +93,16 @@ const MeetingEnvironment = () => {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:mt-0">
-                <Button
-                  variant="outline"
-                  onClick={handleNavigateToRegistration}
-                  className="flex items-center gap-2"
-                >
-                  <ListPlus className="h-4 w-4" />
-                  Registrar nova reunião
-                </Button>
+                {canCreate && (
+                  <Button
+                    variant="outline"
+                    onClick={handleNavigateToRegistration}
+                    className="flex items-center gap-2"
+                  >
+                    <ListPlus className="h-4 w-4" />
+                    Registrar nova reunião
+                  </Button>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CalendarDays className="h-4 w-4" />
                   {meetings.length} reuniões registradas
@@ -176,14 +180,16 @@ const MeetingEnvironment = () => {
                                   >
                                     <Download className="h-4 w-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenDeleteDialog(meeting)}
-                                    className="text-muted-foreground hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {canDelete && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleOpenDeleteDialog(meeting)}
+                                      className="text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
 

@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { FileSpreadsheet, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Download, LogOut, User, Shield } from "lucide-react";
 import { ProjectSelector } from "@/components/project/ProjectSelector";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
 import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/authStore";
+import { Badge } from "@/components/ui/badge";
 
 interface SidebarProps {
   className?: string;
@@ -18,6 +20,12 @@ const Sidebar = ({ className }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getSelectedProject } = useProjectStore();
+  const { userProfile, signOut } = useAuthStore();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   const navigationItems = [
     {
@@ -158,6 +166,40 @@ const Sidebar = ({ className }: SidebarProps) => {
           >
             <Download className="h-4 w-4" />
             Gerar Relatório
+          </Button>
+        </div>
+      )}
+
+      {/* User Info & Logout */}
+      {!isCollapsed && userProfile && (
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              {userProfile.role === 'super_admin' ? (
+                <Shield className="h-5 w-5 text-primary" />
+              ) : (
+                <User className="h-5 w-5 text-primary" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {userProfile.full_name || userProfile.email}
+              </p>
+              <Badge 
+                variant={userProfile.role === 'super_admin' ? 'default' : 'secondary'}
+                className="mt-1 text-xs"
+              >
+                {userProfile.role === 'super_admin' ? 'Super Admin' : 'Visitante'}
+              </Badge>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
           </Button>
         </div>
       )}
