@@ -88,43 +88,31 @@ const MeetingReportModal = () => {
           </DialogDescription>
         </DialogHeader>
 
-        {dialogMeeting && (
-          <div className="space-y-4 text-sm">
-            <div className="grid gap-2">
-              <p><span className="font-semibold">Data:</span> {dialogMeeting.data || "-"}</p>
-              <p><span className="font-semibold">Número da Ata:</span> {dialogMeeting.numeroAta || "-"}</p>
-              <p>
-                <span className="font-semibold">Participantes:</span>{" "}
-                {dialogMeeting.participants?.length ? dialogMeeting.participants.join(", ") : "-"}
+        <div className="space-y-4">
+          {!isGenerating && (
+            <div className="text-center py-2">
+              <p className="text-sm text-muted-foreground">
+                Relatório com dados do Project Tracker, Monitor de Documentos e resumo da reunião.
               </p>
             </div>
+          )}
 
-            {dialogMeeting.detalhes && (
-              <div>
-                <p className="font-semibold mb-1">Detalhes</p>
-                <p className="text-muted-foreground whitespace-pre-wrap">
-                  {dialogMeeting.detalhes}
-                </p>
+          {isGenerating && (
+            <div className="space-y-4 rounded-md border border-border/60 bg-muted/30 p-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Progresso</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <Progress value={progress} className="h-2" />
               </div>
-            )}
-          </div>
-        )}
-
-        {isGenerating && (
-          <div className="space-y-4 rounded-md border border-border/60 bg-muted/30 p-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Progresso</span>
-                <span>{Math.round(progress)}%</span>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{currentStep}</span>
               </div>
-              <Progress value={progress} className="h-2" />
             </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>{currentStep}</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <DialogFooter className="sm:justify-end">
           <Button
