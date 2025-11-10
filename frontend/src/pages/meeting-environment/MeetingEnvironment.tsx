@@ -4,9 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
-import { ChevronDown, ChevronRight, CalendarDays, ListPlus, Trash2, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarDays, ListPlus, Trash2, Download, AlertTriangle } from "lucide-react";
 import type { MeetingMetadata } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -27,6 +35,8 @@ const MeetingEnvironment = () => {
   }, [projects, selectedProjectId]);
 
   const [expandedMeetings, setExpandedMeetings] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
   const { openMeetingDialog } = useMeetingReportStore();
 
   const toggleMeetingExpansion = useCallback((meetingId: string) => {
@@ -41,13 +51,26 @@ const MeetingEnvironment = () => {
     });
   }, []);
 
-  const handleRemoveMeeting = useCallback(async (meetingId: string) => {
-    if (!selectedProjectId) return;
+  const handleOpenDeleteDialog = useCallback((meeting: MeetingMetadata) => {
+    setMeetingToDelete(meeting);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteDialogOpen(false);
+    setMeetingToDelete(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!selectedProjectId || !meetingToDelete) return;
+    
     const project = projects.find((p) => p.id === selectedProjectId);
     const currentMeetings = project?.meetings ?? [];
-    const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingId);
+    const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingToDelete.id);
     await updateProject(selectedProjectId, { meetings: updatedMeetings });
-  }, [projects, selectedProjectId, updateProject]);
+    
+    handleCloseDeleteDialog();
+  }, [projects, selectedProjectId, updateProject, meetingToDelete, handleCloseDeleteDialog]);
 
   const handleNavigateToRegistration = useCallback(() => {
     navigate("/project-tracker", { state: { focus: "meetings" } });
@@ -156,7 +179,7 @@ const MeetingEnvironment = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleRemoveMeeting(meeting.id)}
+                                    onClick={() => handleOpenDeleteDialog(meeting)}
                                     className="text-muted-foreground hover:text-destructive"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -180,6 +203,50 @@ const MeetingEnvironment = () => {
           )}
         </section>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={handleCloseDeleteDialog}>
+        <DialogContent className="sm:max-w-md backdrop-blur-md bg-background/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Excluir Reunião
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir esta reunião? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+
+          {meetingToDelete && (
+            <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 p-4">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold">Data:</span>
+                <span className="text-muted-foreground">{meetingToDelete.data || "-"}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold">Número da Ata:</span>
+                <span className="text-muted-foreground">{meetingToDelete.numeroAta || "-"}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={handleCloseDeleteDialog}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
