@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 
 import { ProjectDocument } from "@/types/project";
 import { useProjectStore } from "@/stores/projectStore";
+import { usePermissions } from "@/hooks/usePermissions";
 import { GridHeader } from "./GridHeader";
 import { GridRow } from "./GridRow";
 import { ExpandableGridRow } from "./ExpandableGridRow";
@@ -18,6 +19,7 @@ export function DataGrid() {
     deleteDocument,
     selectedProjectId
   } = useProjectStore();
+  const { canCreate } = usePermissions();
   
   // Use table documents (includes cleared/incomplete rows for editing)
   const documents = getTableDocuments();
@@ -269,24 +271,26 @@ export function DataGrid() {
             />
           ))}
 
-          {/* Always-present blank row */}
-          <div className="border-t-2 border-gray-300 bg-gray-50/50 flex">
-            <div className="w-[40px] border-r border-border"></div>
-            <div className="flex-1">
-              <GridRow
-                document={{ id: 'blank-row', ...blankRow } as ProjectDocument}
-                columns={columns}
-                editingCell={editingCell}
-                onCellEdit={handleCellEdit}
-                onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
-                onStopEdit={() => setEditingCell(null)}
-                onKeyDown={handleKeyDown}
-                onAdd={handleBlankRowSave}
-                isBlankRow={true}
-                isEven={documents.length % 2 === 0}
-              />
+          {/* Blank row for adding new documents - only show for users with create permission */}
+          {canCreate && (
+            <div className="border-t-2 border-gray-300 bg-gray-50/50 flex">
+              <div className="w-[40px] border-r border-border"></div>
+              <div className="flex-1">
+                <GridRow
+                  document={{ id: 'blank-row', ...blankRow } as ProjectDocument}
+                  columns={columns}
+                  editingCell={editingCell}
+                  onCellEdit={handleCellEdit}
+                  onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
+                  onStopEdit={() => setEditingCell(null)}
+                  onKeyDown={handleKeyDown}
+                  onAdd={handleBlankRowSave}
+                  isBlankRow={true}
+                  isEven={documents.length % 2 === 0}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

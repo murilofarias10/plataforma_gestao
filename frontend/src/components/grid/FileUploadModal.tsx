@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProjectAttachment } from "@/types/project";
 import { fileManager } from "@/services/fileManager";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export function FileUploadModal({
   projectId,
   documentId,
 }: FileUploadModalProps) {
+  const { canCreate, canDelete } = usePermissions();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ProjectAttachment | null>(null);
@@ -159,45 +161,50 @@ export function FileUploadModal({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Gerenciar Anexos</DialogTitle>
+            <DialogTitle>{canCreate ? 'Gerenciar Anexos' : 'Visualizar Anexos'}</DialogTitle>
             <DialogDescription>
-              Faça upload de arquivos ou gerencie os anexos existentes para este documento.
+              {canCreate 
+                ? 'Faça upload de arquivos ou gerencie os anexos existentes para este documento.'
+                : 'Visualize e baixe os anexos existentes para este documento.'
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4">
-            {/* Upload Area */}
-            <div
-              className={cn(
-                "border-2 border-dashed rounded-lg p-8 transition-colors cursor-pointer",
-                "hover:border-primary/50 hover:bg-muted/30",
-                isDragOver && "border-primary bg-primary/10",
-                isUploading && "opacity-50 pointer-events-none"
-              )}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={openFileDialog}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/jpg"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
+            {/* Upload Area - Only show for users with create permission */}
+            {canCreate && (
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-8 transition-colors cursor-pointer",
+                  "hover:border-primary/50 hover:bg-muted/30",
+                  isDragOver && "border-primary bg-primary/10",
+                  isUploading && "opacity-50 pointer-events-none"
+                )}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={openFileDialog}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/jpg"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
 
-              <div className="text-center">
-                <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">
-                  {isUploading ? "Fazendo upload..." : "Arraste arquivos aqui ou clique para selecionar"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Suporte para PDF, Excel, Word, PNG e JPEG (máximo 10MB por arquivo)
-                </p>
+                <div className="text-center">
+                  <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">
+                    {isUploading ? "Fazendo upload..." : "Arraste arquivos aqui ou clique para selecionar"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Suporte para PDF, Excel, Word, PNG e JPEG (máximo 10MB por arquivo)
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Files List */}
             {attachments.length > 0 && (
@@ -233,15 +240,17 @@ export function FileUploadModal({
                         >
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteClick(attachment)}
-                          title="Remover"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteClick(attachment)}
+                            title="Remover"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

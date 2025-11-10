@@ -3,6 +3,7 @@ import { ProjectDocument } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GridCell } from "./GridCell";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Column {
   key: string;
@@ -36,6 +37,8 @@ export function GridRow({
   isBlankRow = false,
   isEven = false,
 }: GridRowProps) {
+  const { canCreate } = usePermissions();
+  
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "A iniciar":
@@ -75,9 +78,9 @@ export function GridRow({
             ) : column.key === 'status' && !isEditing ? (
               <button
                 type="button"
-                className="p-1 w-full text-left hover:bg-muted/40"
-                onClick={() => onStartEdit(column.key)}
-                aria-label="Editar status"
+                className={`p-1 w-full text-left ${canCreate ? 'hover:bg-muted/40 cursor-pointer' : 'cursor-default'}`}
+                onClick={canCreate ? () => onStartEdit(column.key) : undefined}
+                aria-label={canCreate ? "Editar status" : "Status (somente leitura)"}
               >
                 <Badge variant={getStatusBadgeVariant(value as string)} className="text-xs">
                   {value as string}

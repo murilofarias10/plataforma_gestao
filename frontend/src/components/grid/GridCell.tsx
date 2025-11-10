@@ -11,6 +11,7 @@ import {
 import { FileUploadCell } from "./FileUploadCell";
 import { ProjectAttachment } from "@/types/project";
 import { Upload } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface GridCellProps {
   value: any;
@@ -22,6 +23,7 @@ interface GridCellProps {
   onKeyDown: (e: React.KeyboardEvent) => void;
   projectId?: string;
   documentId?: string;
+  readOnly?: boolean;
 }
 
 export function GridCell({
@@ -34,10 +36,15 @@ export function GridCell({
   onKeyDown,
   projectId,
   documentId,
+  readOnly = false,
 }: GridCellProps) {
+  const { canCreate } = usePermissions();
   const [localValue, setLocalValue] = useState(value || '');
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Determine if cell should be read-only (visitor or explicitly read-only)
+  const isReadOnly = readOnly || !canCreate;
 
   useEffect(() => {
     // Update localValue from prop when value changes
@@ -194,10 +201,15 @@ export function GridCell({
   // Handle file type display
   if (type === 'file') {
     const attachments = value as ProjectAttachment[] || [];
+    // Allow visitors to view/download files, but not upload new ones
+    const hasFiles = attachments.length > 0;
+    const canInteract = hasFiles || canCreate;
+    
     return (
       <div
-        className="grid-cell p-2 cursor-pointer min-h-[40px] flex items-center"
-        onClick={onStartEdit}
+        className={`grid-cell p-2 min-h-[40px] flex items-center ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
+        onClick={canInteract ? onStartEdit : undefined}
+        title={hasFiles ? (canCreate ? 'Gerenciar anexos' : 'Visualizar anexos') : (canCreate ? 'Anexar arquivo' : 'Sem anexos')}
       >
         {attachments.length > 0 ? (
           <div className="flex items-center gap-1 text-sm">
@@ -208,7 +220,7 @@ export function GridCell({
           </div>
         ) : (
           <div className="flex items-center justify-center w-full">
-            <Upload className="h-6 w-6 text-muted-foreground" />
+            <Upload className={`h-6 w-6 ${isReadOnly ? 'text-muted-foreground/30' : 'text-muted-foreground'}`} />
           </div>
         )}
       </div>
@@ -217,13 +229,13 @@ export function GridCell({
 
   return (
     <div
-      className="grid-cell p-2 cursor-pointer min-h-[40px] flex items-center"
-      onClick={onStartEdit}
+      className={`grid-cell p-2 min-h-[40px] flex items-center ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      onClick={isReadOnly ? undefined : onStartEdit}
     >
       <span className="text-sm text-foreground truncate">
         {formatDisplayValue(value) || (
           <span className="text-muted-foreground italic">
-            {type === 'date' ? 'dd-mm-aaaa' : 'Clique para editar'}
+            {type === 'date' ? 'dd-mm-aaaa' : (isReadOnly ? '-' : 'Clique para editar')}
           </span>
         )}
       </span>

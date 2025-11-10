@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { v4 as uuidv4 } from 'uuid';
 import { useProjectStore } from '@/stores/projectStore';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 export function MeetingRegistrationSection() {
@@ -14,6 +15,7 @@ export function MeetingRegistrationSection() {
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
+  const { canCreate } = usePermissions();
   
   const selectedProject = getSelectedProject();
   
@@ -76,6 +78,11 @@ export function MeetingRegistrationSection() {
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
   if (!selectedProject) {
+    return null;
+  }
+
+  // Hide entire section for visitors (no create permission)
+  if (!canCreate) {
     return null;
   }
 
