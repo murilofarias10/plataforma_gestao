@@ -18,26 +18,28 @@ export function DataGrid() {
     updateDocument,
     duplicateDocument,
     deleteDocument,
-    selectedProjectId
+    selectedProjectId,
+    documents: allDocuments
   } = useProjectStore();
   const { canCreate } = usePermissions();
-  const { relatedItemNumbers, addRelatedItem, removeRelatedItem, hasActiveMeeting } = useMeetingContextStore();
-  const showMeetingCheckboxes = hasActiveMeeting();
   
-  // Use table documents (includes cleared/incomplete rows for editing)
+  // Use table documents for display (only unassigned docs)
   const documents = getTableDocuments();
 
-  // Compute next sequential numeroItem as the smallest missing positive integer
+  // Compute next sequential numeroItem based on ALL documents (not just visible ones)
   const nextNumeroItem = useMemo(() => {
     const used = new Set<number>();
-    for (const d of documents) {
-      const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
-      if (Number.isFinite(n) && n > 0) used.add(n);
+    // Check all documents in the project, including those assigned to meetings
+    for (const d of allDocuments) {
+      if (d.projectId === selectedProjectId) {
+        const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
+        if (Number.isFinite(n) && n > 0) used.add(n);
+      }
     }
     let candidate = 1;
     while (used.has(candidate)) candidate++;
     return candidate;
-  }, [documents]);
+  }, [allDocuments, selectedProjectId]);
 
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -178,16 +180,19 @@ export function DataGrid() {
   }, [updateDocument, documents]);
 
   const handleBlankRowSave = useCallback(async () => {
-    // Check if blank row has required data
-    if (blankRow.dataInicio && blankRow.documento && blankRow.responsavel && blankRow.status) {
-      // Store scroll position before saving
-      const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
-      
-      if (scrollContainer instanceof HTMLElement) {
-        savedScrollPosition.current = scrollContainer.scrollTop;
-      }
-      
+    console.log('Adding new document row...', blankRow);
+    
+    // Store scroll position before saving
+    const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
+    
+    if (scrollContainer instanceof HTMLElement) {
+      savedScrollPosition.current = scrollContainer.scrollTop;
+    }
+    
+    try {
+      // Add document even if it's empty (user will fill it later)
       await addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
+      console.log('Document added successfully');
       
       // Reset blank row with freshly computed nextNumeroItem
       setBlankRow({
@@ -203,10 +208,12 @@ export function DataGrid() {
         area: '',
         attachments: [],
       });
-    } else {
+    } catch (error) {
+      console.error('Error adding document:', error);
       toast({
-        title: 'Campos obrigatórios',
-        description: 'Preencha Data Início, Documento, Responsável e Status.',
+        title: 'Erro',
+        description: 'Erro ao adicionar linha',
+        variant: 'destructive',
       });
     }
   }, [blankRow, addDocument, selectedProjectId, nextNumeroItem]);
@@ -245,18 +252,7 @@ export function DataGrid() {
     }
   }, [deleteDocument]);
 
-  const handleToggleMeetingLink = useCallback((numeroItem: number) => {
-    if (relatedItemNumbers.has(numeroItem)) {
-      removeRelatedItem(numeroItem);
-    } else {
-      addRelatedItem(numeroItem);
-    }
-  }, [relatedItemNumbers, addRelatedItem, removeRelatedItem]);
 
-
-  if (documents.length === 0 && !Object.values(blankRow).some(v => v)) {
-    return <EmptyState onAddFirst={() => setEditingCell({ id: 'blank-row', field: 'documento' })} />;
-  }
 
   return (
     <div className="space-y-4">
@@ -279,9 +275,6 @@ export function DataGrid() {
               onStopEdit={() => setEditingCell(null)}
               onKeyDown={handleKeyDown}
               isEven={index % 2 === 0}
-              showMeetingCheckbox={showMeetingCheckboxes}
-              isLinkedToMeeting={relatedItemNumbers.has(document.numeroItem)}
-              onToggleMeetingLink={() => handleToggleMeetingLink(document.numeroItem)}
             />
           ))}
 

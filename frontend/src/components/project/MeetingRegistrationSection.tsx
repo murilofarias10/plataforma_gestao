@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { MeetingMetadata } from '@/types/project';
-import { Plus, X, Link2, FileText } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,9 @@ export function MeetingRegistrationSection() {
   const { canCreate } = usePermissions();
   
   // Meeting context store
-  const relatedItemNumbers = useMeetingContextStore((state) => state.relatedItemNumbers);
   const isEditMode = useMeetingContextStore((state) => state.isEditMode);
   const editingMeetingId = useMeetingContextStore((state) => state.editingMeetingId);
   const currentMeeting = useMeetingContextStore((state) => state.currentMeeting);
-  const updateMeetingData = useMeetingContextStore((state) => state.updateMeetingData);
   const clearMeetingContext = useMeetingContextStore((state) => state.clearMeetingContext);
   const startMeeting = useMeetingContextStore((state) => state.startMeeting);
   
@@ -82,12 +80,13 @@ export function MeetingRegistrationSection() {
     }
 
     try {
-      // Get current meetings fresh from store
+      // Get current meetings and documents fresh from store
       const currentProject = projects.find(p => p.id === selectedProjectId);
       const currentMeetings = currentProject?.meetings || [];
-
-      // Convert Set to Array for related items
-      const relatedItemsArray = Array.from(relatedItemNumbers);
+      
+      // Get documents visible in project-tracker (unassigned + editing meeting's docs)
+      const visibleDocuments = useProjectStore.getState().getTableDocuments();
+      const documentItemNumbers = visibleDocuments.map(doc => doc.numeroItem);
 
       if (isEditMode && editingMeetingId) {
         // Update existing meeting
@@ -101,14 +100,14 @@ export function MeetingRegistrationSection() {
             disciplina: meetingDisciplina.trim() || undefined,
             resumo: meetingResumo.trim() || undefined,
             participants: tempParticipants,
-            relatedItems: relatedItemsArray,
+            relatedItems: documentItemNumbers,
           } : meeting
         );
         
         await updateProject(selectedProjectId, { meetings: updatedMeetings });
         toast.success('Reunião atualizada com sucesso!');
       } else {
-        // Create new meeting
+        // Create new meeting with ALL current documents
         const newMeeting: MeetingMetadata = {
           id: uuidv4(),
           data: meetingData,
@@ -118,12 +117,13 @@ export function MeetingRegistrationSection() {
           disciplina: meetingDisciplina.trim() || undefined,
           resumo: meetingResumo.trim() || undefined,
           participants: tempParticipants,
-          relatedItems: relatedItemsArray,
+          relatedItems: documentItemNumbers,
           createdAt: new Date().toISOString(),
         };
 
         const updatedMeetings = [...currentMeetings, newMeeting];
         await updateProject(selectedProjectId, { meetings: updatedMeetings });
+        
         toast.success('Reunião adicionada com sucesso!');
       }
       
@@ -140,7 +140,7 @@ export function MeetingRegistrationSection() {
       console.error('Error saving meeting:', error);
       toast.error('Erro ao salvar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, relatedItemNumbers, projects, selectedProjectId, updateProject, isEditMode, editingMeetingId, clearMeetingContext]);
+  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, isEditMode, editingMeetingId, clearMeetingContext]);
 
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
@@ -168,12 +168,6 @@ export function MeetingRegistrationSection() {
         >
           {isEditMode ? 'Atualizar Reunião' : 'Adicionar Reunião'}
         </Button>
-        {relatedItemNumbers.size > 0 && (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <FileText className="h-3 w-3" />
-            {relatedItemNumbers.size} {relatedItemNumbers.size === 1 ? 'item vinculado' : 'itens vinculados'}
-          </Badge>
-        )}
         {isEditMode && (
           <Button
             size="sm"

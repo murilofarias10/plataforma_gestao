@@ -71,7 +71,18 @@ export function GridRow({
           <div key={column.key} className="border-r border-border last:border-r-0 min-w-0">
             {isBlankRow && isLastColumn ? (
               <div className="p-1 flex items-center justify-center h-full">
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onAdd} title="Adicionar linha">
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 w-6 p-0" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onAdd?.();
+                  }} 
+                  title="Adicionar linha"
+                >
                   <span className="text-sm leading-none">+</span>
                 </Button>
               </div>

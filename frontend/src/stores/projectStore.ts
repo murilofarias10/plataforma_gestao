@@ -3,6 +3,7 @@ import { Project, ProjectDocument, ProjectFilters, KpiData, TimelineDataPoint, S
 import { parseBRDateLocal } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateFieldChanges, createChangeLogEntry, debounce } from '@/lib/changeTracking';
+import { useMeetingContextStore } from './meetingContextStore';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -688,10 +689,45 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   },
 
   getTableDocuments: () => {
-    return get()
-      .getFilteredDocuments()
+    const { selectedProjectId, projects } = get();
+    
+    // Check if we're in edit mode
+    const { isEditMode, editingMeetingId } = useMeetingContextStore.getState();
+    
+    // Get all item numbers that are already assigned to meetings
+    const assignedItemNumbers = new Set<number>();
+    let editingMeetingItemNumbers = new Set<number>();
+    
+    if (selectedProjectId) {
+      const selectedProject = projects.find(p => p.id === selectedProjectId);
+      if (selectedProject?.meetings) {
+        selectedProject.meetings.forEach(meeting => {
+          if (meeting.relatedItems) {
+            // If this is the meeting being edited, save its items separately
+            if (isEditMode && meeting.id === editingMeetingId) {
+              meeting.relatedItems.forEach(itemNum => editingMeetingItemNumbers.add(itemNum));
+            } else {
+              // Otherwise, mark these items as assigned
+              meeting.relatedItems.forEach(itemNum => assignedItemNumbers.add(itemNum));
+            }
+          }
+        });
+      }
+    }
+    
+    const allFilteredDocs = get().getFilteredDocuments();
+    console.log('All filtered documents:', allFilteredDocs.length);
+    console.log('Assigned item numbers:', Array.from(assignedItemNumbers));
+    
+    // Filter: show unassigned documents OR documents from the meeting being edited
+    const visibleDocs = allFilteredDocs
+      .filter(doc => !assignedItemNumbers.has(doc.numeroItem) || editingMeetingItemNumbers.has(doc.numeroItem))
       .slice()
       .sort((a, b) => (a.numeroItem || 0) - (b.numeroItem || 0));
+    
+    console.log('Visible documents in table:', visibleDocs.length, visibleDocs.map(d => d.numeroItem));
+    
+    return visibleDocs;
   },
 
   getKpiData: () => {
