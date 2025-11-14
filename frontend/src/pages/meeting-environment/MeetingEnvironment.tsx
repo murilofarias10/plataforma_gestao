@@ -15,7 +15,7 @@ import {
 import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { ChevronDown, ChevronRight, CalendarDays, ListPlus, Trash2, Download, AlertTriangle } from "lucide-react";
+import { CalendarDays, ListPlus, Trash2, Download, AlertTriangle } from "lucide-react";
 import type { MeetingMetadata } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -35,23 +35,10 @@ const MeetingEnvironment = () => {
     return project?.meetings ?? [];
   }, [projects, selectedProjectId]);
 
-  const [expandedMeetings, setExpandedMeetings] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
   const { openMeetingDialog } = useMeetingReportStore();
   const { canCreate, canDelete } = usePermissions();
-
-  const toggleMeetingExpansion = useCallback((meetingId: string) => {
-    setExpandedMeetings((prev) => {
-      const next = new Set(prev);
-      if (next.has(meetingId)) {
-        next.delete(meetingId);
-      } else {
-        next.add(meetingId);
-      }
-      return next;
-    });
-  }, []);
 
   const handleOpenDeleteDialog = useCallback((meeting: MeetingMetadata) => {
     setMeetingToDelete(meeting);
@@ -131,73 +118,69 @@ const MeetingEnvironment = () => {
                   </div>
                 ) : (
                   <ScrollArea className="max-h-[65vh]">
-                    <div className="space-y-3 p-4">
+                    <div className="divide-y divide-border">
                       {meetings
                         .slice()
                         .sort((a, b) => new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime())
                         .map((meeting) => {
-                          const isExpanded = expandedMeetings.has(meeting.id);
-                          const hasDetails = Boolean(meeting.detalhes);
-
                           return (
                             <div
                               key={meeting.id}
-                              className="bg-card rounded border border-border"
+                              className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_auto] gap-4 p-4 hover:bg-muted/30 transition-colors"
                             >
-                              <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                              {/* First Column: Date, Numero Ata, Participants */}
+                              <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs font-medium">
                                     {meeting.data}
                                   </Badge>
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs font-medium">
                                     {meeting.numeroAta}
                                   </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
                                   {meeting.participants.map((participant, index) => (
                                     <Badge key={`${meeting.id}-participant-${index}`} variant="secondary" className="text-xs">
                                       {participant}
                                     </Badge>
                                   ))}
-                                  {hasDetails && (
-                                    <button
-                                      onClick={() => toggleMeetingExpansion(meeting.id)}
-                                      className="ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                      {isExpanded ? (
-                                        <ChevronDown className="h-4 w-4" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4" />
-                                      )}
-                                    </button>
-                                  )}
                                 </div>
-                                <div className="flex items-center gap-2 self-start sm:self-auto">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => openMeetingDialog(meeting)}
-                                    className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
-                                    aria-label="Gerar relatório da reunião"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                  {canDelete && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleOpenDeleteDialog(meeting)}
-                                      className="text-muted-foreground hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                              </div>
+
+                              {/* Second Column: Details */}
+                              <div className="flex items-start">
+                                <div className="text-sm text-muted-foreground">
+                                  {meeting.detalhes ? (
+                                    <p className="line-clamp-3">{meeting.detalhes}</p>
+                                  ) : (
+                                    <p className="italic text-muted-foreground/60">Sem detalhes registrados</p>
                                   )}
                                 </div>
                               </div>
 
-                              {isExpanded && hasDetails && (
-                                <div className="border-t border-border p-4 text-sm text-foreground">
-                                  {meeting.detalhes}
-                                </div>
-                              )}
+                              {/* Third Column: Action Buttons */}
+                              <div className="flex items-start gap-2 lg:justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openMeetingDialog(meeting)}
+                                  className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
+                                  aria-label="Gerar relatório da reunião"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenDeleteDialog(meeting)}
+                                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    aria-label="Excluir reunião"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
