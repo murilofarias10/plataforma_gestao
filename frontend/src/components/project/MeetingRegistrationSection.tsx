@@ -22,6 +22,9 @@ export function MeetingRegistrationSection() {
   const [meetingData, setMeetingData] = useState('');
   const [meetingNumero, setMeetingNumero] = useState('');
   const [meetingDetalhes, setMeetingDetalhes] = useState('');
+  const [meetingFornecedor, setMeetingFornecedor] = useState('');
+  const [meetingDisciplina, setMeetingDisciplina] = useState('');
+  const [meetingResumo, setMeetingResumo] = useState('');
   const [newParticipant, setNewParticipant] = useState('');
   const [tempParticipants, setTempParticipants] = useState<string[]>([]);
 
@@ -54,6 +57,9 @@ export function MeetingRegistrationSection() {
         data: meetingData,
         numeroAta: meetingNumero,
         detalhes: meetingDetalhes.trim() || undefined,
+        fornecedor: meetingFornecedor.trim() || undefined,
+        disciplina: meetingDisciplina.trim() || undefined,
+        resumo: meetingResumo.trim() || undefined,
         participants: tempParticipants,
         createdAt: new Date().toISOString(),
       };
@@ -66,6 +72,9 @@ export function MeetingRegistrationSection() {
       setMeetingData('');
       setMeetingNumero('');
       setMeetingDetalhes('');
+      setMeetingFornecedor('');
+      setMeetingDisciplina('');
+      setMeetingResumo('');
       setTempParticipants([]);
       
       toast.success('Reunião adicionada com sucesso!');
@@ -73,7 +82,7 @@ export function MeetingRegistrationSection() {
       console.error('Error adding meeting:', error);
       toast.error('Erro ao adicionar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, tempParticipants, projects, selectedProjectId, updateProject]);
+  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject]);
 
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
@@ -101,89 +110,132 @@ export function MeetingRegistrationSection() {
         </Button>
       </div>
       
-      <div className="grid grid-cols-4 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            Data da Reunião
-          </label>
-          <Input
-            type="text"
-            placeholder="dd-mm-aaaa"
-            className="h-8 text-sm w-full"
-            value={meetingData}
-            onChange={(e) => {
-              let value = e.target.value;
-              // Remove non-numeric characters except dashes
-              value = value.replace(/[^0-9-]/g, '');
-              
-              // Auto-format as user types (dd-mm-aaaa)
-              if (value.length <= 2) {
-                value = value;
-              } else if (value.length <= 5) {
-                value = value.replace(/^(\d{2})(\d)/, '$1-$2');
-              } else if (value.length <= 10) {
-                value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
-              } else {
-                value = value.substring(0, 10);
-              }
-              
-              setMeetingData(value);
-            }}
-            maxLength={10}
-            inputMode="numeric"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            Número da Ata
-          </label>
-          <Input
-            type="text"
-            placeholder="Ex: ATA-001"
-            className="h-8 text-sm w-full"
-            value={meetingNumero}
-            onChange={(e) => setMeetingNumero(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            Detalhes
-          </label>
-          <Input
-            type="text"
-            placeholder="Detalhes da reunião"
-            className="h-8 text-sm w-full"
-            value={meetingDetalhes}
-            onChange={(e) => setMeetingDetalhes(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            Participantes
-          </label>
-          {/* Add Participant - Input with button */}
-          <div className="flex items-center gap-1">
+      <div className="space-y-3">
+        {/* First Row */}
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Data da Reunião
+            </label>
             <Input
               type="text"
-              placeholder="Nome do participante"
-              className="h-8 text-sm flex-1"
-              value={newParticipant}
-              onChange={(e) => setNewParticipant(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddParticipant();
+              placeholder="dd-mm-aaaa"
+              className="h-8 text-sm w-full"
+              value={meetingData}
+              onChange={(e) => {
+                let value = e.target.value;
+                // Remove non-numeric characters except dashes
+                value = value.replace(/[^0-9-]/g, '');
+                
+                // Auto-format as user types (dd-mm-aaaa)
+                if (value.length <= 2) {
+                  value = value;
+                } else if (value.length <= 5) {
+                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                } else if (value.length <= 10) {
+                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                } else {
+                  value = value.substring(0, 10);
                 }
+                
+                setMeetingData(value);
               }}
+              maxLength={10}
+              inputMode="numeric"
             />
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="h-8 px-2 flex-shrink-0"
-              onClick={handleAddParticipant}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Número da Ata
+            </label>
+            <Input
+              type="text"
+              placeholder="Ex: ATA-001"
+              className="h-8 text-sm w-full"
+              value={meetingNumero}
+              onChange={(e) => setMeetingNumero(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Fornecedor
+            </label>
+            <Input
+              type="text"
+              placeholder="Nome do fornecedor"
+              className="h-8 text-sm w-full"
+              value={meetingFornecedor}
+              onChange={(e) => setMeetingFornecedor(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Disciplina
+            </label>
+            <Input
+              type="text"
+              placeholder="Disciplina"
+              className="h-8 text-sm w-full"
+              value={meetingDisciplina}
+              onChange={(e) => setMeetingDisciplina(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Second Row */}
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Detalhes
+            </label>
+            <Input
+              type="text"
+              placeholder="Detalhes da reunião"
+              className="h-8 text-sm w-full"
+              value={meetingDetalhes}
+              onChange={(e) => setMeetingDetalhes(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Resumo
+            </label>
+            <Input
+              type="text"
+              placeholder="Resumo da reunião"
+              className="h-8 text-sm w-full"
+              value={meetingResumo}
+              onChange={(e) => setMeetingResumo(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Participantes
+            </label>
+            {/* Add Participant - Input with button */}
+            <div className="flex items-center gap-1">
+              <Input
+                type="text"
+                placeholder="Nome do participante"
+                className="h-8 text-sm flex-1"
+                value={newParticipant}
+                onChange={(e) => setNewParticipant(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddParticipant();
+                  }
+                }}
+              />
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="h-8 px-2 flex-shrink-0"
+                onClick={handleAddParticipant}
+              >
+                <Plus className="w-3 h-3" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

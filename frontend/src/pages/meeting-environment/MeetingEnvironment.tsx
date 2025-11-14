@@ -1,6 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -126,39 +125,61 @@ const MeetingEnvironment = () => {
                           return (
                             <div
                               key={meeting.id}
-                              className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_auto] gap-4 p-4 hover:bg-muted/30 transition-colors"
+                              className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:bg-muted/30 transition-colors"
                             >
-                              {/* First Column: Date, Numero Ata, Participants */}
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className="text-xs font-medium">
-                                    {meeting.data}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs font-medium">
-                                    {meeting.numeroAta}
-                                  </Badge>
+                              {/* First Column: Date, Numero Ata, Participants, Fornecedor, Disciplina */}
+                              <div className="space-y-1">
+                                <div className="text-xs">
+                                  <span className="font-semibold text-foreground">Data:</span>{' '}
+                                  <span className="text-muted-foreground">{meeting.data}</span>
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {meeting.participants.map((participant, index) => (
-                                    <Badge key={`${meeting.id}-participant-${index}`} variant="secondary" className="text-xs">
-                                      {participant}
-                                    </Badge>
-                                  ))}
+                                <div className="text-xs">
+                                  <span className="font-semibold text-foreground">Número da Ata:</span>{' '}
+                                  <span className="text-muted-foreground">{meeting.numeroAta}</span>
                                 </div>
+                                {meeting.participants.length > 0 && (
+                                  <div className="text-xs">
+                                    <span className="font-semibold text-foreground">Participantes:</span>{' '}
+                                    <span className="text-muted-foreground">{meeting.participants.join(', ')}</span>
+                                  </div>
+                                )}
+                                {meeting.fornecedor && (
+                                  <div className="text-xs">
+                                    <span className="font-semibold text-foreground">Fornecedor:</span>{' '}
+                                    <span className="text-muted-foreground">{meeting.fornecedor}</span>
+                                  </div>
+                                )}
+                                {meeting.disciplina && (
+                                  <div className="text-xs">
+                                    <span className="font-semibold text-foreground">Disciplina:</span>{' '}
+                                    <span className="text-muted-foreground">{meeting.disciplina}</span>
+                                  </div>
+                                )}
                               </div>
 
-                              {/* Second Column: Details */}
+                              {/* Second Column: Detalhes */}
                               <div className="flex items-start">
                                 <div className="text-sm text-muted-foreground">
                                   {meeting.detalhes ? (
-                                    <p className="line-clamp-3">{meeting.detalhes}</p>
+                                    <p className="line-clamp-4">{meeting.detalhes}</p>
                                   ) : (
-                                    <p className="italic text-muted-foreground/60">Sem detalhes registrados</p>
+                                    <p className="italic text-muted-foreground/60">Sem detalhes</p>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Third Column: Action Buttons */}
+                              {/* Third Column: Resumo */}
+                              <div className="flex items-start">
+                                <div className="text-sm text-muted-foreground">
+                                  {meeting.resumo ? (
+                                    <p className="line-clamp-4">{meeting.resumo}</p>
+                                  ) : (
+                                    <p className="italic text-muted-foreground/60">Sem resumo</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Fourth Column: Action Buttons */}
                               <div className="flex items-start gap-2 lg:justify-end">
                                 <Button
                                   variant="ghost"
