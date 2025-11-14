@@ -93,10 +93,10 @@ const MeetingEnvironment = () => {
   }, [documents]);
 
   return (
-    <div className="h-full bg-background">
-      <main className="container mx-auto px-6 py-6 space-y-6">
-        <section className="space-y-4">
-          <div className="flex flex-col gap-4">
+    <div className="h-full bg-background overflow-hidden">
+      <main className="container mx-auto px-6 py-6 space-y-6 h-full flex flex-col">
+        <section className="space-y-4 flex-1 flex flex-col min-h-0">
+          <div className="flex flex-col gap-4 flex-shrink-0">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-foreground">Ambiente de Reuniões</h2>
@@ -134,17 +134,17 @@ const MeetingEnvironment = () => {
           )}
 
           {selectedProject && (
-            <Card className="border border-border">
-              <CardHeader className="border-b border-border">
+            <Card className="border border-border flex-1 flex flex-col min-h-0">
+              <CardHeader className="border-b border-border flex-shrink-0">
                 <CardTitle className="text-lg">Reuniões do Projeto</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="p-0 flex-1 overflow-hidden">
                 {meetings.length === 0 ? (
                   <div className="py-10 text-center text-sm text-muted-foreground">
                     Nenhuma reunião registrada até o momento.
                   </div>
                 ) : (
-                  <ScrollArea className="max-h-[65vh]">
+                  <ScrollArea className="h-full">
                     <div className="divide-y divide-border">
                       {meetings
                         .slice()
