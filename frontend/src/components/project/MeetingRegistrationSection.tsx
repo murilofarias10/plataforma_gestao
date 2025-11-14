@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { MeetingMetadata } from '@/types/project';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Link2, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { v4 as uuidv4 } from 'uuid';
 import { useProjectStore } from '@/stores/projectStore';
+import { useMeetingContextStore } from '@/stores/meetingContextStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
@@ -17,6 +18,15 @@ export function MeetingRegistrationSection() {
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
   const { canCreate } = usePermissions();
   
+  // Meeting context store
+  const relatedItemNumbers = useMeetingContextStore((state) => state.relatedItemNumbers);
+  const isEditMode = useMeetingContextStore((state) => state.isEditMode);
+  const editingMeetingId = useMeetingContextStore((state) => state.editingMeetingId);
+  const currentMeeting = useMeetingContextStore((state) => state.currentMeeting);
+  const updateMeetingData = useMeetingContextStore((state) => state.updateMeetingData);
+  const clearMeetingContext = useMeetingContextStore((state) => state.clearMeetingContext);
+  const startMeeting = useMeetingContextStore((state) => state.startMeeting);
+  
   const selectedProject = getSelectedProject();
   
   const [meetingData, setMeetingData] = useState('');
@@ -27,6 +37,30 @@ export function MeetingRegistrationSection() {
   const [meetingResumo, setMeetingResumo] = useState('');
   const [newParticipant, setNewParticipant] = useState('');
   const [tempParticipants, setTempParticipants] = useState<string[]>([]);
+
+  // Sync form with currentMeeting when in edit mode
+  useEffect(() => {
+    if (isEditMode && currentMeeting) {
+      setMeetingData(currentMeeting.data);
+      setMeetingNumero(currentMeeting.numeroAta);
+      setMeetingDetalhes(currentMeeting.detalhes || '');
+      setMeetingFornecedor(currentMeeting.fornecedor || '');
+      setMeetingDisciplina(currentMeeting.disciplina || '');
+      setMeetingResumo(currentMeeting.resumo || '');
+      setTempParticipants(currentMeeting.participants);
+    }
+  }, [isEditMode, currentMeeting]);
+
+  // Start meeting context when user starts filling out the form
+  useEffect(() => {
+    if ((meetingData || meetingNumero) && !currentMeeting) {
+      startMeeting({
+        data: meetingData,
+        numeroAta: meetingNumero,
+        participants: tempParticipants,
+      });
+    }
+  }, [meetingData, meetingNumero, currentMeeting, tempParticipants, startMeeting]);
 
 
   const handleAddParticipant = useCallback(() => {
@@ -52,23 +86,48 @@ export function MeetingRegistrationSection() {
       const currentProject = projects.find(p => p.id === selectedProjectId);
       const currentMeetings = currentProject?.meetings || [];
 
-      const newMeeting: MeetingMetadata = {
-        id: uuidv4(),
-        data: meetingData,
-        numeroAta: meetingNumero,
-        detalhes: meetingDetalhes.trim() || undefined,
-        fornecedor: meetingFornecedor.trim() || undefined,
-        disciplina: meetingDisciplina.trim() || undefined,
-        resumo: meetingResumo.trim() || undefined,
-        participants: tempParticipants,
-        createdAt: new Date().toISOString(),
-      };
+      // Convert Set to Array for related items
+      const relatedItemsArray = Array.from(relatedItemNumbers);
 
-      const updatedMeetings = [...currentMeetings, newMeeting];
+      if (isEditMode && editingMeetingId) {
+        // Update existing meeting
+        const updatedMeetings = currentMeetings.map(meeting => 
+          meeting.id === editingMeetingId ? {
+            ...meeting,
+            data: meetingData,
+            numeroAta: meetingNumero,
+            detalhes: meetingDetalhes.trim() || undefined,
+            fornecedor: meetingFornecedor.trim() || undefined,
+            disciplina: meetingDisciplina.trim() || undefined,
+            resumo: meetingResumo.trim() || undefined,
+            participants: tempParticipants,
+            relatedItems: relatedItemsArray,
+          } : meeting
+        );
+        
+        await updateProject(selectedProjectId, { meetings: updatedMeetings });
+        toast.success('Reunião atualizada com sucesso!');
+      } else {
+        // Create new meeting
+        const newMeeting: MeetingMetadata = {
+          id: uuidv4(),
+          data: meetingData,
+          numeroAta: meetingNumero,
+          detalhes: meetingDetalhes.trim() || undefined,
+          fornecedor: meetingFornecedor.trim() || undefined,
+          disciplina: meetingDisciplina.trim() || undefined,
+          resumo: meetingResumo.trim() || undefined,
+          participants: tempParticipants,
+          relatedItems: relatedItemsArray,
+          createdAt: new Date().toISOString(),
+        };
+
+        const updatedMeetings = [...currentMeetings, newMeeting];
+        await updateProject(selectedProjectId, { meetings: updatedMeetings });
+        toast.success('Reunião adicionada com sucesso!');
+      }
       
-      await updateProject(selectedProjectId, { meetings: updatedMeetings });
-      
-      // Reset form
+      // Reset form and clear meeting context
       setMeetingData('');
       setMeetingNumero('');
       setMeetingDetalhes('');
@@ -76,13 +135,12 @@ export function MeetingRegistrationSection() {
       setMeetingDisciplina('');
       setMeetingResumo('');
       setTempParticipants([]);
-      
-      toast.success('Reunião adicionada com sucesso!');
+      clearMeetingContext();
     } catch (error) {
-      console.error('Error adding meeting:', error);
-      toast.error('Erro ao adicionar reunião. Tente novamente.');
+      console.error('Error saving meeting:', error);
+      toast.error('Erro ao salvar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject]);
+  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, relatedItemNumbers, projects, selectedProjectId, updateProject, isEditMode, editingMeetingId, clearMeetingContext]);
 
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
@@ -97,8 +155,10 @@ export function MeetingRegistrationSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="text-sm font-semibold text-foreground">Registrar Reunião</div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="text-sm font-semibold text-foreground">
+          {isEditMode ? 'Editar Reunião' : 'Registrar Reunião'}
+        </div>
         <Button 
           size="sm" 
           className="h-8 text-xs px-3"
@@ -106,8 +166,34 @@ export function MeetingRegistrationSection() {
           disabled={!canAddMeeting}
           type="button"
         >
-          Adicionar Reunião
+          {isEditMode ? 'Atualizar Reunião' : 'Adicionar Reunião'}
         </Button>
+        {relatedItemNumbers.size > 0 && (
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <FileText className="h-3 w-3" />
+            {relatedItemNumbers.size} {relatedItemNumbers.size === 1 ? 'item vinculado' : 'itens vinculados'}
+          </Badge>
+        )}
+        {isEditMode && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs px-3"
+            onClick={() => {
+              setMeetingData('');
+              setMeetingNumero('');
+              setMeetingDetalhes('');
+              setMeetingFornecedor('');
+              setMeetingDisciplina('');
+              setMeetingResumo('');
+              setTempParticipants([]);
+              clearMeetingContext();
+            }}
+            type="button"
+          >
+            Cancelar Edição
+          </Button>
+        )}
       </div>
       
       <div className="space-y-3">

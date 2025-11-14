@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { ProjectDocument } from '@/types/project';
-import { ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Link2 } from 'lucide-react';
 import { GridRow } from './GridRow';
 import { formatTimestamp, formatFieldChange } from '@/lib/changeTracking';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Column {
   key: string;
@@ -20,6 +21,9 @@ interface ExpandableGridRowProps {
   onStopEdit: () => void;
   onKeyDown: (e: React.KeyboardEvent, id: string, field: string) => void;
   isEven: boolean;
+  showMeetingCheckbox?: boolean;
+  isLinkedToMeeting?: boolean;
+  onToggleMeetingLink?: () => void;
 }
 
 export function ExpandableGridRow({
@@ -31,6 +35,9 @@ export function ExpandableGridRow({
   onStopEdit,
   onKeyDown,
   isEven,
+  showMeetingCheckbox = false,
+  isLinkedToMeeting = false,
+  onToggleMeetingLink,
 }: ExpandableGridRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -46,10 +53,20 @@ export function ExpandableGridRow({
   return (
     <div 
       id={`document-item-${document.numeroItem}`}
-      className="scroll-mt-4 transition-all duration-300"
+      className={`scroll-mt-4 transition-all duration-300 ${isLinkedToMeeting ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
     >
-      {/* Main Row with Expand Button */}
+      {/* Main Row with Expand Button and Meeting Checkbox */}
       <div className="flex">
+        {showMeetingCheckbox && onToggleMeetingLink && (
+          <div className="flex items-center justify-center border-r border-b border-border px-2 hover:bg-muted/50">
+            <Checkbox
+              checked={isLinkedToMeeting}
+              onCheckedChange={onToggleMeetingLink}
+              aria-label="Vincular à reunião"
+              title={isLinkedToMeeting ? "Desvincular da reunião" : "Vincular à reunião"}
+            />
+          </div>
+        )}
         <button
           onClick={toggleExpanded}
           className="p-2 hover:bg-muted/50 border-r border-b border-border flex items-center justify-center"

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 
 import { ProjectDocument } from "@/types/project";
 import { useProjectStore } from "@/stores/projectStore";
+import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { GridHeader } from "./GridHeader";
 import { GridRow } from "./GridRow";
@@ -20,6 +21,8 @@ export function DataGrid() {
     selectedProjectId
   } = useProjectStore();
   const { canCreate } = usePermissions();
+  const { relatedItemNumbers, addRelatedItem, removeRelatedItem, hasActiveMeeting } = useMeetingContextStore();
+  const showMeetingCheckboxes = hasActiveMeeting();
   
   // Use table documents (includes cleared/incomplete rows for editing)
   const documents = getTableDocuments();
@@ -242,6 +245,14 @@ export function DataGrid() {
     }
   }, [deleteDocument]);
 
+  const handleToggleMeetingLink = useCallback((numeroItem: number) => {
+    if (relatedItemNumbers.has(numeroItem)) {
+      removeRelatedItem(numeroItem);
+    } else {
+      addRelatedItem(numeroItem);
+    }
+  }, [relatedItemNumbers, addRelatedItem, removeRelatedItem]);
+
 
   if (documents.length === 0 && !Object.values(blankRow).some(v => v)) {
     return <EmptyState onAddFirst={() => setEditingCell({ id: 'blank-row', field: 'documento' })} />;
@@ -268,6 +279,9 @@ export function DataGrid() {
               onStopEdit={() => setEditingCell(null)}
               onKeyDown={handleKeyDown}
               isEven={index % 2 === 0}
+              showMeetingCheckbox={showMeetingCheckboxes}
+              isLinkedToMeeting={relatedItemNumbers.has(document.numeroItem)}
+              onToggleMeetingLink={() => handleToggleMeetingLink(document.numeroItem)}
             />
           ))}
 
