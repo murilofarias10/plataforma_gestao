@@ -366,24 +366,15 @@ app.post('/api/projects/:projectId/documents', (req, res) => {
       });
     }
 
-    // Determine next sequential numeroItem within this project (smallest missing positive integer)
-    const projectDocs = documentsData.filter(d => d.projectId === projectId && d.isCleared !== true);
-    const used = new Set(
-      projectDocs
-        .map(d => parseInt(d.numeroItem, 10))
-        .filter(n => Number.isFinite(n) && n > 0)
-    );
-    let nextNumeroItem = 1;
-    while (used.has(nextNumeroItem)) nextNumeroItem++;
-
+    // Frontend always sends numeroItem, but provide fallback just in case
     const newDocument = {
       id: nextDocumentId.toString(),
       projectId,
       ...documentData,
-      // enforce sequential numeroItem if not provided or invalid
+      // Use numeroItem from frontend (frontend handles per-meeting numbering)
       numeroItem: Number.isFinite(parseInt(documentData.numeroItem, 10))
         ? parseInt(documentData.numeroItem, 10)
-        : nextNumeroItem,
+        : 1, // Fallback to 1 if not provided
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

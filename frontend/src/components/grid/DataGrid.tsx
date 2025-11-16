@@ -26,20 +26,21 @@ export function DataGrid() {
   // Use table documents for display (only unassigned docs)
   const documents = getTableDocuments();
 
-  // Compute next sequential numeroItem based on ALL documents (not just visible ones)
+  // Compute next sequential numeroItem based on VISIBLE documents only
+  // This allows each meeting to have its own numbering starting from 1
   const nextNumeroItem = useMemo(() => {
     const used = new Set<number>();
-    // Check all documents in the project, including those assigned to meetings
-    for (const d of allDocuments) {
-      if (d.projectId === selectedProjectId) {
-        const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
-        if (Number.isFinite(n) && n > 0) used.add(n);
-      }
+    // Only check visible documents (unassigned + editing meeting's docs)
+    for (const d of documents) {
+      const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
+      if (Number.isFinite(n) && n > 0) used.add(n);
     }
+    // Find smallest available number starting from 1
     let candidate = 1;
     while (used.has(candidate)) candidate++;
+    console.log('[DataGrid] Next item number:', candidate, '(visible docs:', documents.length, ')');
     return candidate;
-  }, [allDocuments, selectedProjectId]);
+  }, [documents]);
 
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -180,7 +181,7 @@ export function DataGrid() {
   }, [updateDocument, documents]);
 
   const handleBlankRowSave = useCallback(async () => {
-    console.log('Adding new document row...', blankRow);
+    console.log('[DataGrid] Adding new document row...', blankRow);
     
     // Store scroll position before saving
     const scrollContainer = gridRef.current?.querySelector('.overflow-auto');
@@ -192,12 +193,24 @@ export function DataGrid() {
     try {
       // Add document even if it's empty (user will fill it later)
       await addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
-      console.log('Document added successfully');
+      console.log('[DataGrid] Document added successfully');
       
-      // Reset blank row with freshly computed nextNumeroItem
+      // Calculate next number based on VISIBLE documents only
+      const visibleDocs = useProjectStore.getState().getTableDocuments();
+      const used = new Set<number>();
+      for (const d of visibleDocs) {
+        const n = typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10);
+        if (Number.isFinite(n) && n > 0) used.add(n);
+      }
+      let nextNumber = 1;
+      while (used.has(nextNumber)) nextNumber++;
+      
+      console.log('[DataGrid] Next blank row will be:', nextNumber);
+      
+      // Reset blank row with the correct next number
       setBlankRow({
         projectId: selectedProjectId || '',
-        numeroItem: nextNumeroItem + 1,
+        numeroItem: nextNumber,
         dataInicio: new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
         dataFim: '',
         documento: '',
@@ -216,7 +229,7 @@ export function DataGrid() {
         variant: 'destructive',
       });
     }
-  }, [blankRow, addDocument, selectedProjectId, nextNumeroItem]);
+  }, [blankRow, addDocument, selectedProjectId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === 'Enter') {
@@ -260,6 +273,7 @@ export function DataGrid() {
         <GridHeader 
           columns={columns} 
           totalCount={documents.length}
+          onAddRow={handleBlankRowSave}
         />
         
         <div className="max-h-[600px] overflow-auto">
@@ -291,7 +305,6 @@ export function DataGrid() {
                   onStartEdit={(field) => setEditingCell({ id: 'blank-row', field })}
                   onStopEdit={() => setEditingCell(null)}
                   onKeyDown={handleKeyDown}
-                  onAdd={handleBlankRowSave}
                   isBlankRow={true}
                   isEven={documents.length % 2 === 0}
                 />

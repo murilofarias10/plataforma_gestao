@@ -542,15 +542,17 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     const doc = documents.find((d) => d.id === id);
     if (!doc) return;
 
-    // Smallest missing positive integer within the project
+    // Use visible documents only for per-meeting numbering
+    const visibleDocs = get().getTableDocuments();
     const used = new Set<number>(
-      documents
-        .filter((d) => d.projectId === selectedProjectId)
+      visibleDocs
         .map((d) => (typeof d.numeroItem === 'number' ? d.numeroItem : parseInt(String(d.numeroItem || 0), 10)))
         .filter((n) => Number.isFinite(n) && n > 0) as number[]
     );
     let nextNumero = 1;
     while (used.has(nextNumero)) nextNumero++;
+
+    console.log('[duplicateDocument] Next number for duplicate:', nextNumero);
 
     const clone: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'> = {
       projectId: selectedProjectId,
@@ -694,21 +696,28 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     // Check if we're in edit mode
     const { isEditMode, editingMeetingId } = useMeetingContextStore.getState();
     
-    // Get all item numbers that are already assigned to meetings
-    const assignedItemNumbers = new Set<number>();
-    let editingMeetingItemNumbers = new Set<number>();
+    console.log('[getTableDocuments] Mode:', isEditMode ? `EDIT (${editingMeetingId})` : 'CREATE');
+    
+    // Get all document IDs that are already assigned to meetings
+    const assignedDocumentIds = new Set<string>();
+    let editingMeetingDocumentIds = new Set<string>();
     
     if (selectedProjectId) {
       const selectedProject = projects.find(p => p.id === selectedProjectId);
       if (selectedProject?.meetings) {
+        console.log('[getTableDocuments] Total meetings:', selectedProject.meetings.length);
         selectedProject.meetings.forEach(meeting => {
-          if (meeting.relatedItems) {
-            // If this is the meeting being edited, save its items separately
+          // Use relatedDocumentIds (new) or fall back to relatedItems (old) for backward compatibility
+          const documentIds = meeting.relatedDocumentIds || [];
+          
+          if (documentIds.length > 0) {
+            // If this is the meeting being edited, save its documents separately
             if (isEditMode && meeting.id === editingMeetingId) {
-              meeting.relatedItems.forEach(itemNum => editingMeetingItemNumbers.add(itemNum));
+              console.log('[getTableDocuments] Loading document IDs from editing meeting:', documentIds);
+              documentIds.forEach(docId => editingMeetingDocumentIds.add(docId));
             } else {
-              // Otherwise, mark these items as assigned
-              meeting.relatedItems.forEach(itemNum => assignedItemNumbers.add(itemNum));
+              // Otherwise, mark these documents as assigned (hidden)
+              documentIds.forEach(docId => assignedDocumentIds.add(docId));
             }
           }
         });
@@ -716,16 +725,17 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
     
     const allFilteredDocs = get().getFilteredDocuments();
-    console.log('All filtered documents:', allFilteredDocs.length);
-    console.log('Assigned item numbers:', Array.from(assignedItemNumbers));
+    console.log('[getTableDocuments] All filtered documents:', allFilteredDocs.length);
+    console.log('[getTableDocuments] Assigned (hidden) document IDs:', Array.from(assignedDocumentIds).slice(0, 5), '...');
+    console.log('[getTableDocuments] Editing meeting document IDs:', Array.from(editingMeetingDocumentIds));
     
     // Filter: show unassigned documents OR documents from the meeting being edited
     const visibleDocs = allFilteredDocs
-      .filter(doc => !assignedItemNumbers.has(doc.numeroItem) || editingMeetingItemNumbers.has(doc.numeroItem))
+      .filter(doc => !assignedDocumentIds.has(doc.id) || editingMeetingDocumentIds.has(doc.id))
       .slice()
       .sort((a, b) => (a.numeroItem || 0) - (b.numeroItem || 0));
     
-    console.log('Visible documents in table:', visibleDocs.length, visibleDocs.map(d => d.numeroItem));
+    console.log('[getTableDocuments] Visible documents in table:', visibleDocs.length, 'with item numbers:', visibleDocs.map(d => d.numeroItem));
     
     return visibleDocs;
   },

@@ -20,7 +20,6 @@ interface GridRowProps {
   onStartEdit: (field: string) => void;
   onStopEdit: () => void;
   onKeyDown: (e: React.KeyboardEvent, id: string, field: string) => void;
-  onAdd?: () => void;
   isBlankRow?: boolean;
   isEven?: boolean;
 }
@@ -33,7 +32,6 @@ export function GridRow({
   onStartEdit,
   onStopEdit,
   onKeyDown,
-  onAdd,
   isBlankRow = false,
   isEven = false,
 }: GridRowProps) {
@@ -62,29 +60,15 @@ export function GridRow({
       style={{ display: 'grid', gridTemplateColumns: columns.map(col => col.width).join(' ') }}
     >
 
-      {columns.map((column, index) => {
+      {columns.map((column) => {
         const isEditing = editingCell?.id === document.id && editingCell?.field === column.key;
         const value = document[column.key as keyof ProjectDocument];
-        const isLastColumn = index === columns.length - 1;
 
         return (
           <div key={column.key} className="border-r border-border last:border-r-0 min-w-0">
-            {isBlankRow && isLastColumn ? (
-              <div className="p-1 flex items-center justify-center h-full">
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 w-6 p-0" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onAdd?.();
-                  }} 
-                  title="Adicionar linha"
-                >
-                  <span className="text-sm leading-none">+</span>
-                </Button>
+            {column.key === 'numeroItem' ? (
+              <div className="p-1 text-center text-sm font-medium text-muted-foreground">
+                {value as number}
               </div>
             ) : column.key === 'status' && !isEditing ? (
               <button
@@ -97,10 +81,6 @@ export function GridRow({
                   {value as string}
                 </Badge>
               </button>
-            ) : column.key === 'numeroItem' ? (
-              <div className="p-1 text-center text-sm font-medium text-muted-foreground">
-                {value as number}
-              </div>
             ) : (
               <GridCell
                 value={value}

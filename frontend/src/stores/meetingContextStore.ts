@@ -71,11 +71,13 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
   },
 
   clearMeetingContext: () => {
+    console.log('[meetingContextStore] Clearing meeting context');
     set({
       currentMeeting: null,
       isEditMode: false,
       editingMeetingId: null,
     });
+    console.log('[meetingContextStore] Context cleared - isEditMode: false, editingMeetingId: null');
   },
 
   hasActiveMeeting: () => {

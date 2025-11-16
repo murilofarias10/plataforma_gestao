@@ -39,6 +39,7 @@ export function MeetingRegistrationSection() {
   // Sync form with currentMeeting when in edit mode
   useEffect(() => {
     if (isEditMode && currentMeeting) {
+      console.log('[MeetingRegistration] Loading meeting for edit:', currentMeeting.id);
       setMeetingData(currentMeeting.data);
       setMeetingNumero(currentMeeting.numeroAta);
       setMeetingDetalhes(currentMeeting.detalhes || '');
@@ -49,17 +50,13 @@ export function MeetingRegistrationSection() {
     }
   }, [isEditMode, currentMeeting]);
 
-  // Start meeting context when user starts filling out the form
-  useEffect(() => {
-    if ((meetingData || meetingNumero) && !currentMeeting) {
-      startMeeting({
-        data: meetingData,
-        numeroAta: meetingNumero,
-        participants: tempParticipants,
-      });
-    }
-  }, [meetingData, meetingNumero, currentMeeting, tempParticipants, startMeeting]);
+  // DON'T auto-start meeting context - let items be unassigned until meeting is saved
+  // This prevents items from being accidentally added to previous meetings
 
+  // Log current mode for debugging
+  useEffect(() => {
+    console.log('[MeetingRegistration] Current mode:', isEditMode ? `EDIT mode (${editingMeetingId})` : 'CREATE mode (new meeting)');
+  }, [isEditMode, editingMeetingId]);
 
   const handleAddParticipant = useCallback(() => {
     if (newParticipant.trim()) {
@@ -79,6 +76,16 @@ export function MeetingRegistrationSection() {
       return;
     }
 
+    // Get fresh state from store to ensure we have current values
+    const currentContextState = useMeetingContextStore.getState();
+    const actualIsEditMode = currentContextState.isEditMode;
+    const actualEditingMeetingId = currentContextState.editingMeetingId;
+
+    console.log('[MeetingRegistration] ==========================================');
+    console.log('[MeetingRegistration] Save button clicked');
+    console.log('[MeetingRegistration] Component state - isEditMode:', isEditMode, 'editingMeetingId:', editingMeetingId);
+    console.log('[MeetingRegistration] Store state - isEditMode:', actualIsEditMode, 'editingMeetingId:', actualEditingMeetingId);
+
     try {
       // Get current meetings and documents fresh from store
       const currentProject = projects.find(p => p.id === selectedProjectId);
@@ -86,12 +93,19 @@ export function MeetingRegistrationSection() {
       
       // Get documents visible in project-tracker (unassigned + editing meeting's docs)
       const visibleDocuments = useProjectStore.getState().getTableDocuments();
+      const documentIds = visibleDocuments.map(doc => doc.id);
       const documentItemNumbers = visibleDocuments.map(doc => doc.numeroItem);
 
-      if (isEditMode && editingMeetingId) {
-        // Update existing meeting
+      console.log('[MeetingRegistration] Saving meeting with document IDs:', documentIds);
+      console.log('[MeetingRegistration] Saving meeting with item numbers:', documentItemNumbers);
+      console.log('[MeetingRegistration] Current meetings count:', currentMeetings.length);
+
+      // Use store state (actualIsEditMode) instead of component state (isEditMode)
+      if (actualIsEditMode && actualEditingMeetingId) {
+        // EDIT MODE: Update existing meeting
+        console.log('[MeetingRegistration] MODE: EDIT - UPDATING existing meeting:', actualEditingMeetingId);
         const updatedMeetings = currentMeetings.map(meeting => 
-          meeting.id === editingMeetingId ? {
+          meeting.id === actualEditingMeetingId ? {
             ...meeting,
             data: meetingData,
             numeroAta: meetingNumero,
@@ -100,16 +114,22 @@ export function MeetingRegistrationSection() {
             disciplina: meetingDisciplina.trim() || undefined,
             resumo: meetingResumo.trim() || undefined,
             participants: tempParticipants,
-            relatedItems: documentItemNumbers,
+            relatedDocumentIds: documentIds, // Use document IDs for filtering
+            relatedItems: documentItemNumbers, // Keep numbers for display
           } : meeting
         );
         
         await updateProject(selectedProjectId, { meetings: updatedMeetings });
+        console.log('[MeetingRegistration] Meeting updated successfully');
         toast.success('Reunião atualizada com sucesso!');
       } else {
-        // Create new meeting with ALL current documents
+        // CREATE MODE: Create new meeting with ALL current visible documents
+        const newMeetingId = uuidv4();
+        console.log('[MeetingRegistration] MODE: CREATE - Creating NEW meeting:', newMeetingId);
+        console.log('[MeetingRegistration] This is a BRAND NEW meeting, not an edit!');
+        
         const newMeeting: MeetingMetadata = {
-          id: uuidv4(),
+          id: newMeetingId,
           data: meetingData,
           numeroAta: meetingNumero,
           detalhes: meetingDetalhes.trim() || undefined,
@@ -117,17 +137,23 @@ export function MeetingRegistrationSection() {
           disciplina: meetingDisciplina.trim() || undefined,
           resumo: meetingResumo.trim() || undefined,
           participants: tempParticipants,
-          relatedItems: documentItemNumbers,
+          relatedDocumentIds: documentIds, // Use document IDs for filtering
+          relatedItems: documentItemNumbers, // Keep numbers for display
           createdAt: new Date().toISOString(),
         };
 
         const updatedMeetings = [...currentMeetings, newMeeting];
         await updateProject(selectedProjectId, { meetings: updatedMeetings });
+        console.log('[MeetingRegistration] New meeting created successfully, total meetings now:', updatedMeetings.length);
         
         toast.success('Reunião adicionada com sucesso!');
       }
       
-      // Reset form and clear meeting context
+      // IMPORTANT: Clear meeting context FIRST to trigger table refresh
+      console.log('[MeetingRegistration] Clearing meeting context...');
+      clearMeetingContext();
+      
+      // Then reset all form fields
       setMeetingData('');
       setMeetingNumero('');
       setMeetingDetalhes('');
@@ -135,12 +161,16 @@ export function MeetingRegistrationSection() {
       setMeetingDisciplina('');
       setMeetingResumo('');
       setTempParticipants([]);
-      clearMeetingContext();
+      
+      // Verify the context is actually cleared
+      const contextCheck = useMeetingContextStore.getState();
+      console.log('[MeetingRegistration] ✓ Form cleared, ready for next meeting');
+      console.log('[MeetingRegistration] ✓ Context verification - isEditMode:', contextCheck.isEditMode, 'editingMeetingId:', contextCheck.editingMeetingId);
     } catch (error) {
       console.error('Error saving meeting:', error);
       toast.error('Erro ao salvar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, isEditMode, editingMeetingId, clearMeetingContext]);
+  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, clearMeetingContext]);
 
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
@@ -174,6 +204,10 @@ export function MeetingRegistrationSection() {
             variant="outline"
             className="h-8 text-xs px-3"
             onClick={() => {
+              console.log('[MeetingRegistration] Canceling edit mode');
+              // Clear context first to trigger table refresh
+              clearMeetingContext();
+              // Then clear form fields
               setMeetingData('');
               setMeetingNumero('');
               setMeetingDetalhes('');
@@ -181,7 +215,7 @@ export function MeetingRegistrationSection() {
               setMeetingDisciplina('');
               setMeetingResumo('');
               setTempParticipants([]);
-              clearMeetingContext();
+              console.log('[MeetingRegistration] Edit mode canceled, ready for new meeting');
             }}
             type="button"
           >

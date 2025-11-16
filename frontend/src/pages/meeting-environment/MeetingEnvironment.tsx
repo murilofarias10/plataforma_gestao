@@ -68,10 +68,20 @@ const MeetingEnvironment = () => {
   const handleConfirmDelete = useCallback(async () => {
     if (!selectedProjectId || !meetingToDelete) return;
     
+    console.log('[MeetingEnvironment] Deleting meeting:', meetingToDelete.id);
+    console.log('[MeetingEnvironment] Freeing document IDs:', meetingToDelete.relatedDocumentIds);
+    console.log('[MeetingEnvironment] Legacy item numbers:', meetingToDelete.relatedItems);
+    
     const project = projects.find((p) => p.id === selectedProjectId);
     const currentMeetings = project?.meetings ?? [];
     const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingToDelete.id);
+    
+    console.log('[MeetingEnvironment] Meetings before delete:', currentMeetings.length);
+    console.log('[MeetingEnvironment] Meetings after delete:', updatedMeetings.length);
+    
     await updateProject(selectedProjectId, { meetings: updatedMeetings });
+    
+    console.log('[MeetingEnvironment] ✓ Meeting deleted - documents are now unassigned and will reappear in table');
     
     handleCloseDeleteDialog();
   }, [projects, selectedProjectId, updateProject, meetingToDelete, handleCloseDeleteDialog]);
@@ -81,15 +91,23 @@ const MeetingEnvironment = () => {
   }, [navigate]);
 
   const handleEditMeeting = useCallback((meeting: MeetingMetadata) => {
+    console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
+    console.log('[MeetingEnvironment] Meeting document IDs:', meeting.relatedDocumentIds);
+    console.log('[MeetingEnvironment] Meeting item numbers (legacy):', meeting.relatedItems);
     startEditMeeting(meeting);
     navigate("/project-tracker", { state: { focus: "meetings", editMode: true } });
   }, [navigate, startEditMeeting]);
 
   const getMeetingRelatedDocuments = useCallback((meeting: MeetingMetadata): ProjectDocument[] => {
-    if (!meeting.relatedItems || meeting.relatedItems.length === 0) {
-      return [];
+    // Use relatedDocumentIds (new) or fall back to relatedItems (old) for backward compatibility
+    if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+      // New method: filter by document IDs
+      return documents.filter(doc => meeting.relatedDocumentIds?.includes(doc.id));
+    } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+      // Old method: filter by item numbers (backward compatibility)
+      return documents.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
     }
-    return documents.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
+    return [];
   }, [documents]);
 
   return (

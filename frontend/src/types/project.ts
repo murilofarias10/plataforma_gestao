@@ -66,7 +66,8 @@ export interface MeetingMetadata {
   fornecedor?: string; // Supplier/Provider
   disciplina?: string; // Discipline
   resumo?: string; // Summary
-  relatedItems?: number[]; // Array of item numbers discussed in this meeting
+  relatedItems?: number[]; // DEPRECATED: Array of item numbers (kept for backward compatibility)
+  relatedDocumentIds?: string[]; // Array of document IDs in this meeting (replaces relatedItems)
   createdAt: string;
 }
 
