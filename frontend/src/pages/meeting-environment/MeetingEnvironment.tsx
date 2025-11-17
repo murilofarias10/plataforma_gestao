@@ -24,6 +24,7 @@ const MeetingEnvironment = () => {
   const documents = useProjectStore((state) => state.documents);
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const deleteDocument = useProjectStore((state) => state.deleteDocument);
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
 
   const selectedProject = getSelectedProject();
@@ -68,23 +69,50 @@ const MeetingEnvironment = () => {
   const handleConfirmDelete = useCallback(async () => {
     if (!selectedProjectId || !meetingToDelete) return;
     
-    console.log('[MeetingEnvironment] Deleting meeting:', meetingToDelete.id);
-    console.log('[MeetingEnvironment] Freeing document IDs:', meetingToDelete.relatedDocumentIds);
-    console.log('[MeetingEnvironment] Legacy item numbers:', meetingToDelete.relatedItems);
+    console.log('[MeetingEnvironment] ==========================================');
+    console.log('[MeetingEnvironment] PERMANENTLY DELETING meeting:', meetingToDelete.id);
+    console.log('[MeetingEnvironment] Will also delete document IDs:', meetingToDelete.relatedDocumentIds);
     
-    const project = projects.find((p) => p.id === selectedProjectId);
-    const currentMeetings = project?.meetings ?? [];
-    const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingToDelete.id);
+    // Check if we're deleting the meeting that's currently being edited
+    const { isEditMode, editingMeetingId, clearMeetingContext } = useMeetingContextStore.getState();
+    if (isEditMode && editingMeetingId === meetingToDelete.id) {
+      console.log('[MeetingEnvironment] ⚠️ This meeting is currently being edited - clearing context first');
+      clearMeetingContext();
+    }
     
-    console.log('[MeetingEnvironment] Meetings before delete:', currentMeetings.length);
-    console.log('[MeetingEnvironment] Meetings after delete:', updatedMeetings.length);
-    
-    await updateProject(selectedProjectId, { meetings: updatedMeetings });
-    
-    console.log('[MeetingEnvironment] ✓ Meeting deleted - documents are now unassigned and will reappear in table');
-    
-    handleCloseDeleteDialog();
-  }, [projects, selectedProjectId, updateProject, meetingToDelete, handleCloseDeleteDialog]);
+    try {
+      // Step 1: Delete all documents (items) from this meeting
+      const documentIds = meetingToDelete.relatedDocumentIds || [];
+      if (documentIds.length > 0) {
+        console.log('[MeetingEnvironment] Step 1: Deleting', documentIds.length, 'documents from meeting...');
+        
+        for (const docId of documentIds) {
+          console.log('[MeetingEnvironment] Deleting document:', docId);
+          await deleteDocument(docId);
+        }
+        
+        console.log('[MeetingEnvironment] ✓ All documents deleted (including attachments)');
+      } else {
+        console.log('[MeetingEnvironment] No documents to delete');
+      }
+      
+      // Step 2: Delete the meeting itself
+      console.log('[MeetingEnvironment] Step 2: Deleting meeting from project...');
+      const project = projects.find((p) => p.id === selectedProjectId);
+      const currentMeetings = project?.meetings ?? [];
+      const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingToDelete.id);
+      
+      await updateProject(selectedProjectId, { meetings: updatedMeetings });
+      
+      console.log('[MeetingEnvironment] ✓✓✓ MEETING AND ALL ITS ITEMS PERMANENTLY DELETED ✓✓✓');
+      console.log('[MeetingEnvironment] Meetings before:', currentMeetings.length, '→ after:', updatedMeetings.length);
+      
+      handleCloseDeleteDialog();
+    } catch (error) {
+      console.error('[MeetingEnvironment] Error deleting meeting:', error);
+      handleCloseDeleteDialog();
+    }
+  }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
 
   const handleNavigateToRegistration = useCallback(() => {
     navigate("/project-tracker", { state: { focus: "meetings" } });
@@ -378,13 +406,17 @@ const MeetingEnvironment = () => {
               <AlertTriangle className="h-5 w-5 text-destructive" />
               Excluir Reunião
             </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir esta reunião? Esta ação não pode ser desfeita.
+            <DialogDescription className="space-y-2">
+              <p>Tem certeza que deseja excluir esta reunião?</p>
+              <p className="text-destructive font-semibold">
+                ⚠️ ATENÇÃO: Todos os itens e anexos desta reunião serão permanentemente excluídos!
+              </p>
+              <p className="text-xs">Esta ação não pode ser desfeita.</p>
             </DialogDescription>
           </DialogHeader>
 
           {meetingToDelete && (
-            <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 p-4">
+            <div className="space-y-2 rounded-md border border-destructive/20 bg-destructive/5 p-4">
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-semibold">Data:</span>
                 <span className="text-muted-foreground">{meetingToDelete.data || "-"}</span>
@@ -393,6 +425,12 @@ const MeetingEnvironment = () => {
                 <span className="font-semibold">Número da Ata:</span>
                 <span className="text-muted-foreground">{meetingToDelete.numeroAta || "-"}</span>
               </div>
+              {meetingToDelete.relatedDocumentIds && meetingToDelete.relatedDocumentIds.length > 0 && (
+                <div className="flex items-center gap-2 text-sm mt-2 pt-2 border-t border-destructive/20">
+                  <span className="font-semibold text-destructive">Itens que serão excluídos:</span>
+                  <span className="text-destructive font-bold">{meetingToDelete.relatedDocumentIds.length}</span>
+                </div>
+              )}
             </div>
           )}
 
