@@ -10,6 +10,8 @@ import { ExpandableGridRow } from "./ExpandableGridRow";
 import { EmptyState } from "./EmptyState";
 import { parseBRDateLocal } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export function DataGrid() {
   const { 
@@ -269,11 +271,23 @@ export function DataGrid() {
 
   return (
     <div className="space-y-4">
+      {/* Add Row Button - only show for users with create permission */}
+      {canCreate && (
+        <div className="flex justify-end">
+          <Button 
+            onClick={handleBlankRowSave}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar nova linha
+          </Button>
+        </div>
+      )}
+      
       <div className="spreadsheet-grid" ref={gridRef}>
         <GridHeader 
           columns={columns} 
           totalCount={documents.length}
-          onAddRow={handleBlankRowSave}
         />
         
         <div className="max-h-[600px] overflow-auto">
