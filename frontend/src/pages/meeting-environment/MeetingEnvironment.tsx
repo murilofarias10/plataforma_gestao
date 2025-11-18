@@ -70,8 +70,9 @@ const MeetingEnvironment = () => {
     if (!selectedProjectId || !meetingToDelete) return;
     
     console.log('[MeetingEnvironment] ==========================================');
-    console.log('[MeetingEnvironment] PERMANENTLY DELETING meeting:', meetingToDelete.id);
-    console.log('[MeetingEnvironment] Will also delete document IDs:', meetingToDelete.relatedDocumentIds);
+    console.log('[MeetingEnvironment] DELETING meeting:', meetingToDelete.id);
+    console.log('[MeetingEnvironment] Meeting had document IDs:', meetingToDelete.relatedDocumentIds);
+    console.log('[MeetingEnvironment] NOTE: Documents will NOT be deleted - they will become unassigned');
     
     // Check if we're deleting the meeting that's currently being edited
     const { isEditMode, editingMeetingId, clearMeetingContext } = useMeetingContextStore.getState();
@@ -81,38 +82,25 @@ const MeetingEnvironment = () => {
     }
     
     try {
-      // Step 1: Delete all documents (items) from this meeting
-      const documentIds = meetingToDelete.relatedDocumentIds || [];
-      if (documentIds.length > 0) {
-        console.log('[MeetingEnvironment] Step 1: Deleting', documentIds.length, 'documents from meeting...');
-        
-        for (const docId of documentIds) {
-          console.log('[MeetingEnvironment] Deleting document:', docId);
-          await deleteDocument(docId);
-        }
-        
-        console.log('[MeetingEnvironment] ✓ All documents deleted (including attachments)');
-      } else {
-        console.log('[MeetingEnvironment] No documents to delete');
-      }
-      
-      // Step 2: Delete the meeting itself
-      console.log('[MeetingEnvironment] Step 2: Deleting meeting from project...');
+      // Delete ONLY the meeting, NOT the documents
+      // This allows documents to be reused in other meetings
+      console.log('[MeetingEnvironment] Deleting meeting from project...');
       const project = projects.find((p) => p.id === selectedProjectId);
       const currentMeetings = project?.meetings ?? [];
       const updatedMeetings = currentMeetings.filter((meeting) => meeting.id !== meetingToDelete.id);
       
       await updateProject(selectedProjectId, { meetings: updatedMeetings });
       
-      console.log('[MeetingEnvironment] ✓✓✓ MEETING AND ALL ITS ITEMS PERMANENTLY DELETED ✓✓✓');
+      console.log('[MeetingEnvironment] ✓ Meeting deleted successfully');
       console.log('[MeetingEnvironment] Meetings before:', currentMeetings.length, '→ after:', updatedMeetings.length);
+      console.log('[MeetingEnvironment] Documents from this meeting will remain and become unassigned');
       
       handleCloseDeleteDialog();
     } catch (error) {
       console.error('[MeetingEnvironment] Error deleting meeting:', error);
       handleCloseDeleteDialog();
     }
-  }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
+  }, [projects, selectedProjectId, updateProject, meetingToDelete, handleCloseDeleteDialog]);
 
   const handleNavigateToRegistration = useCallback(() => {
     navigate("/project-tracker", { state: { focus: "meetings" } });

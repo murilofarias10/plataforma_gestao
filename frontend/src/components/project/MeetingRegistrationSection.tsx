@@ -100,54 +100,33 @@ export function MeetingRegistrationSection() {
       console.log('[MeetingRegistration] Saving meeting with item numbers:', documentItemNumbers);
       console.log('[MeetingRegistration] Current meetings count:', currentMeetings.length);
 
-      // Use store state (actualIsEditMode) instead of component state (isEditMode)
+      // ALWAYS CREATE NEW MEETING (even when editing from meeting-environment)
+      // This keeps the original meeting intact in meeting-environment
+      const newMeetingId = uuidv4();
+      console.log('[MeetingRegistration] Creating NEW meeting:', newMeetingId);
       if (actualIsEditMode && actualEditingMeetingId) {
-        // EDIT MODE: Update existing meeting
-        console.log('[MeetingRegistration] MODE: EDIT - UPDATING existing meeting:', actualEditingMeetingId);
-        const updatedMeetings = currentMeetings.map(meeting => 
-          meeting.id === actualEditingMeetingId ? {
-            ...meeting,
-            data: meetingData,
-            numeroAta: meetingNumero,
-            detalhes: meetingDetalhes.trim() || undefined,
-            fornecedor: meetingFornecedor.trim() || undefined,
-            disciplina: meetingDisciplina.trim() || undefined,
-            resumo: meetingResumo.trim() || undefined,
-            participants: tempParticipants,
-            relatedDocumentIds: documentIds, // Use document IDs for filtering
-            relatedItems: documentItemNumbers, // Keep numbers for display
-          } : meeting
-        );
-        
-        await updateProject(selectedProjectId, { meetings: updatedMeetings });
-        console.log('[MeetingRegistration] Meeting updated successfully');
-        toast.success('Reunião atualizada com sucesso!');
-      } else {
-        // CREATE MODE: Create new meeting with ALL current visible documents
-        const newMeetingId = uuidv4();
-        console.log('[MeetingRegistration] MODE: CREATE - Creating NEW meeting:', newMeetingId);
-        console.log('[MeetingRegistration] This is a BRAND NEW meeting, not an edit!');
-        
-        const newMeeting: MeetingMetadata = {
-          id: newMeetingId,
-          data: meetingData,
-          numeroAta: meetingNumero,
-          detalhes: meetingDetalhes.trim() || undefined,
-          fornecedor: meetingFornecedor.trim() || undefined,
-          disciplina: meetingDisciplina.trim() || undefined,
-          resumo: meetingResumo.trim() || undefined,
-          participants: tempParticipants,
-          relatedDocumentIds: documentIds, // Use document IDs for filtering
-          relatedItems: documentItemNumbers, // Keep numbers for display
-          createdAt: new Date().toISOString(),
-        };
-
-        const updatedMeetings = [...currentMeetings, newMeeting];
-        await updateProject(selectedProjectId, { meetings: updatedMeetings });
-        console.log('[MeetingRegistration] New meeting created successfully, total meetings now:', updatedMeetings.length);
-        
-        toast.success('Reunião adicionada com sucesso!');
+        console.log('[MeetingRegistration] Duplicating from existing meeting:', actualEditingMeetingId);
       }
+      
+      const newMeeting: MeetingMetadata = {
+        id: newMeetingId,
+        data: meetingData,
+        numeroAta: meetingNumero,
+        detalhes: meetingDetalhes.trim() || undefined,
+        fornecedor: meetingFornecedor.trim() || undefined,
+        disciplina: meetingDisciplina.trim() || undefined,
+        resumo: meetingResumo.trim() || undefined,
+        participants: tempParticipants,
+        relatedDocumentIds: documentIds, // Use document IDs for filtering
+        relatedItems: documentItemNumbers, // Keep numbers for display
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedMeetings = [...currentMeetings, newMeeting];
+      await updateProject(selectedProjectId, { meetings: updatedMeetings });
+      console.log('[MeetingRegistration] New meeting created successfully, total meetings now:', updatedMeetings.length);
+      
+      toast.success(actualIsEditMode ? 'Nova reunião criada com sucesso!' : 'Reunião adicionada com sucesso!');
       
       // IMPORTANT: Clear meeting context FIRST to trigger table refresh
       console.log('[MeetingRegistration] Clearing meeting context...');
