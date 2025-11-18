@@ -1,9 +1,21 @@
 import { useProjectStore } from "@/stores/projectStore";
+import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { cn } from "@/lib/utils";
 
 export function KpiCards() {
   const getKpiData = useProjectStore((state) => state.getKpiData);
   const { filters, setFilters } = useProjectStore();
+  
+  // Subscribe to documents to trigger re-renders when documents are added/updated/deleted
+  const documents = useProjectStore((state) => state.documents);
+  
+  // Subscribe to meeting context to trigger re-renders when switching between meetings
+  // This ensures KPIs update when user opens a different meeting for editing
+  const isEditMode = useMeetingContextStore((state) => state.isEditMode);
+  const editingMeetingId = useMeetingContextStore((state) => state.editingMeetingId);
+  
+  // Get KPI data - counts all visible documents in the table
+  // Will re-compute whenever documents change or meeting context changes
   const kpiData = getKpiData();
 
   const total = kpiData.aIniciar + kpiData.emAndamento + kpiData.finalizado + kpiData.info;

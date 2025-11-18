@@ -37,6 +37,16 @@ export function MeetingRegistrationSection() {
   const [newParticipant, setNewParticipant] = useState('');
   const [tempParticipants, setTempParticipants] = useState<string[]>([]);
 
+  // Handler to update meeting data
+  const handleMeetingDataChange = useCallback((value: string) => {
+    setMeetingData(value);
+  }, []);
+
+  // Handler to update meeting number
+  const handleMeetingNumeroChange = useCallback((value: string) => {
+    setMeetingNumero(value);
+  }, []);
+  
   // Sync form with currentMeeting when in edit mode
   useEffect(() => {
     if (isEditMode && currentMeeting) {
@@ -61,9 +71,6 @@ export function MeetingRegistrationSection() {
       setTempParticipants([]);
     }
   }, [isEditMode, currentMeeting]);
-
-  // DON'T auto-start meeting context - let items be unassigned until meeting is saved
-  // This prevents items from being accidentally added to previous meetings
 
   // Log current mode for debugging
   useEffect(() => {
@@ -305,7 +312,7 @@ export function MeetingRegistrationSection() {
                   value = value.substring(0, 10);
                 }
                 
-                setMeetingData(value);
+                handleMeetingDataChange(value);
               }}
               maxLength={10}
               inputMode="numeric"
@@ -320,7 +327,7 @@ export function MeetingRegistrationSection() {
               placeholder="Ex: ATA-001"
               className="h-8 text-sm w-full"
               value={meetingNumero}
-              onChange={(e) => setMeetingNumero(e.target.value)}
+              onChange={(e) => handleMeetingNumeroChange(e.target.value)}
             />
           </div>
           <div>

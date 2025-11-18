@@ -527,6 +527,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           isLoading: false,
           lastUpdated: new Date().toISOString(),
         }));
+        
         toast({ title: 'Sucesso', description: 'Documento excluído', variant: 'default' });
       }
     } catch (error) {
@@ -741,14 +742,28 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   },
 
   getKpiData: () => {
-    const docs = get().getFilteredDocuments();
+    // KPIs always count whatever documents are visible in the "Controle de Documentos" table
+    // This includes:
+    // - Unassigned documents (when no meeting is open)
+    // - Unassigned documents (when creating a new meeting - before saving)
+    // - Documents from a specific meeting (when editing an existing meeting)
+    // The getTableDocuments() function handles the filtering logic
+    
+    const docs = get().getTableDocuments();
     const kpi: KpiData = { aIniciar: 0, emAndamento: 0, finalizado: 0, info: 0 };
+    
     docs.forEach((d) => {
       if (d.status === 'A iniciar') kpi.aIniciar += 1;
       else if (d.status === 'Em andamento') kpi.emAndamento += 1;
       else if (d.status === 'Finalizado') kpi.finalizado += 1;
       else if (d.status === 'Info') kpi.info += 1;
     });
+    
+    console.log('[getKpiData] Counting visible documents in table:', {
+      totalDocs: docs.length,
+      kpi
+    });
+    
     return kpi;
   },
 
