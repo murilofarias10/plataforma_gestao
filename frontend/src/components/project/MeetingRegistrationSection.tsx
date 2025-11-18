@@ -15,6 +15,7 @@ export function MeetingRegistrationSection() {
   const projects = useProjectStore((state) => state.projects);
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const addDocument = useProjectStore((state) => state.addDocument);
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
   const { canCreate } = usePermissions();
   
@@ -47,6 +48,17 @@ export function MeetingRegistrationSection() {
       setMeetingDisciplina(currentMeeting.disciplina || '');
       setMeetingResumo(currentMeeting.resumo || '');
       setTempParticipants(currentMeeting.participants);
+    } else if (!isEditMode && !currentMeeting) {
+      // When exiting edit mode (context cleared), clear the form
+      console.log('[MeetingRegistration] Exiting edit mode - clearing form');
+      setMeetingData('');
+      setMeetingNumero('');
+      setMeetingDetalhes('');
+      setMeetingFornecedor('');
+      setMeetingDisciplina('');
+      setMeetingResumo('');
+      setNewParticipant('');
+      setTempParticipants([]);
     }
   }, [isEditMode, currentMeeting]);
 
@@ -93,19 +105,78 @@ export function MeetingRegistrationSection() {
       
       // Get documents visible in project-tracker (unassigned + editing meeting's docs)
       const visibleDocuments = useProjectStore.getState().getTableDocuments();
-      const documentIds = visibleDocuments.map(doc => doc.id);
-      const documentItemNumbers = visibleDocuments.map(doc => doc.numeroItem);
+      const allDocuments = useProjectStore.getState().documents;
 
-      console.log('[MeetingRegistration] Saving meeting with document IDs:', documentIds);
-      console.log('[MeetingRegistration] Saving meeting with item numbers:', documentItemNumbers);
+      console.log('[MeetingRegistration] Visible documents:', visibleDocuments.length);
       console.log('[MeetingRegistration] Current meetings count:', currentMeetings.length);
 
       // ALWAYS CREATE NEW MEETING (even when editing from meeting-environment)
       // This keeps the original meeting intact in meeting-environment
       const newMeetingId = uuidv4();
       console.log('[MeetingRegistration] Creating NEW meeting:', newMeetingId);
+      
+      let finalDocumentIds: string[] = [];
+      let finalDocumentItemNumbers: number[] = [];
+      
       if (actualIsEditMode && actualEditingMeetingId) {
+        // EDIT MODE: We need to duplicate documents from the original meeting
         console.log('[MeetingRegistration] Duplicating from existing meeting:', actualEditingMeetingId);
+        
+        // Find the original meeting to get its document IDs
+        const originalMeeting = currentMeetings.find(m => m.id === actualEditingMeetingId);
+        const originalDocumentIds = new Set(originalMeeting?.relatedDocumentIds || []);
+        
+        console.log('[MeetingRegistration] Original meeting had document IDs:', Array.from(originalDocumentIds));
+        
+        // For each visible document, check if it's from the original meeting
+        for (const doc of visibleDocuments) {
+          if (originalDocumentIds.has(doc.id)) {
+            // This document is from the original meeting - DUPLICATE IT
+            console.log('[MeetingRegistration] Duplicating document:', doc.id, '(item', doc.numeroItem, ')');
+            
+            // Create a new document with the same data but new ID
+            const newDocData = {
+              projectId: selectedProjectId,
+              numeroItem: doc.numeroItem,
+              dataInicio: doc.dataInicio,
+              dataFim: doc.dataFim,
+              documento: doc.documento,
+              detalhe: doc.detalhe,
+              revisao: doc.revisao,
+              responsavel: doc.responsavel,
+              status: doc.status,
+              area: doc.area,
+              isCleared: doc.isCleared,
+              attachments: doc.attachments ? [...doc.attachments] : undefined,
+              participants: doc.participants ? [...doc.participants] : undefined,
+              history: doc.history ? [...doc.history] : undefined,
+            };
+            
+            // Add the duplicated document
+            await addDocument(newDocData);
+            
+            // Get the newly created document ID (it will be the last one added)
+            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to ensure state update
+            const updatedDocuments = useProjectStore.getState().documents;
+            const newDoc = updatedDocuments[updatedDocuments.length - 1];
+            
+            finalDocumentIds.push(newDoc.id);
+            finalDocumentItemNumbers.push(newDoc.numeroItem);
+            console.log('[MeetingRegistration] Created duplicate with new ID:', newDoc.id);
+          } else {
+            // This is a newly added document (not from original meeting) - use as is
+            console.log('[MeetingRegistration] New document added:', doc.id, '(item', doc.numeroItem, ')');
+            finalDocumentIds.push(doc.id);
+            finalDocumentItemNumbers.push(doc.numeroItem);
+          }
+        }
+        
+        console.log('[MeetingRegistration] Final document IDs for new meeting:', finalDocumentIds);
+      } else {
+        // CREATE MODE: Use visible documents as is
+        finalDocumentIds = visibleDocuments.map(doc => doc.id);
+        finalDocumentItemNumbers = visibleDocuments.map(doc => doc.numeroItem);
+        console.log('[MeetingRegistration] CREATE mode - using document IDs:', finalDocumentIds);
       }
       
       const newMeeting: MeetingMetadata = {
@@ -117,8 +188,8 @@ export function MeetingRegistrationSection() {
         disciplina: meetingDisciplina.trim() || undefined,
         resumo: meetingResumo.trim() || undefined,
         participants: tempParticipants,
-        relatedDocumentIds: documentIds, // Use document IDs for filtering
-        relatedItems: documentItemNumbers, // Keep numbers for display
+        relatedDocumentIds: finalDocumentIds, // Use document IDs for filtering
+        relatedItems: finalDocumentItemNumbers, // Keep numbers for display
         createdAt: new Date().toISOString(),
       };
 
@@ -132,13 +203,15 @@ export function MeetingRegistrationSection() {
       console.log('[MeetingRegistration] Clearing meeting context...');
       clearMeetingContext();
       
-      // Then reset all form fields
+      // Then reset all form fields - CLEAR EVERYTHING
+      console.log('[MeetingRegistration] Clearing all form fields...');
       setMeetingData('');
       setMeetingNumero('');
       setMeetingDetalhes('');
       setMeetingFornecedor('');
       setMeetingDisciplina('');
       setMeetingResumo('');
+      setNewParticipant('');
       setTempParticipants([]);
       
       // Verify the context is actually cleared
@@ -149,7 +222,7 @@ export function MeetingRegistrationSection() {
       console.error('Error saving meeting:', error);
       toast.error('Erro ao salvar reunião. Tente novamente.');
     }
-  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, clearMeetingContext]);
+  }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, addDocument, clearMeetingContext]);
 
   const canAddMeeting = meetingData.trim() && meetingNumero.trim();
 
@@ -186,13 +259,14 @@ export function MeetingRegistrationSection() {
               console.log('[MeetingRegistration] Canceling edit mode');
               // Clear context first to trigger table refresh
               clearMeetingContext();
-              // Then clear form fields
+              // Then clear ALL form fields
               setMeetingData('');
               setMeetingNumero('');
               setMeetingDetalhes('');
               setMeetingFornecedor('');
               setMeetingDisciplina('');
               setMeetingResumo('');
+              setNewParticipant('');
               setTempParticipants([]);
               console.log('[MeetingRegistration] Edit mode canceled, ready for new meeting');
             }}
