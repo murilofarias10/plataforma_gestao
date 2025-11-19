@@ -82,7 +82,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
         <div className="flex items-center justify-between gap-1">
           <span>{column.label}</span>
           {filterIsActive && (
-            <Filter className="h-3 w-3 text-primary" />
+            <Filter className="h-3 w-3 text-white" />
           )}
         </div>
       );
@@ -93,12 +93,12 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       case 'responsavel':
         return (
           <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <User className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <User className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
             <Input
               placeholder="Buscar responsável..."
               value={filters.responsavelSearch || ""}
               onChange={(e) => setFilters({ responsavelSearch: e.target.value })}
-              className="pl-7 pr-2 w-full text-xs h-7"
+              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
               autoFocus
             />
           </div>
@@ -107,7 +107,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       case 'dataInicio':
         return (
           <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
             <Input
               type="text"
               value={filters.dateRange.start || ""}
@@ -126,7 +126,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 setFilters({ dateRange: { ...filters.dateRange, start: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-xs h-7"
+              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -139,7 +139,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       case 'dataFim':
         return (
           <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
             <Input
               type="text"
               value={filters.dateRange.end || ""}
@@ -158,7 +158,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 setFilters({ dateRange: { ...filters.dateRange, end: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-xs h-7"
+              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -171,12 +171,12 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       case 'documento':
         return (
           <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
             <Input
               placeholder="Buscar..."
               value={filters.searchQuery}
               onChange={(e) => setFilters({ searchQuery: e.target.value })}
-              className="pl-7 pr-2 w-full text-xs h-7"
+              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
               autoFocus
             />
           </div>
@@ -202,11 +202,15 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
             <div
               key={column.key}
               className={cn(
-                "p-2 text-xs font-medium border-r border-border last:border-r-0 min-h-[44px] flex items-center relative",
-                hasFilter && "cursor-pointer hover:bg-primary/5 bg-blue-50/50 dark:bg-blue-950/20",
-                isActive && "bg-primary/10 z-[1001]",
-                filterIsActive && !isActive && "bg-green-50/50 dark:bg-green-950/20"
+                "p-2 text-xs font-medium border-r border-border last:border-r-0 min-h-[44px] flex items-center relative transition-all",
+                hasFilter && "cursor-pointer hover:opacity-90 text-white",
+                isActive && "z-[1001] ring-2 ring-inset ring-white/50"
               )}
+              style={{
+                backgroundColor: hasFilter 
+                  ? (isActive ? '#0ea89a' : (filterIsActive ? '#0c8c80' : '#0d9488'))
+                  : undefined
+              }}
               onClick={() => {
                 if (hasFilter) {
                   setActiveFilter(isActive ? null : column.key);

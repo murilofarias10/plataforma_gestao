@@ -54,10 +54,12 @@ export function GridRow({
 
   return (
     <div 
-      className={`flex items-center border-b border-border transition-colors hover:bg-muted/30 ${
-        isEven ? 'bg-muted/10' : 'bg-background'
-      }`}
-      style={{ display: 'grid', gridTemplateColumns: columns.map(col => col.width).join(' ') }}
+      className="flex items-center border-b border-border transition-colors hover:opacity-90"
+      style={{ 
+        display: 'grid', 
+        gridTemplateColumns: columns.map(col => col.width).join(' '),
+        backgroundColor: isEven ? '#ffffff' : '#6BDDA9'
+      }}
     >
 
       {columns.map((column) => {

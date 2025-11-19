@@ -308,8 +308,8 @@ export function DataGrid() {
 
           {/* Blank row for adding new documents - only show for users with create permission */}
           {canCreate && (
-            <div className="border-t-2 border-gray-300 bg-gray-50/50 flex">
-              <div className="w-[40px] border-r border-border"></div>
+            <div className="border-t-2 border-gray-300 flex">
+              <div className="w-[40px] border-r border-border" style={{ backgroundColor: documents.length % 2 === 0 ? '#ffffff' : '#6BDDA9' }}></div>
               <div className="flex-1">
                 <GridRow
                   document={{ id: 'blank-row', ...blankRow } as ProjectDocument}

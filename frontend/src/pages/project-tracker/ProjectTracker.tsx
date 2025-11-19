@@ -136,7 +136,7 @@ const ProjectTracker = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-foreground">
-                Project Tracker
+                Módulo ATA
                 {selectedProject && (
                   <span className="text-lg font-normal text-muted-foreground ml-2">
                     - {selectedProject.name}
