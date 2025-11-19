@@ -9,6 +9,12 @@ import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
   className?: string;
@@ -30,7 +36,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   const navigationItems = [
     {
       id: "project-tracker",
-      label: "Project Tracker",
+      label: "Módulo ATA",
       icon: FileSpreadsheet,
       path: "/project-tracker",
       description: "Controle de documentos e acompanhamento de projetos"
@@ -119,42 +125,46 @@ const Sidebar = ({ className }: SidebarProps) => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          
-          return (
-            <Button
-              key={item.id}
-              variant={isActive ? "default" : "ghost"}
-              className={cn(
-                "w-full justify-start h-auto p-4 min-h-[4rem]",
-                isCollapsed && "px-2 py-3 min-h-[3rem]"
-              )}
-              onClick={() => navigate(item.path)}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5")} />
-                {!isCollapsed && (
-                  <div className="flex flex-col items-start flex-1 min-w-0 pr-2">
-                    <span className={cn(
-                      "font-medium text-sm leading-tight block",
-                      isActive ? "text-primary-foreground" : "text-foreground"
+        <TooltipProvider>
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <Tooltip key={item.id} delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isActive ? "default" : "ghost"}
+                    className={cn(
+                      "w-full justify-start h-auto p-3",
+                      isCollapsed ? "px-2 py-3 justify-center" : "min-h-[3rem]"
+                    )}
+                    onClick={() => navigate(item.path)}
+                  >
+                    <div className={cn(
+                      "flex items-center gap-3 w-full",
+                      isCollapsed && "justify-center"
                     )}>
-                      {item.label}
-                    </span>
-                    <span className={cn(
-                      "text-xs leading-relaxed mt-1 block break-words whitespace-normal",
-                      isActive ? "text-primary-foreground/80" : "text-muted-foreground"
-                    )}>
-                      {item.description}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </Button>
-          );
-        })}
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      {!isCollapsed && (
+                        <span className={cn(
+                          "font-medium text-sm",
+                          isActive ? "text-primary-foreground" : "text-foreground"
+                        )}>
+                          {item.label}
+                        </span>
+                      )}
+                    </div>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[200px]">
+                  <p className="font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </TooltipProvider>
       </nav>
 
       {/* Generate Report Button */}
