@@ -252,7 +252,7 @@ const MeetingEnvironment = () => {
                                     {meeting.resumo ? (
                                       <p className="line-clamp-4">{meeting.resumo}</p>
                                     ) : (
-                                      <p className="italic text-muted-foreground/60">Sem resumo</p>
+                                      <p className="italic text-muted-foreground/60">API FROM GPT</p>
                                     )}
                                   </div>
                                 </div>
