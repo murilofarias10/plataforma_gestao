@@ -1,21 +1,28 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { KpiCards } from "@/components/dashboard/KpiCards";
-import { FiltersBar } from "@/components/dashboard/FiltersBar";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, ChevronDown, ChevronUp, Calendar, ArrowUp } from "lucide-react";
+import { Database, ChevronDown, ChevronUp, Calendar, ArrowUp, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MeetingRegistrationSection } from "@/components/project/MeetingRegistrationSection";
 
 const ProjectTracker = () => {
-  const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized } = useProjectStore();
+  const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized, filters, resetFilters } = useProjectStore();
   const location = useLocation();
   const selectedProject = getSelectedProject();
   const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
+  
+  const activeFiltersCount = 
+    filters.statusFilter.length +
+    filters.responsavelFilter.length +
+    filters.areaFilter.length +
+    (filters.searchQuery ? 1 : 0) +
+    (filters.responsavelSearch ? 1 : 0) +
+    (filters.dateRange.start || filters.dateRange.end ? 1 : 0);
   useEffect(() => {
     if (location.state && typeof location.state === "object" && (location.state as { focus?: string }).focus === "meetings") {
       setIsMeetingsExpanded(true);
@@ -192,10 +199,20 @@ const ProjectTracker = () => {
           {/* KPI Cards - Always Visible */}
           <KpiCards />
 
-          {/* Filters - Always Visible */}
-          <div className="mt-6">
-            <FiltersBar />
-          </div>
+          {/* Clear Filters Button */}
+          {activeFiltersCount > 0 && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="flex items-center gap-2"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Limpar filtros ({activeFiltersCount})
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* Main Data Grid Section - Primary Focus */}

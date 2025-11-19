@@ -129,6 +129,7 @@ const defaultFilters: ProjectFilters = {
   statusFilter: [],
   areaFilter: [],
   responsavelFilter: [],
+  responsavelSearch: '',
   dateRange: {
     start: '',
     end: ''
@@ -623,10 +624,10 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     if (selectedProjectId) await get().loadDocumentsForProject(selectedProjectId);
   },
   getUniqueResponsaveis: () => {
-    const { documents, selectedProjectId } = get();
-    if (!selectedProjectId) return [];
-    const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
-    return Array.from(new Set(projectDocuments
+    // Get unique responsáveis from currently visible documents in the table
+    // This respects filters and meeting context
+    const visibleDocuments = get().getTableDocuments();
+    return Array.from(new Set(visibleDocuments
       .map(doc => doc.responsavel)
       .filter((responsavel): responsavel is string => Boolean(responsavel))
     ));
@@ -662,9 +663,10 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   getFilteredDocuments: () => {
     const { documents, selectedProjectId, filters } = get();
     if (!selectedProjectId) return [];
-    const { searchQuery, statusFilter, areaFilter, responsavelFilter, dateRange } = filters;
+    const { searchQuery, statusFilter, areaFilter, responsavelFilter, responsavelSearch, dateRange } = filters;
 
     const q = (searchQuery || '').toLowerCase().trim();
+    const respSearch = (responsavelSearch || '').toLowerCase().trim();
     const start = dateRange.start ? parseBRDateLocal(dateRange.start) : null;
     const end = dateRange.end ? parseBRDateLocal(dateRange.end) : null;
 
@@ -678,6 +680,12 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         if (statusFilter && statusFilter.length && !statusFilter.includes(d.status)) return false;
         if (areaFilter && areaFilter.length && !areaFilter.includes(d.area)) return false;
         if (responsavelFilter && responsavelFilter.length && !responsavelFilter.includes(d.responsavel)) return false;
+        
+        // Text search filter for responsavel
+        if (respSearch) {
+          const responsavelText = (d.responsavel || '').toLowerCase();
+          if (!responsavelText.includes(respSearch)) return false;
+        }
 
         if (start) {
           const di = d.dataInicio ? parseBRDateLocal(d.dataInicio) : null;

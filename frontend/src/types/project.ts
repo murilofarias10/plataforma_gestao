@@ -76,6 +76,7 @@ export interface ProjectFilters {
   statusFilter: string[];
   areaFilter: string[];
   responsavelFilter: string[];
+  responsavelSearch: string;
   dateRange: {
     start: string;
     end: string;
