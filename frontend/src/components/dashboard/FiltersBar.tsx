@@ -1,4 +1,4 @@
-import { X, Filter, RotateCcw, Search, Calendar, Save } from "lucide-react";
+import { X, Filter, RotateCcw, Search, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProjectStore } from "@/stores/projectStore";
@@ -6,11 +6,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Input } from "@/components/ui/input";
 import React from "react";
 
-interface FiltersBarProps {
-  onSave?: () => void;
-}
-
-export function FiltersBar({ onSave }: FiltersBarProps): React.ReactElement {
+export function FiltersBar(): React.ReactElement {
   const { 
     filters, 
     setFilters, 
@@ -144,16 +140,6 @@ export function FiltersBar({ onSave }: FiltersBarProps): React.ReactElement {
             className="pl-10 w-44 min-w-[176px]"
           />
         </div>
-
-        {onSave && (
-          <Button 
-            onClick={onSave}
-            className="flex items-center gap-2 flex-shrink-0"
-          >
-            <Save className="h-4 w-4" />
-            Salvar
-          </Button>
-        )}
 
         {activeFiltersCount > 0 && (
           <Button

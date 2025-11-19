@@ -88,7 +88,7 @@ export function KpiCards() {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2" data-report-section="kpi-cards">
+    <div className="flex flex-wrap gap-2 justify-center" data-report-section="kpi-cards">
       {cards.map((card) => {
         const isFiltered = card.clickable && card.filterStatus && filters.statusFilter.includes(card.filterStatus);
         
@@ -96,7 +96,7 @@ export function KpiCards() {
           <div 
             key={card.title} 
             className={cn(
-              "group transition-all duration-200 relative border border-border rounded-lg p-2 w-[160px]",
+              "group transition-all duration-200 relative border border-border rounded-lg p-2 min-w-[140px]",
               card.bgColor,
               card.clickable && "cursor-pointer hover:scale-[1.02]",
               isFiltered && "ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]"
@@ -121,14 +121,16 @@ export function KpiCards() {
               <p className={cn("text-xs font-medium mb-0.5", card.textColor, "opacity-80")}>
                 {card.title}
               </p>
-              <p className={cn("text-xl font-bold", card.textColor)}>
-                {card.value}
-              </p>
-              {card.subtitle && (
-                <p className={cn("text-xs", card.textColor, "opacity-70")}>
-                  {card.subtitle}
+              <div className="flex items-baseline gap-1">
+                <p className={cn("text-xl font-bold", card.textColor)}>
+                  {card.value}
                 </p>
-              )}
+                {card.subtitle && (
+                  <p className={cn("text-xs", card.textColor, "opacity-70")}>
+                    {card.subtitle}
+                  </p>
+                )}
+              </div>
             </div>
             {isFiltered && (
               <div className="absolute top-2 right-2">
