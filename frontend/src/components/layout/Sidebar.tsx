@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Download, LogOut, User, Shield } from "lucide-react";
+import { FileSpreadsheet, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Download, LogOut, User, Shield, Plus } from "lucide-react";
 import { ProjectSelector } from "@/components/project/ProjectSelector";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
 import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
@@ -117,9 +117,34 @@ const Sidebar = ({ className }: SidebarProps) => {
       </div>
 
       {/* Project Selection */}
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <div className="p-4 border-b border-border">
           <ProjectSelector />
+        </div>
+      ) : (
+        <div className="p-4 border-b border-border">
+          <TooltipProvider>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-10 px-2 py-3 justify-center hover:bg-primary/10"
+                  onClick={() => {
+                    // Trigger the ProjectSelector dialog
+                    const event = new CustomEvent('open-project-dialog');
+                    window.dispatchEvent(event);
+                  }}
+                >
+                  <Plus className="h-5 w-5 text-primary" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="font-medium">Criar Novo Projeto</p>
+                <p className="text-xs text-muted-foreground mt-1">Adicionar um novo projeto</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
 
@@ -168,49 +193,99 @@ const Sidebar = ({ className }: SidebarProps) => {
       </nav>
 
       {/* Generate Report Button */}
-      {!isCollapsed && (
-        <div className="p-4">
-          <Button 
-            onClick={() => setIsReportDialogOpen(true)} 
-            className="w-full flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white"
-          >
-            <Download className="h-4 w-4" />
-            Gerar Relatório
-          </Button>
-        </div>
-      )}
+      <div className="p-4">
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={() => setIsReportDialogOpen(true)} 
+                className={cn(
+                  "w-full bg-teal-600 hover:bg-teal-700 text-white",
+                  isCollapsed ? "px-2 py-3 justify-center" : "flex items-center gap-2"
+                )}
+              >
+                <Download className="h-4 w-4" />
+                {!isCollapsed && "Gerar Relatório"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="font-medium">Gerar Relatório</p>
+              <p className="text-xs text-muted-foreground mt-1">Exportar relatório completo do projeto</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
 
       {/* User Info & Logout */}
-      {!isCollapsed && userProfile && (
+      {userProfile && (
         <div className="p-4 border-t border-border space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              {userProfile.role === 'super_admin' ? (
-                <Shield className="h-5 w-5 text-primary" />
-              ) : (
-                <User className="h-5 w-5 text-primary" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {userProfile.full_name || userProfile.email}
-              </p>
-              <Badge 
-                variant={userProfile.role === 'super_admin' ? 'default' : 'secondary'}
-                className="mt-1 text-xs"
-              >
-                {userProfile.role === 'super_admin' ? 'Super Admin' : 'Visitante'}
-              </Badge>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sair
-          </Button>
+          <TooltipProvider>
+            {/* User Info */}
+            {!isCollapsed && (
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  {userProfile.role === 'super_admin' ? (
+                    <Shield className="h-5 w-5 text-primary" />
+                  ) : (
+                    <User className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {userProfile.full_name || userProfile.email}
+                  </p>
+                  <Badge 
+                    variant={userProfile.role === 'super_admin' ? 'default' : 'secondary'}
+                    className="mt-1 text-xs"
+                  >
+                    {userProfile.role === 'super_admin' ? 'Super Admin' : 'Visitante'}
+                  </Badge>
+                </div>
+              </div>
+            )}
+
+            {/* Collapsed User Info Icon */}
+            {isCollapsed && (
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <div className="h-10 w-10 mx-auto rounded-full bg-primary/10 flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors">
+                    {userProfile.role === 'super_admin' ? (
+                      <Shield className="h-5 w-5 text-primary" />
+                    ) : (
+                      <User className="h-5 w-5 text-primary" />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="font-medium">{userProfile.full_name || userProfile.email}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {userProfile.role === 'super_admin' ? 'Super Admin' : 'Visitante'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Logout Button */}
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full text-destructive hover:text-destructive hover:bg-destructive/10",
+                    isCollapsed ? "px-2 py-3 justify-center" : "justify-start"
+                  )}
+                  onClick={handleLogout}
+                >
+                  <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+                  {!isCollapsed && "Sair"}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="font-medium">Sair</p>
+                <p className="text-xs text-muted-foreground mt-1">Fazer logout da conta</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
 

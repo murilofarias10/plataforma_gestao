@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -23,6 +23,18 @@ export function ProjectSelector({ className }: ProjectSelectorProps) {
   const [newProjectDescription, setNewProjectDescription] = useState("");
 
   const selectedProject = getSelectedProject();
+
+  // Listen for event from collapsed sidebar
+  useEffect(() => {
+    const handleOpenDialog = () => {
+      if (canCreate) {
+        setIsAddDialogOpen(true);
+      }
+    };
+
+    window.addEventListener('open-project-dialog', handleOpenDialog);
+    return () => window.removeEventListener('open-project-dialog', handleOpenDialog);
+  }, [canCreate]);
 
   const handleProjectChange = (projectId: string) => {
     setSelectedProject(projectId);
