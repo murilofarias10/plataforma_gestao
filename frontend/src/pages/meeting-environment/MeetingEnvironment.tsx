@@ -15,7 +15,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, ListPlus, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -41,7 +41,7 @@ const MeetingEnvironment = () => {
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
   const [expandedMeetingItems, setExpandedMeetingItems] = useState<Set<string>>(new Set());
   const { openMeetingDialog } = useMeetingReportStore();
-  const { canCreate, canDelete } = usePermissions();
+  const { canDelete } = usePermissions();
   const { startEditMeeting } = useMeetingContextStore();
 
   const toggleMeetingItems = useCallback((meetingId: string) => {
@@ -115,10 +115,6 @@ const MeetingEnvironment = () => {
     }
   }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
 
-  const handleNavigateToRegistration = useCallback(() => {
-    navigate("/project-tracker", { state: { focus: "meetings" } });
-  }, [navigate]);
-
   const handleEditMeeting = useCallback((meeting: MeetingMetadata) => {
     console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
     console.log('[MeetingEnvironment] Meeting document IDs:', meeting.relatedDocumentIds);
@@ -144,30 +140,18 @@ const MeetingEnvironment = () => {
       <main className="container mx-auto px-6 py-6 space-y-6 h-full flex flex-col">
         <section className="space-y-4 flex-1 flex flex-col min-h-0">
           <div className="flex flex-col gap-4 flex-shrink-0">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">Ambiente de Reuniões</h2>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Ambiente de Reuniões
                 {selectedProject && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {selectedProject.name}
-                  </p>
+                  <span className="text-lg font-normal text-muted-foreground ml-2">
+                    - {selectedProject.name}
+                  </span>
                 )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 lg:mt-0">
-                {canCreate && (
-                  <Button
-                    variant="outline"
-                    onClick={handleNavigateToRegistration}
-                    className="flex items-center gap-2"
-                  >
-                    <ListPlus className="h-4 w-4" />
-                    Registrar nova reunião
-                  </Button>
-                )}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CalendarDays className="h-4 w-4" />
-                  {meetings.length} reuniões registradas
-                </div>
+              </h2>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <CalendarDays className="h-4 w-4" />
+                {meetings.length} reuniões registradas
               </div>
             </div>
           </div>
