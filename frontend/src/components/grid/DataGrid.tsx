@@ -271,19 +271,6 @@ export function DataGrid() {
 
   return (
     <div className="space-y-4">
-      {/* Add Row Button - only show for users with create permission */}
-      {canCreate && (
-        <div className="flex justify-end">
-          <Button 
-            onClick={handleBlankRowSave}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
-        </div>
-      )}
-      
       <div className="spreadsheet-grid" ref={gridRef}>
         <GridHeader 
           columns={columns} 
@@ -327,6 +314,19 @@ export function DataGrid() {
           )}
         </div>
       </div>
+
+      {/* Add Row Button - only show for users with create permission */}
+      {canCreate && (
+        <div className="flex justify-end">
+          <Button 
+            onClick={handleBlankRowSave}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar nova linha
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
