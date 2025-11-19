@@ -180,14 +180,17 @@ const MeetingEnvironment = () => {
                       {meetings
                         .slice()
                         .sort((a, b) => new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime())
-                        .map((meeting) => {
+                        .map((meeting, index) => {
                           const relatedDocuments = getMeetingRelatedDocuments(meeting);
                           const hasRelatedItems = relatedDocuments.length > 0;
                           const isItemsExpanded = expandedMeetingItems.has(meeting.id);
                           
                           return (
                             <div key={meeting.id} className="border-b border-border last:border-b-0">
-                              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:bg-muted/30 transition-colors">
+                              <div 
+                                className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:opacity-90 transition-all"
+                                style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#6BDDA9' }}
+                              >
                                 {/* First Column: Date, Numero Ata, Participants, Fornecedor, Disciplina */}
                                 <div className="space-y-1">
                                   <div className="text-xs">
@@ -290,7 +293,10 @@ const MeetingEnvironment = () => {
 
                               {/* Expandable Related Items - Table View */}
                               {hasRelatedItems && isItemsExpanded && (
-                                <div className="border-t border-border bg-muted/20">
+                                <div 
+                                  className="border-t border-border"
+                                  style={{ backgroundColor: index % 2 === 0 ? '#f8f8f8' : '#5bc699' }}
+                                >
                                   <div className="px-4 pt-3 pb-2">
                                     <div className="text-xs font-semibold text-foreground mb-3">Itens da Reunião:</div>
                                     
