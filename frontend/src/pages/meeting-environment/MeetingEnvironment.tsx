@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X } from "lucide-react";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -29,6 +30,15 @@ const MeetingEnvironment = () => {
 
   const selectedProject = getSelectedProject();
 
+  // Meeting filters - must be declared before use
+  const [filters, setFilters] = useState({
+    data: '',
+    numeroAta: '',
+    participante: '',
+    fornecedor: '',
+    disciplina: ''
+  });
+
   const meetings = useMemo(() => {
     if (!selectedProjectId) {
       return [];
@@ -36,6 +46,66 @@ const MeetingEnvironment = () => {
     const project = projects.find((p) => p.id === selectedProjectId);
     return project?.meetings ?? [];
   }, [projects, selectedProjectId]);
+
+  // Filtered meetings based on filter criteria
+  const filteredMeetings = useMemo(() => {
+    return meetings.filter((meeting) => {
+      // Filter by data
+      if (filters.data && !meeting.data?.toLowerCase().includes(filters.data.toLowerCase())) {
+        return false;
+      }
+      // Filter by numero ata
+      if (filters.numeroAta && !meeting.numeroAta?.toLowerCase().includes(filters.numeroAta.toLowerCase())) {
+        return false;
+      }
+      // Filter by participante
+      if (filters.participante) {
+        const hasParticipant = meeting.participants?.some(p => 
+          p.toLowerCase().includes(filters.participante.toLowerCase())
+        );
+        if (!hasParticipant) return false;
+      }
+      // Filter by fornecedor
+      if (filters.fornecedor && !meeting.fornecedor?.toLowerCase().includes(filters.fornecedor.toLowerCase())) {
+        return false;
+      }
+      // Filter by disciplina
+      if (filters.disciplina && !meeting.disciplina?.toLowerCase().includes(filters.disciplina.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [meetings, filters]);
+
+  const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
+
+  const clearAllFilters = () => {
+    setFilters({
+      data: '',
+      numeroAta: '',
+      participante: '',
+      fornecedor: '',
+      disciplina: ''
+    });
+  };
+
+  // Format date input to Brazilian format (DD-MM-YYYY)
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove all non-digit characters
+    
+    // Limit to 8 digits (DDMMYYYY)
+    value = value.slice(0, 8);
+    
+    // Add hyphens automatically
+    if (value.length >= 3) {
+      value = value.slice(0, 2) + '-' + value.slice(2);
+    }
+    if (value.length >= 6) {
+      value = value.slice(0, 5) + '-' + value.slice(5);
+    }
+    
+    setFilters({ ...filters, data: value });
+  };
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
@@ -115,13 +185,71 @@ const MeetingEnvironment = () => {
     }
   }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
 
-  const handleEditMeeting = useCallback((meeting: MeetingMetadata) => {
+  const handleEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
     console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
     console.log('[MeetingEnvironment] Meeting document IDs:', meeting.relatedDocumentIds);
     console.log('[MeetingEnvironment] Meeting item numbers (legacy):', meeting.relatedItems);
-    startEditMeeting(meeting);
+    
+    // CRITICAL FIX: Duplicate all documents from this meeting BEFORE entering edit mode
+    // This ensures edits happen on copies, not the original documents
+    const originalDocIds = meeting.relatedDocumentIds || [];
+    const duplicateDocIds: string[] = [];
+    
+    if (originalDocIds.length > 0) {
+      console.log('[MeetingEnvironment] Creating temporary duplicates of', originalDocIds.length, 'documents...');
+      
+      // Import the store to access addDocument
+      const { addDocument } = useProjectStore.getState();
+      
+      for (const originalDocId of originalDocIds) {
+        const originalDoc = documents.find(d => d.id === originalDocId);
+        if (originalDoc) {
+          // Create a duplicate for editing (without id, createdAt, updatedAt)
+          const docCopy = {
+            projectId: originalDoc.projectId,
+            numeroItem: originalDoc.numeroItem,
+            dataInicio: originalDoc.dataInicio,
+            dataFim: originalDoc.dataFim,
+            documento: originalDoc.documento,
+            detalhe: originalDoc.detalhe,
+            revisao: originalDoc.revisao,
+            responsavel: originalDoc.responsavel,
+            status: originalDoc.status,
+            area: originalDoc.area,
+            attachments: originalDoc.attachments ? [...originalDoc.attachments] : [],
+            isCleared: originalDoc.isCleared,
+            participants: [],
+            history: [],
+            meetings: [],
+          };
+          
+          await addDocument(docCopy);
+          
+          // Get the newly created document ID
+          await new Promise(resolve => setTimeout(resolve, 50));
+          const updatedDocuments = useProjectStore.getState().documents;
+          const newDoc = updatedDocuments[updatedDocuments.length - 1];
+          duplicateDocIds.push(newDoc.id);
+          
+          console.log('[MeetingEnvironment] Created duplicate:', originalDocId, '→', newDoc.id);
+        }
+      }
+      
+      console.log('[MeetingEnvironment] ✓ All documents duplicated for editing');
+      console.log('[MeetingEnvironment] Original IDs:', originalDocIds);
+      console.log('[MeetingEnvironment] Duplicate IDs:', duplicateDocIds);
+    }
+    
+    // Start edit mode with duplicated document IDs
+    const meetingWithDuplicates = {
+      ...meeting,
+      relatedDocumentIds: duplicateDocIds.length > 0 ? duplicateDocIds : originalDocIds,
+    };
+    
+    // Pass original IDs and temp duplicate IDs to the context store
+    startEditMeeting(meetingWithDuplicates, originalDocIds, duplicateDocIds);
     navigate("/project-tracker", { state: { focus: "meetings", editMode: true } });
-  }, [navigate, startEditMeeting]);
+  }, [navigate, startEditMeeting, documents]);
 
   const getMeetingRelatedDocuments = useCallback((meeting: MeetingMetadata): ProjectDocument[] => {
     // Use relatedDocumentIds (new) or fall back to relatedItems (old) for backward compatibility
@@ -166,18 +294,65 @@ const MeetingEnvironment = () => {
 
           {selectedProject && (
             <Card className="border border-border flex-1 flex flex-col min-h-0">
-              <CardHeader className="border-b border-border flex-shrink-0">
-                <CardTitle className="text-lg">Reuniões do Projeto</CardTitle>
+              <CardHeader className="border-b border-border flex-shrink-0 space-y-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Reuniões do Projeto</CardTitle>
+                  {activeFiltersCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-3 w-3" />
+                      Limpar filtros ({activeFiltersCount})
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                  <Input
+                    placeholder="Data..."
+                    value={filters.data}
+                    onChange={handleDateChange}
+                    className="text-xs"
+                  />
+                  <Input
+                    placeholder="Número da Ata..."
+                    value={filters.numeroAta}
+                    onChange={(e) => setFilters({ ...filters, numeroAta: e.target.value })}
+                    className="text-xs"
+                  />
+                  <Input
+                    placeholder="Participante..."
+                    value={filters.participante}
+                    onChange={(e) => setFilters({ ...filters, participante: e.target.value })}
+                    className="text-xs"
+                  />
+                  <Input
+                    placeholder="Fornecedor..."
+                    value={filters.fornecedor}
+                    onChange={(e) => setFilters({ ...filters, fornecedor: e.target.value })}
+                    className="text-xs"
+                  />
+                  <Input
+                    placeholder="Disciplina..."
+                    value={filters.disciplina}
+                    onChange={(e) => setFilters({ ...filters, disciplina: e.target.value })}
+                    className="text-xs"
+                  />
+                </div>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-hidden">
-                {meetings.length === 0 ? (
+                {filteredMeetings.length === 0 ? (
                   <div className="py-10 text-center text-sm text-muted-foreground">
-                    Nenhuma reunião registrada até o momento.
+                    {meetings.length === 0 ? 'Nenhuma reunião registrada até o momento.' : 'Nenhuma reunião encontrada com os filtros aplicados.'}
                   </div>
                 ) : (
                   <ScrollArea className="h-full">
                     <div className="divide-y divide-border">
-                      {meetings
+                      {filteredMeetings
                         .slice()
                         .sort((a, b) => new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime())
                         .map((meeting, index) => {

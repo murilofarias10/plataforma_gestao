@@ -8,12 +8,16 @@ interface MeetingContextStore {
   isEditMode: boolean;
   // Original meeting ID when editing
   editingMeetingId: string | null;
+  // Original document IDs from the meeting being edited (before duplication)
+  originalDocumentIds: string[];
+  // Temporary duplicate document IDs created for editing (to be cleaned up)
+  tempDuplicateIds: string[];
 
   // Actions
   startMeeting: (meeting?: Partial<MeetingMetadata>) => void;
   endMeeting: () => void;
   updateMeetingData: (data: Partial<MeetingMetadata>) => void;
-  startEditMeeting: (meeting: MeetingMetadata) => void;
+  startEditMeeting: (meeting: MeetingMetadata, originalDocIds: string[], tempDuplicateIds: string[]) => void;
   clearMeetingContext: () => void;
   hasActiveMeeting: () => boolean;
 }
@@ -22,6 +26,8 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
   currentMeeting: null,
   isEditMode: false,
   editingMeetingId: null,
+  originalDocumentIds: [],
+  tempDuplicateIds: [],
 
   startMeeting: (meeting) => {
     set({
@@ -39,6 +45,8 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       } : null,
       isEditMode: false,
       editingMeetingId: null,
+      originalDocumentIds: [],
+      tempDuplicateIds: [],
     });
   },
 
@@ -47,6 +55,8 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       currentMeeting: null,
       isEditMode: false,
       editingMeetingId: null,
+      originalDocumentIds: [],
+      tempDuplicateIds: [],
     });
   },
 
@@ -62,11 +72,13 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
     }
   },
 
-  startEditMeeting: (meeting) => {
+  startEditMeeting: (meeting, originalDocIds, tempDuplicateIds) => {
     set({
       currentMeeting: meeting,
       isEditMode: true,
       editingMeetingId: meeting.id,
+      originalDocumentIds: originalDocIds,
+      tempDuplicateIds: tempDuplicateIds,
     });
   },
 
@@ -76,6 +88,8 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       currentMeeting: null,
       isEditMode: false,
       editingMeetingId: null,
+      originalDocumentIds: [],
+      tempDuplicateIds: [],
     });
     console.log('[meetingContextStore] Context cleared - isEditMode: false, editingMeetingId: null');
   },

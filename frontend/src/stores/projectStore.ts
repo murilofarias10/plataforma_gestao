@@ -703,13 +703,13 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     const { selectedProjectId, projects } = get();
     
     // Check if we're in edit mode
-    const { isEditMode, editingMeetingId } = useMeetingContextStore.getState();
+    const { isEditMode, editingMeetingId, tempDuplicateIds, originalDocumentIds } = useMeetingContextStore.getState();
     
     console.log('[getTableDocuments] Mode:', isEditMode ? `EDIT (${editingMeetingId})` : 'CREATE');
     
     // Get all document IDs that are already assigned to meetings
     const assignedDocumentIds = new Set<string>();
-    let editingMeetingDocumentIds = new Set<string>();
+    let showTheseDocumentIds = new Set<string>();
     
     if (selectedProjectId) {
       const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -720,27 +720,40 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           const documentIds = meeting.relatedDocumentIds || [];
           
           if (documentIds.length > 0) {
-            // If this is the meeting being edited, save its documents separately
-            if (isEditMode && meeting.id === editingMeetingId) {
-              console.log('[getTableDocuments] Loading document IDs from editing meeting:', documentIds);
-              documentIds.forEach(docId => editingMeetingDocumentIds.add(docId));
-            } else {
-              // Otherwise, mark these documents as assigned (hidden)
-              documentIds.forEach(docId => assignedDocumentIds.add(docId));
-            }
+            // Mark all meeting documents as assigned (hidden by default)
+            documentIds.forEach(docId => assignedDocumentIds.add(docId));
           }
         });
       }
     }
     
+    // In EDIT mode, show temp duplicates instead of originals
+    if (isEditMode && tempDuplicateIds.length > 0) {
+      console.log('[getTableDocuments] EDIT MODE - showing temp duplicates:', tempDuplicateIds);
+      console.log('[getTableDocuments] EDIT MODE - hiding originals:', originalDocumentIds);
+      
+      // Mark temp duplicates as visible (they're not in assignedDocumentIds yet)
+      tempDuplicateIds.forEach(docId => showTheseDocumentIds.add(docId));
+      
+      // Also ensure original documents are hidden
+      originalDocumentIds.forEach(docId => assignedDocumentIds.add(docId));
+    }
+    
     const allFilteredDocs = get().getFilteredDocuments();
     console.log('[getTableDocuments] All filtered documents:', allFilteredDocs.length);
     console.log('[getTableDocuments] Assigned (hidden) document IDs:', Array.from(assignedDocumentIds).slice(0, 5), '...');
-    console.log('[getTableDocuments] Editing meeting document IDs:', Array.from(editingMeetingDocumentIds));
+    console.log('[getTableDocuments] Show these document IDs:', Array.from(showTheseDocumentIds));
     
-    // Filter: show unassigned documents OR documents from the meeting being edited
+    // Filter: show unassigned documents OR temp duplicate documents in edit mode
     const visibleDocs = allFilteredDocs
-      .filter(doc => !assignedDocumentIds.has(doc.id) || editingMeetingDocumentIds.has(doc.id))
+      .filter(doc => {
+        // In edit mode with temp duplicates, show ONLY temp duplicates + any new unassigned docs
+        if (isEditMode && tempDuplicateIds.length > 0) {
+          return showTheseDocumentIds.has(doc.id) || !assignedDocumentIds.has(doc.id);
+        }
+        // Otherwise, show all unassigned documents
+        return !assignedDocumentIds.has(doc.id);
+      })
       .slice()
       .sort((a, b) => (a.numeroItem || 0) - (b.numeroItem || 0));
     

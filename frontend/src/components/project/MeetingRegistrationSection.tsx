@@ -126,22 +126,22 @@ export function MeetingRegistrationSection() {
       let finalDocumentItemNumbers: number[] = [];
       
       if (actualIsEditMode && actualEditingMeetingId) {
-        // EDIT MODE: We need to duplicate documents from the original meeting
-        console.log('[MeetingRegistration] Duplicating from existing meeting:', actualEditingMeetingId);
+        // EDIT MODE: Duplicate the temporary edited documents for the new meeting
+        console.log('[MeetingRegistration] EDIT MODE - Creating new meeting from edited documents');
         
-        // Find the original meeting to get its document IDs
-        const originalMeeting = currentMeetings.find(m => m.id === actualEditingMeetingId);
-        const originalDocumentIds = new Set(originalMeeting?.relatedDocumentIds || []);
+        // Get the temp duplicate IDs from the context store
+        const contextState = useMeetingContextStore.getState();
+        const tempDuplicateIds = new Set(contextState.tempDuplicateIds || []);
         
-        console.log('[MeetingRegistration] Original meeting had document IDs:', Array.from(originalDocumentIds));
+        console.log('[MeetingRegistration] Temp duplicate IDs:', Array.from(tempDuplicateIds));
         
-        // For each visible document, check if it's from the original meeting
+        // For each visible document, duplicate it for the new meeting
         for (const doc of visibleDocuments) {
-          if (originalDocumentIds.has(doc.id)) {
-            // This document is from the original meeting - DUPLICATE IT
-            console.log('[MeetingRegistration] Duplicating document:', doc.id, '(item', doc.numeroItem, ')');
+          if (tempDuplicateIds.has(doc.id)) {
+            // This is a temp duplicate that was edited - duplicate it for the new meeting
+            console.log('[MeetingRegistration] Creating final copy of edited document:', doc.id, '(item', doc.numeroItem, ')');
             
-            // Create a new document with the same data but new ID
+            // Create a new document with the edited data
             const newDocData = {
               projectId: selectedProjectId,
               numeroItem: doc.numeroItem,
@@ -151,7 +151,7 @@ export function MeetingRegistrationSection() {
               detalhe: doc.detalhe,
               revisao: doc.revisao,
               responsavel: doc.responsavel,
-              status: doc.status,
+              status: doc.status, // This will have the edited status!
               area: doc.area,
               isCleared: doc.isCleared,
               attachments: doc.attachments ? [...doc.attachments] : undefined,
@@ -159,26 +159,35 @@ export function MeetingRegistrationSection() {
               history: doc.history ? [...doc.history] : undefined,
             };
             
-            // Add the duplicated document
+            // Add the final document for the new meeting
             await addDocument(newDocData);
             
-            // Get the newly created document ID (it will be the last one added)
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to ensure state update
+            // Get the newly created document ID
+            await new Promise(resolve => setTimeout(resolve, 50));
             const updatedDocuments = useProjectStore.getState().documents;
             const newDoc = updatedDocuments[updatedDocuments.length - 1];
             
             finalDocumentIds.push(newDoc.id);
             finalDocumentItemNumbers.push(newDoc.numeroItem);
-            console.log('[MeetingRegistration] Created duplicate with new ID:', newDoc.id);
+            console.log('[MeetingRegistration] Created final document with ID:', newDoc.id);
           } else {
-            // This is a newly added document (not from original meeting) - use as is
-            console.log('[MeetingRegistration] New document added:', doc.id, '(item', doc.numeroItem, ')');
+            // This is a newly added document (not from temp duplicates) - use as is
+            console.log('[MeetingRegistration] New document added during edit:', doc.id, '(item', doc.numeroItem, ')');
             finalDocumentIds.push(doc.id);
             finalDocumentItemNumbers.push(doc.numeroItem);
           }
         }
         
         console.log('[MeetingRegistration] Final document IDs for new meeting:', finalDocumentIds);
+        
+        // CLEANUP: Delete the temporary duplicate documents
+        console.log('[MeetingRegistration] Cleaning up temporary duplicates...');
+        const deleteDocument = useProjectStore.getState().deleteDocument;
+        for (const tempId of tempDuplicateIds) {
+          console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
+          await deleteDocument(tempId);
+        }
+        console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
       } else {
         // CREATE MODE: Use visible documents as is
         finalDocumentIds = visibleDocuments.map(doc => doc.id);
@@ -262,8 +271,23 @@ export function MeetingRegistrationSection() {
             size="sm"
             variant="outline"
             className="h-8 text-xs px-3"
-            onClick={() => {
+            onClick={async () => {
               console.log('[MeetingRegistration] Canceling edit mode');
+              
+              // CLEANUP: Delete temporary duplicate documents
+              const contextState = useMeetingContextStore.getState();
+              const tempDuplicateIds = contextState.tempDuplicateIds || [];
+              
+              if (tempDuplicateIds.length > 0) {
+                console.log('[MeetingRegistration] Cleaning up', tempDuplicateIds.length, 'temporary duplicates...');
+                const deleteDocument = useProjectStore.getState().deleteDocument;
+                for (const tempId of tempDuplicateIds) {
+                  console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
+                  await deleteDocument(tempId);
+                }
+                console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
+              }
+              
               // Clear context first to trigger table refresh
               clearMeetingContext();
               // Then clear ALL form fields
