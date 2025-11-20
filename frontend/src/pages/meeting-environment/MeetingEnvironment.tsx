@@ -205,6 +205,7 @@ const MeetingEnvironment = () => {
         const originalDoc = documents.find(d => d.id === originalDocId);
         if (originalDoc) {
           // Create a duplicate for editing (without id, createdAt, updatedAt)
+          // IMPORTANT: Preserve history to track modifications across meetings
           const docCopy = {
             projectId: originalDoc.projectId,
             numeroItem: originalDoc.numeroItem,
@@ -218,9 +219,9 @@ const MeetingEnvironment = () => {
             area: originalDoc.area,
             attachments: originalDoc.attachments ? [...originalDoc.attachments] : [],
             isCleared: originalDoc.isCleared,
-            participants: [],
-            history: [],
-            meetings: [],
+            participants: originalDoc.participants ? [...originalDoc.participants] : [],
+            history: originalDoc.history ? [...originalDoc.history] : [],
+            meetings: originalDoc.meetings ? [...originalDoc.meetings] : [],
           };
           
           await addDocument(docCopy);
