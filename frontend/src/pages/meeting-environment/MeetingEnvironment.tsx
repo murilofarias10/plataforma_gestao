@@ -277,10 +277,6 @@ const MeetingEnvironment = () => {
                   </span>
                 )}
               </h2>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                <CalendarDays className="h-4 w-4" />
-                {meetings.length} reuniões registradas
-              </div>
             </div>
           </div>
 
@@ -296,7 +292,13 @@ const MeetingEnvironment = () => {
             <Card className="border border-border flex-1 flex flex-col min-h-0">
               <CardHeader className="border-b border-border flex-shrink-0 space-y-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Reuniões do Projeto</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-lg">Reuniões do Projeto</CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CalendarDays className="h-4 w-4" />
+                      <span>{meetings.length} reuniões registradas</span>
+                    </div>
+                  </div>
                   {activeFiltersCount > 0 && (
                     <Button
                       variant="outline"
