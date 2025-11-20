@@ -33,14 +33,9 @@ export function ExpandableGridRow({
   isEven,
 }: ExpandableGridRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   const toggleExpanded = useCallback(() => {
     setIsExpanded((prev) => !prev);
-  }, []);
-
-  const toggleHistory = useCallback(() => {
-    setIsHistoryExpanded((prev) => !prev);
   }, []);
 
   return (
@@ -81,24 +76,16 @@ export function ExpandableGridRow({
         <div className="border-b border-border bg-muted/5">
           <div className="p-3 pl-12">
             <div className="space-y-2">
-              <button
-                onClick={toggleHistory}
-                className="flex items-center gap-2 text-xs font-semibold text-foreground hover:text-primary w-full"
-              >
-                {isHistoryExpanded ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3" />
-                )}
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-2">
                 <Clock className="w-3 h-3" />
                 Histórico de Alterações
                 {document.history && document.history.length > 0 && (
                   <span className="text-muted-foreground">({document.history.length})</span>
                 )}
-              </button>
+              </div>
 
-              {/* History List - Expandable */}
-              {isHistoryExpanded && document.history && document.history.length > 0 && (
+              {/* History List - Always shown when expanded */}
+              {document.history && document.history.length > 0 ? (
                 <div className="space-y-1 max-h-60 overflow-y-auto pr-2">
                   {document.history.slice().reverse().map((change) => {
                     // Only show changes where BOTH old and new values exist
@@ -134,9 +121,7 @@ export function ExpandableGridRow({
                     );
                   })}
                 </div>
-              )}
-
-              {(!document.history || document.history.length === 0) && isHistoryExpanded && (
+              ) : (
                 <div className="text-xs text-muted-foreground italic">
                   Nenhuma alteração registrada
                 </div>
