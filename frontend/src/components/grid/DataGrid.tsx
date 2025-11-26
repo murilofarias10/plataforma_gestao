@@ -90,12 +90,12 @@ export function DataGrid() {
 
   const columns = [
     { key: 'numeroItem', label: 'Nº Item', type: 'number', width: '0.8fr' },
-    { key: 'dataInicio', label: 'Data Início*', type: 'date', width: '1fr' },
+    { key: 'dataInicio', label: 'Data Início', type: 'date', width: '1fr' },
     { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
-    { key: 'documento', label: 'Tópico*', type: 'text', width: '2fr' },
+    { key: 'documento', label: 'Tópico', type: 'text', width: '2fr' },
     { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
-    { key: 'responsavel', label: 'Responsável*', type: 'text', width: '1.2fr' },
-    { key: 'status', label: 'Status*', type: 'select', width: '1.2fr' },
+    { key: 'responsavel', label: 'Responsável', type: 'text', width: '1.2fr' },
+    { key: 'status', label: 'Status', type: 'select', width: '1.2fr' },
     { key: 'attachments', label: 'Anexo', type: 'file', width: '0.8fr' },
   ];
 

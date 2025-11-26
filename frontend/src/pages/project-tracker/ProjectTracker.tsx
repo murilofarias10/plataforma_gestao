@@ -5,7 +5,7 @@ import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, ChevronDown, ChevronUp, Calendar, ArrowUp, RotateCcw } from "lucide-react";
+import { Database, ChevronDown, ChevronUp, Calendar, ArrowUp, RotateCcw, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MeetingRegistrationSection } from "@/components/project/MeetingRegistrationSection";
@@ -169,7 +169,7 @@ const ProjectTracker = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
-                      <Calendar className="h-5 w-5 text-primary" />
+                      <NotebookPen className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">Registrar Reunião</CardTitle>
