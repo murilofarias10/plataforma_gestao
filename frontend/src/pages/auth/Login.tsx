@@ -131,16 +131,6 @@ const Login = () => {
               )}
             </Button>
           </form>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Credenciais de teste:</p>
-            <p className="mt-1 font-mono text-xs">
-              Super Admin: admin@example.com / admin123
-            </p>
-            <p className="font-mono text-xs">
-              Visitor: visitor@example.com / visitor123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
