@@ -6,6 +6,16 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Database, Calendar, ArrowUp, RotateCcw, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -19,6 +29,7 @@ const ProjectTracker = () => {
   const meetingRef = useRef<MeetingRegistrationHandle>(null);
   const isEditMode = useMeetingContextStore((state) => state.isEditMode);
   const [canSaveMeeting, setCanSaveMeeting] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   
   const activeFiltersCount = 
     filters.statusFilter.length +
@@ -120,6 +131,15 @@ const ProjectTracker = () => {
     toast.success("Dados recarregados com sucesso!");
   };
 
+  const handleSaveClick = () => {
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowSaveConfirmation(false);
+    await meetingRef.current?.handleAddMeeting();
+  };
+
   if (isLoading) {
     return (
       <div className="h-full bg-background flex items-center justify-center">
@@ -182,7 +202,7 @@ const ProjectTracker = () => {
                       <Button 
                         size="sm" 
                         className="h-8 text-xs px-3"
-                        onClick={() => meetingRef.current?.handleAddMeeting()}
+                        onClick={handleSaveClick}
                         disabled={!canSaveMeeting}
                         type="button"
                       >
@@ -253,6 +273,29 @@ const ProjectTracker = () => {
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
+
+      {/* Save Confirmation Modal */}
+      <AlertDialog open={showSaveConfirmation} onOpenChange={setShowSaveConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isEditMode ? 'Confirmar criação de nova reunião' : 'Confirmar salvamento'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isEditMode 
+                ? 'Você está prestes a criar uma nova reunião baseada nos dados editados. Deseja continuar?'
+                : 'Tem certeza que deseja salvar esta reunião?'
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSave}>
+              {isEditMode ? 'Criar Nova Reunião' : 'Salvar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
