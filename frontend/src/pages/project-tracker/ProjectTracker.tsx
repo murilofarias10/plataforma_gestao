@@ -1,20 +1,24 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
+import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, ChevronDown, ChevronUp, Calendar, ArrowUp, RotateCcw, NotebookPen } from "lucide-react";
+import { Database, Calendar, ArrowUp, RotateCcw, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { MeetingRegistrationSection } from "@/components/project/MeetingRegistrationSection";
+import { MeetingRegistrationSection, MeetingRegistrationHandle } from "@/components/project/MeetingRegistrationSection";
 
 const ProjectTracker = () => {
   const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized, filters, resetFilters } = useProjectStore();
   const location = useLocation();
   const selectedProject = getSelectedProject();
   const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
+  const meetingRef = useRef<MeetingRegistrationHandle>(null);
+  const isEditMode = useMeetingContextStore((state) => state.isEditMode);
+  const [canSaveMeeting, setCanSaveMeeting] = useState(false);
   
   const activeFiltersCount = 
     filters.statusFilter.length +
@@ -166,22 +170,37 @@ const ProjectTracker = () => {
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => setIsMeetingsExpanded(!isMeetingsExpanded)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <NotebookPen className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Registrar Reunião</CardTitle>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <NotebookPen className="h-5 w-5 text-primary" />
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    {isMeetingsExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <div>
+                    <CardTitle className="text-lg">Cabeçalho</CardTitle>
+                  </div>
+                  {isMeetingsExpanded && (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        size="sm" 
+                        className="h-8 text-xs px-3"
+                        onClick={() => meetingRef.current?.handleAddMeeting()}
+                        disabled={!canSaveMeeting}
+                        type="button"
+                      >
+                        Salvar
+                      </Button>
+                      {isEditMode && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs px-3"
+                          onClick={() => meetingRef.current?.cancelEdit()}
+                          type="button"
+                        >
+                          Cancelar Edição
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               
@@ -190,7 +209,10 @@ const ProjectTracker = () => {
                 isMeetingsExpanded ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
               )}>
                 <CardContent className="pt-0">
-                  <MeetingRegistrationSection />
+                  <MeetingRegistrationSection 
+                    ref={meetingRef}
+                    onValidityChange={setCanSaveMeeting}
+                  />
                 </CardContent>
               </div>
             </Card>

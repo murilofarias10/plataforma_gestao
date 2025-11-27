@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { MeetingMetadata } from '@/types/project';
 import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,18 @@ import { useMeetingContextStore } from '@/stores/meetingContextStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
-export function MeetingRegistrationSection() {
+export interface MeetingRegistrationHandle {
+  handleAddMeeting: () => Promise<void>;
+  canAddMeeting: boolean;
+  isEditMode: boolean;
+  cancelEdit: () => Promise<void>;
+}
+
+interface MeetingRegistrationProps {
+  onValidityChange?: (isValid: boolean) => void;
+}
+
+export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, MeetingRegistrationProps>(({ onValidityChange }, ref) => {
   // Subscribe to projects array directly - Zustand will re-render when this changes
   const projects = useProjectStore((state) => state.projects);
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
@@ -240,7 +251,51 @@ export function MeetingRegistrationSection() {
     }
   }, [meetingData, meetingNumero, meetingDetalhes, meetingFornecedor, meetingDisciplina, meetingResumo, tempParticipants, projects, selectedProjectId, updateProject, addDocument, clearMeetingContext]);
 
-  const canAddMeeting = meetingData.trim() && meetingNumero.trim();
+  const canAddMeeting = Boolean(meetingData.trim() && meetingNumero.trim());
+
+  const cancelEdit = useCallback(async () => {
+    console.log('[MeetingRegistration] Canceling edit mode');
+    
+    // CLEANUP: Delete temporary duplicate documents
+    const contextState = useMeetingContextStore.getState();
+    const tempDuplicateIds = contextState.tempDuplicateIds || [];
+    
+    if (tempDuplicateIds.length > 0) {
+      console.log('[MeetingRegistration] Cleaning up', tempDuplicateIds.length, 'temporary duplicates...');
+      const deleteDocument = useProjectStore.getState().deleteDocument;
+      for (const tempId of tempDuplicateIds) {
+        console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
+        await deleteDocument(tempId);
+      }
+      console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
+    }
+    
+    // Clear context first to trigger table refresh
+    clearMeetingContext();
+    // Then clear ALL form fields
+    setMeetingData('');
+    setMeetingNumero('');
+    setMeetingDetalhes('');
+    setMeetingFornecedor('');
+    setMeetingDisciplina('');
+    setMeetingResumo('');
+    setNewParticipant('');
+    setTempParticipants([]);
+    console.log('[MeetingRegistration] Edit mode canceled, ready for new meeting');
+  }, [clearMeetingContext]);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleAddMeeting,
+    canAddMeeting,
+    isEditMode,
+    cancelEdit
+  }), [handleAddMeeting, canAddMeeting, isEditMode, cancelEdit]);
+
+  // Notify parent when validity changes
+  useEffect(() => {
+    onValidityChange?.(canAddMeeting);
+  }, [canAddMeeting, onValidityChange]);
 
   if (!selectedProject) {
     return null;
@@ -253,60 +308,6 @@ export function MeetingRegistrationSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="text-sm font-semibold text-foreground">
-          {isEditMode ? 'Editar Reunião' : 'Registrar Reunião'}
-        </div>
-        <Button 
-          size="sm" 
-          className="h-8 text-xs px-3"
-          onClick={handleAddMeeting}
-          disabled={!canAddMeeting}
-          type="button"
-        >
-          {isEditMode ? 'Atualizar Reunião' : 'Adicionar Reunião'}
-        </Button>
-        {isEditMode && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs px-3"
-            onClick={async () => {
-              console.log('[MeetingRegistration] Canceling edit mode');
-              
-              // CLEANUP: Delete temporary duplicate documents
-              const contextState = useMeetingContextStore.getState();
-              const tempDuplicateIds = contextState.tempDuplicateIds || [];
-              
-              if (tempDuplicateIds.length > 0) {
-                console.log('[MeetingRegistration] Cleaning up', tempDuplicateIds.length, 'temporary duplicates...');
-                const deleteDocument = useProjectStore.getState().deleteDocument;
-                for (const tempId of tempDuplicateIds) {
-                  console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
-                  await deleteDocument(tempId);
-                }
-                console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
-              }
-              
-              // Clear context first to trigger table refresh
-              clearMeetingContext();
-              // Then clear ALL form fields
-              setMeetingData('');
-              setMeetingNumero('');
-              setMeetingDetalhes('');
-              setMeetingFornecedor('');
-              setMeetingDisciplina('');
-              setMeetingResumo('');
-              setNewParticipant('');
-              setTempParticipants([]);
-              console.log('[MeetingRegistration] Edit mode canceled, ready for new meeting');
-            }}
-            type="button"
-          >
-            Cancelar Edição
-          </Button>
-        )}
-      </div>
       
       <div className="space-y-3">
         {/* First Row */}
@@ -463,5 +464,6 @@ export function MeetingRegistrationSection() {
 
     </div>
   );
-}
+});
 
+MeetingRegistrationSection.displayName = 'MeetingRegistrationSection';
