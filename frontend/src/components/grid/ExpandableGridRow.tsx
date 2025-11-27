@@ -86,19 +86,30 @@ export function ExpandableGridRow({
 
               {/* History List - Always shown when expanded */}
               {document.history && document.history.length > 0 ? (
-                <div className="space-y-1 max-h-60 overflow-y-auto pr-2">
+                <div 
+                  className="space-y-1 pr-2 history-scroll"
+                  style={{ 
+                    maxHeight: '200px',
+                    minHeight: '60px',
+                    overflowY: 'auto',
+                    overflowX: 'hidden'
+                  }}
+                >
                   {document.history.slice().reverse().map((change) => {
-                    // Only show changes where BOTH old and new values exist
-                    // Exception: attachment changes are shown if newValue exists (contains change details)
-                    const meaningfulChanges = change.changes.filter(
-                      (fc) => {
-                        if (fc.field === 'attachments') {
-                          // For attachments, show if newValue exists (contains change details)
-                          return fc.newValue !== null;
-                        }
-                        return fc.oldValue !== null && fc.newValue !== null;
+                    if (!change.changes || change.changes.length === 0) return null;
+
+                    // Filter out "(removido)" entries - only show meaningful changes
+                    // Show: changes with both old and new values, or only new value (added)
+                    // Hide: changes with only old value (removed)
+                    const meaningfulChanges = change.changes.filter((fc) => {
+                      // Always show attachments if newValue exists
+                      if (fc.field === 'attachments') {
+                        return fc.newValue !== null;
                       }
-                    );
+                      // Show if newValue exists (either both values or just new value)
+                      // Hide if only oldValue exists (removido)
+                      return fc.newValue !== null;
+                    });
 
                     if (meaningfulChanges.length === 0) return null;
 
