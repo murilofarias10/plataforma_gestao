@@ -89,14 +89,14 @@ export function DataGrid() {
   }, [selectedProjectId, nextNumeroItem]);
 
   const columns = [
-    { key: 'numeroItem', label: 'Nº Item', type: 'number', width: '0.8fr' },
-    { key: 'dataInicio', label: 'Data Início', type: 'date', width: '1fr' },
-    { key: 'dataFim', label: 'Data Fim', type: 'date', width: '1fr' },
-    { key: 'documento', label: 'Tópico', type: 'text', width: '2fr' },
-    { key: 'detalhe', label: 'Detalhe', type: 'text', width: '2fr' },
-    { key: 'responsavel', label: 'Responsável', type: 'text', width: '1.2fr' },
-    { key: 'status', label: 'Status', type: 'select', width: '1.2fr' },
-    { key: 'attachments', label: 'Anexo', type: 'file', width: '0.8fr' },
+    { key: 'numeroItem', label: 'Nº ITEM', type: 'number', width: '0.7fr' },
+    { key: 'dataInicio', label: 'DATA INÍCIO', type: 'date', width: '1fr' },
+    { key: 'dataFim', label: 'DATA FIM', type: 'date', width: '1fr' },
+    { key: 'documento', label: 'TÓPICO', type: 'text', width: '1.5fr' },
+    { key: 'detalhe', label: 'DETALHE', type: 'text', width: '3fr' },
+    { key: 'responsavel', label: 'RESPONSÁVEL', type: 'text', width: '1fr' },
+    { key: 'status', label: 'STATUS', type: 'select', width: '1fr' },
+    { key: 'attachments', label: 'ANEXO', type: 'file', width: '0.7fr' },
   ];
 
   const handleCellEdit = useCallback(async (id: string, field: string, value: any) => {

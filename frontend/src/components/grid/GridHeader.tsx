@@ -218,7 +218,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
             <div
               key={column.key}
               className={cn(
-                "p-2 text-xs font-medium border-r border-border last:border-r-0 min-h-[44px] flex items-center relative transition-all",
+                "p-2 text-xs font-medium border-r border-border last:border-r-0 min-h-[44px] flex items-center justify-center relative transition-all uppercase",
                 hasFilter && "cursor-pointer hover:opacity-90 text-white",
                 isActive && "z-[1001] ring-2 ring-inset ring-white/50"
               )}
