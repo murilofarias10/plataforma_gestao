@@ -47,7 +47,7 @@ export function ExpandableGridRow({
       <div className="flex">
         <button
           onClick={toggleExpanded}
-          className="w-[40px] p-2 hover:opacity-80 border-r border-b border-border flex items-center justify-center flex-shrink-0 transition-opacity"
+          className="w-[40px] min-h-[44px] p-2 hover:opacity-80 border-r border-b border-border flex items-center justify-center flex-shrink-0 transition-opacity"
           style={{ backgroundColor: isEven ? '#ffffff' : '#6BDDA9' }}
           title={isExpanded ? 'Recolher' : 'Expandir'}
         >

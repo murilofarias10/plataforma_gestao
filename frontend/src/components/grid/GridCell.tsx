@@ -114,7 +114,7 @@ export function GridCell({
 
     if (type === 'select') {
       return (
-        <div className="p-1">
+        <div className="p-2 w-full min-h-[44px] flex items-center">
           <Select
             value={localValue}
             onValueChange={(value) => {
@@ -123,10 +123,10 @@ export function GridCell({
               onStopEdit();
             }}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full text-xs h-auto">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="!z-[1002]" position="popper">
               <SelectItem value="A iniciar">A iniciar</SelectItem>
               <SelectItem value="Em andamento">Em andamento</SelectItem>
               <SelectItem value="Finalizado">Finalizado</SelectItem>
@@ -139,14 +139,14 @@ export function GridCell({
 
     if (type === 'text' && value && value.length > 50) {
       return (
-        <div className="p-1">
+        <div className="p-2 w-full min-h-[44px] flex items-start">
           <Textarea
             ref={textareaRef}
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="min-h-[60px] resize-none"
+            className="min-h-[60px] resize-none text-xs w-full"
             rows={3}
           />
         </div>
@@ -154,7 +154,7 @@ export function GridCell({
     }
 
     return (
-      <div className="p-1">
+      <div className="p-2 w-full min-h-[44px] flex items-center">
         <Input
           ref={inputRef}
           type="text"
@@ -187,7 +187,7 @@ export function GridCell({
           }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="border-0 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="border-0 shadow-none focus-visible:ring-1 focus-visible:ring-primary text-xs h-auto w-full"
           placeholder={type === 'date' ? 'dd-mm-aaaa' : ''}
           maxLength={type === 'date' ? 10 : undefined}
           inputMode={type === 'date' ? 'numeric' : undefined}
@@ -207,12 +207,12 @@ export function GridCell({
     
     return (
       <div
-        className={`grid-cell p-2 min-h-[40px] flex items-center ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`grid-cell p-2 min-h-[44px] w-full flex items-center ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
         onClick={canInteract ? onStartEdit : undefined}
         title={hasFiles ? (canCreate ? 'Gerenciar anexos' : 'Visualizar anexos') : (canCreate ? 'Anexar arquivo' : 'Sem anexos')}
       >
         {attachments.length > 0 ? (
-          <div className="flex items-center gap-1 text-sm">
+          <div className="flex items-center gap-1 text-xs w-full">
             <span className="text-primary">{attachments.length}</span>
             <span className="text-muted-foreground">
               {attachments.length === 1 ? 'arquivo' : 'arquivos'}
@@ -229,10 +229,10 @@ export function GridCell({
 
   return (
     <div
-      className={`grid-cell p-2 min-h-[40px] flex items-center ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`grid-cell p-2 min-h-[44px] w-full flex items-center ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
       onClick={isReadOnly ? undefined : onStartEdit}
     >
-      <span className="text-sm text-foreground truncate">
+      <span className="text-xs text-foreground truncate w-full">
         {formatDisplayValue(value) || (
           <span className="text-muted-foreground italic">
             {type === 'date' ? 'dd-mm-aaaa' : (isReadOnly ? '-' : 'Clique para editar')}

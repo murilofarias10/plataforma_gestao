@@ -67,22 +67,24 @@ export function GridRow({
         const value = document[column.key as keyof ProjectDocument];
 
         return (
-          <div key={column.key} className="border-r border-border last:border-r-0 min-w-0">
+          <div key={column.key} className="border-r border-border last:border-r-0 min-w-0 min-h-[44px] flex items-center w-full">
             {column.key === 'numeroItem' ? (
-              <div className="p-1 text-center text-sm font-medium text-muted-foreground">
+              <div className="p-2 w-full text-center text-xs font-medium text-muted-foreground">
                 {value as number}
               </div>
             ) : column.key === 'status' && !isEditing ? (
-              <button
-                type="button"
-                className={`p-1 w-full text-left ${canCreate ? 'hover:bg-muted/40 cursor-pointer' : 'cursor-default'}`}
-                onClick={canCreate ? () => onStartEdit(column.key) : undefined}
-                aria-label={canCreate ? "Editar status" : "Status (somente leitura)"}
-              >
-                <Badge variant={getStatusBadgeVariant(value as string)} className="text-xs">
-                  {value as string}
-                </Badge>
-              </button>
+              <div className="p-2 w-full flex items-center justify-center">
+                <button
+                  type="button"
+                  className={`${canCreate ? 'hover:bg-muted/40 cursor-pointer' : 'cursor-default'}`}
+                  onClick={canCreate ? () => onStartEdit(column.key) : undefined}
+                  aria-label={canCreate ? "Editar status" : "Status (somente leitura)"}
+                >
+                  <Badge variant={getStatusBadgeVariant(value as string)} className="text-xs">
+                    {value as string}
+                  </Badge>
+                </button>
+              </div>
             ) : (
               <GridCell
                 value={value}
