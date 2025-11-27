@@ -130,6 +130,7 @@ const defaultFilters: ProjectFilters = {
   areaFilter: [],
   responsavelFilter: [],
   responsavelSearch: '',
+  detalhesSearch: '',
   dateRange: {
     start: '',
     end: ''
@@ -663,10 +664,11 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   getFilteredDocuments: () => {
     const { documents, selectedProjectId, filters } = get();
     if (!selectedProjectId) return [];
-    const { searchQuery, statusFilter, areaFilter, responsavelFilter, responsavelSearch, dateRange } = filters;
+    const { searchQuery, statusFilter, areaFilter, responsavelFilter, responsavelSearch, detalhesSearch, dateRange } = filters;
 
     const q = (searchQuery || '').toLowerCase().trim();
     const respSearch = (responsavelSearch || '').toLowerCase().trim();
+    const detSearch = (detalhesSearch || '').toLowerCase().trim();
     const start = dateRange.start ? parseBRDateLocal(dateRange.start) : null;
     const end = dateRange.end ? parseBRDateLocal(dateRange.end) : null;
 
@@ -685,6 +687,12 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         if (respSearch) {
           const responsavelText = (d.responsavel || '').toLowerCase();
           if (!responsavelText.includes(respSearch)) return false;
+        }
+
+        // Text search filter for detalhes
+        if (detSearch) {
+          const detalhesText = (d.detalhe || '').toLowerCase();
+          if (!detalhesText.includes(detSearch)) return false;
         }
 
         if (start) {

@@ -50,7 +50,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
   }, [activeFilter]);
 
   const hasFilterForColumn = (columnKey: string) => {
-    return ['responsavel', 'dataInicio', 'dataFim', 'documento'].includes(columnKey);
+    return ['responsavel', 'dataInicio', 'dataFim', 'documento', 'detalhe'].includes(columnKey);
   };
 
   const isFilterActive = (columnKey: string) => {
@@ -63,6 +63,8 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
         return !!filters.dateRange.end;
       case 'documento':
         return !!filters.searchQuery;
+      case 'detalhe':
+        return !!filters.detalhesSearch;
       default:
         return false;
     }
@@ -95,10 +97,10 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
           <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
             <User className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
             <Input
-              placeholder="Buscar responsável..."
+              placeholder="Buscar resp..."
               value={filters.responsavelSearch || ""}
               onChange={(e) => setFilters({ responsavelSearch: e.target.value })}
-              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
+              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
               autoFocus
             />
           </div>
@@ -126,7 +128,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 setFilters({ dateRange: { ...filters.dateRange, start: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
+              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -158,7 +160,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 setFilters({ dateRange: { ...filters.dateRange, end: value } });
               }}
               placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
+              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
               maxLength={10}
               inputMode="numeric"
               autoComplete="off"
@@ -176,7 +178,21 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
               placeholder="Buscar..."
               value={filters.searchQuery}
               onChange={(e) => setFilters({ searchQuery: e.target.value })}
-              className="pl-7 pr-2 w-full text-xs h-7 bg-white"
+              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
+              autoFocus
+            />
+          </div>
+        );
+      
+      case 'detalhe':
+        return (
+          <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
+            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            <Input
+              placeholder="Buscar..."
+              value={filters.detalhesSearch || ""}
+              onChange={(e) => setFilters({ detalhesSearch: e.target.value })}
+              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
               autoFocus
             />
           </div>

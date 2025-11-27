@@ -77,6 +77,7 @@ export interface ProjectFilters {
   areaFilter: string[];
   responsavelFilter: string[];
   responsavelSearch: string;
+  detalhesSearch: string;
   dateRange: {
     start: string;
     end: string;
