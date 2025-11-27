@@ -234,7 +234,7 @@ export function GridCell({
     >
       <span className="text-xs text-foreground truncate w-full">
         {formatDisplayValue(value) || (
-          <span className="text-muted-foreground italic">
+          <span className="text-muted-foreground">
             {type === 'date' ? 'dd-mm-aaaa' : (isReadOnly ? '-' : 'Clique para editar')}
           </span>
         )}

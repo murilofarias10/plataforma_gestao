@@ -94,7 +94,7 @@ export function DataGrid() {
     { key: 'dataFim', label: 'DATA FIM', type: 'date', width: '1fr' },
     { key: 'documento', label: 'TÓPICO', type: 'text', width: '1.5fr' },
     { key: 'detalhe', label: 'DETALHE', type: 'text', width: '3fr' },
-    { key: 'responsavel', label: 'RESPONSÁVEL', type: 'text', width: '1fr' },
+    { key: 'responsavel', label: 'RESPONSÁVEL', type: 'text', width: '1.5fr' },
     { key: 'status', label: 'STATUS', type: 'select', width: '1fr' },
     { key: 'attachments', label: 'ANEXO', type: 'file', width: '0.7fr' },
   ];
