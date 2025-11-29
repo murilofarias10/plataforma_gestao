@@ -5,7 +5,10 @@ import { toast } from '@/hooks/use-toast';
 import { generateFieldChanges, createChangeLogEntry, debounce } from '@/lib/changeTracking';
 import { useMeetingContextStore } from './meetingContextStore';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+// Use relative URL in production, absolute URL in development
+const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:3001/api' 
+  : '/api';
 
 // API functions
 const apiCall = async (url: string, options: RequestInit = {}) => {
@@ -152,7 +155,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
       set({ isLoading: true });
       const response = await projectsApi.create(project);
       
-      if (response.success) {
+      if (response.success && response.project) {
         const newProject = {
           ...response.project,
           createdAt: new Date(response.project.createdAt),
@@ -165,15 +168,20 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           selectedProjectId: state.selectedProjectId || newProject.id,
           isLoading: false,
         }));
+        
+        return newProject;
+      } else {
+        throw new Error(response.error || 'Failed to create project');
       }
     } catch (error) {
       console.error('Error adding project:', error);
       set({ isLoading: false });
       toast({
         title: 'Erro',
-        description: 'Erro ao criar projeto',
+        description: error instanceof Error ? error.message : 'Erro ao criar projeto',
         variant: 'destructive',
       });
+      throw error; // Re-throw so caller knows it failed
     }
   },
 

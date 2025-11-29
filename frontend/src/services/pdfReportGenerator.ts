@@ -1003,7 +1003,8 @@ export class PDFReportGenerator {
   private async fetchAttachmentsFromBackend(projectId: string, documentId: string): Promise<any[]> {
     try {
       const cacheBuster = `?t=${Date.now()}`;
-      const response = await fetch(`http://localhost:3001/api/files/${projectId}/${documentId}${cacheBuster}`, {
+      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+      const response = await fetch(`${apiBase}/api/files/${projectId}/${documentId}${cacheBuster}`, {
         cache: 'no-store' // Prevent caching
       });
       const result = await response.json();

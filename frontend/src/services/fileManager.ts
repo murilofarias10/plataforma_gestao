@@ -6,7 +6,10 @@ import { ProjectAttachment } from "@/types/project";
  * Now integrated with backend API
  */
 
-const API_BASE_URL = 'http://localhost:3001/api';
+// Use relative URL in production, absolute URL in development
+const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:3001/api' 
+  : '/api';
 
 export interface FileUploadResult {
   success: boolean;

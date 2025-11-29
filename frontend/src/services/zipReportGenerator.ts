@@ -169,7 +169,8 @@ export class ZIPReportGenerator {
   private async fetchAttachmentsFromBackend(projectId: string, documentId: string): Promise<any[]> {
     try {
       const cacheBuster = `?t=${Date.now()}`;
-      const response = await fetch(`http://localhost:3001/api/files/${projectId}/${documentId}${cacheBuster}`, {
+      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+      const response = await fetch(`${apiBase}/api/files/${projectId}/${documentId}${cacheBuster}`, {
         cache: 'no-store' // Prevent caching
       });
       const result = await response.json();
@@ -237,7 +238,8 @@ export class ZIPReportGenerator {
 
         // Fetch the file from the backend with cache-busting parameter
         const cacheBuster = `?t=${Date.now()}`;
-        const fileUrl = `http://localhost:3001${attachment.filePath}${cacheBuster}`;
+        const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+        const fileUrl = `${apiBase}${attachment.filePath}${cacheBuster}`;
         console.log(`Fetching file from: ${fileUrl}`);
         
         const response = await fetch(fileUrl, {

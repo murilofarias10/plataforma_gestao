@@ -40,19 +40,29 @@ export function ProjectSelector({ className }: ProjectSelectorProps) {
     setSelectedProject(projectId);
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = async () => {
     if (newProjectName.trim()) {
-      addProject({
-        name: newProjectName.trim(),
-        description: newProjectDescription.trim() || undefined,
-      });
-      setNewProjectName("");
-      setNewProjectDescription("");
-      setIsAddDialogOpen(false);
-      toast({
-        title: "Projeto criado",
-        description: `Projeto "${newProjectName.trim()}" foi criado com sucesso.`,
-      });
+      const projectName = newProjectName.trim();
+      const projectDescription = newProjectDescription.trim() || undefined;
+      
+      try {
+        await addProject({
+          name: projectName,
+          description: projectDescription,
+        });
+        
+        // Only clear and close on success
+        setNewProjectName("");
+        setNewProjectDescription("");
+        setIsAddDialogOpen(false);
+        toast({
+          title: "Projeto criado",
+          description: `Projeto "${projectName}" foi criado com sucesso.`,
+        });
+      } catch (error) {
+        // Error toast is handled by the store
+        console.error('Error creating project:', error);
+      }
     }
   };
 
