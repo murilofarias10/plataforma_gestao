@@ -1,5 +1,5 @@
-import { useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +21,7 @@ import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const projects = useProjectStore((state) => state.projects);
   const documents = useProjectStore((state) => state.documents);
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
@@ -110,9 +111,11 @@ const MeetingEnvironment = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
   const [expandedMeetingItems, setExpandedMeetingItems] = useState<Set<string>>(new Set());
+  const [editConflictDialogOpen, setEditConflictDialogOpen] = useState(false);
+  const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<MeetingMetadata | null>(null);
   const { openMeetingDialog } = useMeetingReportStore();
   const { canDelete } = usePermissions();
-  const { startEditMeeting } = useMeetingContextStore();
+  const { startEditMeeting, isEditMode, clearMeetingContext } = useMeetingContextStore();
 
   const toggleMeetingItems = useCallback((meetingId: string) => {
     setExpandedMeetingItems((prev) => {
@@ -187,6 +190,25 @@ const MeetingEnvironment = () => {
 
   const handleEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
     console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
+    
+    // CHECK: Is there already an active edit in progress?
+    const currentEditState = useMeetingContextStore.getState();
+    if (currentEditState.isEditMode) {
+      console.log('[MeetingEnvironment] ⚠️ Active edit detected! Meeting:', currentEditState.editingMeetingId);
+      console.log('[MeetingEnvironment] User is trying to open another meeting:', meeting.id);
+      
+      // Store the meeting to edit and show conflict dialog
+      setPendingMeetingToEdit(meeting);
+      setEditConflictDialogOpen(true);
+      return;
+    }
+    
+    // No active edit, proceed with opening the meeting
+    await proceedWithEditMeeting(meeting);
+  }, [navigate, startEditMeeting, documents]);
+
+  const proceedWithEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
+    console.log('[MeetingEnvironment] Proceeding with edit for meeting:', meeting.id);
     console.log('[MeetingEnvironment] Meeting document IDs:', meeting.relatedDocumentIds);
     console.log('[MeetingEnvironment] Meeting item numbers (legacy):', meeting.relatedItems);
     
@@ -263,6 +285,51 @@ const MeetingEnvironment = () => {
     }
     return [];
   }, [documents]);
+
+  // Handle pending meeting to edit after save
+  useEffect(() => {
+    const handleOpenMeeting = async () => {
+      const locationState = location.state as any;
+      if (locationState?.openMeetingToEdit) {
+        console.log('[MeetingEnvironment] Opening pending meeting after save:', locationState.openMeetingToEdit.id);
+        
+        // Get the current context state BEFORE clearing
+        const contextState = useMeetingContextStore.getState();
+        const oldTempIds = contextState.tempDuplicateIds || [];
+        
+        console.log('[MeetingEnvironment] Old temp duplicate IDs to clean up:', oldTempIds);
+        
+        // Clear the previous meeting context first
+        const { clearMeetingContext } = useMeetingContextStore.getState();
+        clearMeetingContext();
+        console.log('[MeetingEnvironment] Cleared previous meeting context');
+        
+        // CRITICAL: Clean up any remaining temporary duplicates from the previous meeting
+        if (oldTempIds.length > 0) {
+          console.log('[MeetingEnvironment] Cleaning up remaining temp duplicates:', oldTempIds);
+          const { deleteDocument } = useProjectStore.getState();
+          
+          // Delete all temp duplicates and wait for them to complete
+          const deletePromises = oldTempIds.map(tempId => {
+            console.log('[MeetingEnvironment] Deleting temp duplicate:', tempId);
+            return deleteDocument(tempId);
+          });
+          
+          // Wait for all deletions to complete
+          await Promise.all(deletePromises);
+          console.log('[MeetingEnvironment] ✓ All temp duplicates deleted');
+        }
+        
+        // Small delay to ensure state updates after deletions
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        console.log('[MeetingEnvironment] Now proceeding with edit for new meeting');
+        proceedWithEditMeeting(locationState.openMeetingToEdit);
+      }
+    };
+    
+    handleOpenMeeting();
+  }, [location.state, proceedWithEditMeeting]);
 
   return (
     <div className="h-full bg-background overflow-hidden">
@@ -616,6 +683,46 @@ const MeetingEnvironment = () => {
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Conflict Dialog - When user tries to edit another meeting while one is already being edited */}
+      <Dialog open={editConflictDialogOpen} onOpenChange={setEditConflictDialogOpen}>
+        <DialogContent className="sm:max-w-md backdrop-blur-md bg-background/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Reunião em Edição
+            </DialogTitle>
+            <DialogDescription className="space-y-3 mt-4">
+              <p>Você está editando uma reunião no momento. Deseja salvar como uma nova reunião e abrir a outra?</p>
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditConflictDialogOpen(false);
+                setPendingMeetingToEdit(null);
+              }}
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={() => {
+                console.log('[MeetingEnvironment] User chose to save and open new meeting');
+                setEditConflictDialogOpen(false);
+                // Navigate to project-tracker to save first, then open the new meeting
+                // Pass autoSave flag to trigger save immediately
+                navigate("/project-tracker", { state: { focus: "meetings", editMode: true, pendingMeetingToEdit, autoSave: true } });
+                setPendingMeetingToEdit(null);
+              }}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

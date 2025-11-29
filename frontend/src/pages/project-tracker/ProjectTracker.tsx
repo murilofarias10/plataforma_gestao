@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { useProjectStore } from "@/stores/projectStore";
@@ -24,12 +24,15 @@ import { MeetingRegistrationSection, MeetingRegistrationHandle } from "@/compone
 const ProjectTracker = () => {
   const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized, filters, resetFilters } = useProjectStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const selectedProject = getSelectedProject();
   const [isMeetingsExpanded, setIsMeetingsExpanded] = useState(false);
   const meetingRef = useRef<MeetingRegistrationHandle>(null);
   const isEditMode = useMeetingContextStore((state) => state.isEditMode);
   const [canSaveMeeting, setCanSaveMeeting] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<any>(null);
+  const shouldAutoSaveRef = useRef(false);
   
   const activeFiltersCount = 
     filters.statusFilter.length +
@@ -39,8 +42,19 @@ const ProjectTracker = () => {
     (filters.responsavelSearch ? 1 : 0) +
     (filters.dateRange.start || filters.dateRange.end ? 1 : 0);
   useEffect(() => {
-    if (location.state && typeof location.state === "object" && (location.state as { focus?: string }).focus === "meetings") {
-      setIsMeetingsExpanded(true);
+    if (location.state && typeof location.state === "object") {
+      const state = location.state as any;
+      if (state.focus === "meetings") {
+        setIsMeetingsExpanded(true);
+      }
+      if (state.pendingMeetingToEdit) {
+        setPendingMeetingToEdit(state.pendingMeetingToEdit);
+      }
+      // If autoSave flag is set, mark that we should auto-save
+      if (state.autoSave && state.pendingMeetingToEdit) {
+        console.log('[ProjectTracker] Auto-save flag received from meeting-environment');
+        shouldAutoSaveRef.current = true;
+      }
     }
   }, [location.state]);
 
@@ -135,10 +149,46 @@ const ProjectTracker = () => {
     setShowSaveConfirmation(true);
   };
 
-  const handleConfirmSave = async () => {
+  const handleConfirmSave = useCallback(async () => {
     setShowSaveConfirmation(false);
-    await meetingRef.current?.handleAddMeeting();
-  };
+    
+    try {
+      // Save the current meeting
+      await meetingRef.current?.handleAddMeeting();
+      
+      // Check if there's a pending meeting to edit after save
+      if (pendingMeetingToEdit) {
+        console.log('[ProjectTracker] Saved current meeting, now opening pending meeting:', pendingMeetingToEdit.id);
+        
+        // Wait a bit for save to complete and state to update
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Navigate back to meeting-environment to open the pending meeting
+        console.log('[ProjectTracker] Navigating back to meeting-environment with pending meeting');
+        navigate("/meeting-environment", { 
+          state: { 
+            openMeetingToEdit: pendingMeetingToEdit 
+          } 
+        });
+        setPendingMeetingToEdit(null);
+      }
+    } catch (error) {
+      console.error('[ProjectTracker] Error saving meeting:', error);
+    }
+  }, [pendingMeetingToEdit, navigate]);
+
+  // Auto-save effect - triggered when coming from meeting-environment with autoSave flag
+  useEffect(() => {
+    const performAutoSave = async () => {
+      if (shouldAutoSaveRef.current && canSaveMeeting && isEditMode) {
+        console.log('[ProjectTracker] Triggering auto-save...');
+        shouldAutoSaveRef.current = false;
+        await handleConfirmSave();
+      }
+    };
+    
+    performAutoSave();
+  }, [canSaveMeeting, isEditMode, handleConfirmSave]);
 
   if (isLoading) {
     return (
