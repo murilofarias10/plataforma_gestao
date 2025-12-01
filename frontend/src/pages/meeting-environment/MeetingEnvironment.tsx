@@ -16,7 +16,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle } from "lucide-react";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -117,7 +117,7 @@ const MeetingEnvironment = () => {
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<MeetingMetadata | null>(null);
   const { openMeetingDialog } = useMeetingReportStore();
   const { canDelete } = usePermissions();
-  const { startEditMeeting, isEditMode, clearMeetingContext } = useMeetingContextStore();
+  const { startEditMeeting, isEditMode, clearMeetingContext, editingMeetingId } = useMeetingContextStore();
 
   const toggleMeetingItems = useCallback((meetingId: string) => {
     setExpandedMeetingItems((prev) => {
@@ -447,18 +447,36 @@ const MeetingEnvironment = () => {
                           const relatedDocuments = getMeetingRelatedDocuments(meeting);
                           const hasRelatedItems = relatedDocuments.length > 0;
                           const isItemsExpanded = expandedMeetingItems.has(meeting.id);
+                          const isCurrentlyOpen = editingMeetingId === meeting.id;
                           
                           return (
-                            <div key={meeting.id} className="border-b border-border last:border-b-0">
+                            <div key={meeting.id} className="border-b border-border last:border-b-0 relative">
+                              {isCurrentlyOpen && (
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-teal-500 z-10" />
+                              )}
                               <div 
-                                className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:opacity-90 transition-all"
-                                style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#6BDDA9' }}
+                                className={`grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:opacity-90 transition-all relative ${
+                                  isCurrentlyOpen ? 'ring-2 ring-teal-500 ring-offset-1 bg-teal-50/30' : ''
+                                }`}
+                                style={{ 
+                                  backgroundColor: isCurrentlyOpen 
+                                    ? (index % 2 === 0 ? '#f0fdfa' : '#b2f5ea')
+                                    : (index % 2 === 0 ? '#ffffff' : '#6BDDA9')
+                                }}
                               >
                                 {/* First Column: Date, Numero Ata, Participants, Fornecedor, Disciplina */}
                                 <div className="space-y-1">
-                                  <div className="text-xs">
-                                    <span className="font-semibold text-foreground">Data:</span>{' '}
-                                    <span className="text-muted-foreground">{meeting.data}</span>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="text-xs">
+                                      <span className="font-semibold text-foreground">Data:</span>{' '}
+                                      <span className="text-muted-foreground">{meeting.data}</span>
+                                    </div>
+                                    {isCurrentlyOpen && (
+                                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500 text-white text-xs font-medium shadow-sm">
+                                        <Circle className="h-2.5 w-2.5 fill-current" />
+                                        <span>Aberto</span>
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="text-xs">
                                     <span className="font-semibold text-foreground">Número da Ata:</span>{' '}
