@@ -85,8 +85,11 @@ export class PDFReportGenerator {
 
   async generateComprehensiveReport(meeting?: MeetingMetadata): Promise<void> {
     try {
-      // Capture screenshots from both pages
-      const screenshots = await this.captureAllScreenshots();
+      // Reset PDF instance to ensure fresh start
+      this.pdf = new jsPDF('l', 'mm', 'a4');
+      this.pageHeight = this.pdf.internal.pageSize.height;
+      this.pageWidth = this.pdf.internal.pageSize.width;
+      this.currentY = this.margin;
       
       // Get current data from stores
       const projectStore = useProjectStore.getState();
@@ -96,20 +99,67 @@ export class PDFReportGenerator {
         throw new Error('Nenhum projeto selecionado');
       }
 
+      // For meeting reports, we don't need screenshots
+      if (!meeting) {
+        // Capture screenshots from both pages only for general reports
+        const screenshots = await this.captureAllScreenshots();
+        // ... rest of general report logic would go here if needed
+      }
+
       // Generate timestamp once to use consistently
       const timestamp = this.formatDateTimeForDisplay();
       const timestampForFilename = timestamp.replace(/[:\/ ]/g, (match) => match === '/' ? '-' : '_');
 
-      // Collect all attachments for the project
-      const allAttachments = await this.collectAllAttachments(selectedProject.id);
+      // Get meeting-related documents if meeting is provided
+      let meetingDocuments: any[] = [];
+      let meetingDocumentIds: string[] = [];
+      
+      if (meeting) {
+        const allDocuments = projectStore.documents;
+        // Use relatedDocumentIds (new) or fall back to relatedItems (old) for backward compatibility
+        if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+          meetingDocumentIds = [...meeting.relatedDocumentIds]; // Create a copy to avoid mutations
+          meetingDocuments = allDocuments.filter(doc => meetingDocumentIds.includes(doc.id));
+        } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+          // Old method: filter by item numbers (backward compatibility)
+          meetingDocuments = allDocuments.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
+          meetingDocumentIds = meetingDocuments.map(doc => doc.id);
+        }
+        console.log(`[PDF Report] Meeting ${meeting.numeroAta || meeting.id}: Found ${meetingDocuments.length} related documents`);
+        console.log(`[PDF Report] Meeting document IDs:`, meetingDocumentIds);
+        console.log(`[PDF Report] Meeting document names:`, meetingDocuments.map(d => d.documento));
+      }
+
+      // Collect attachments - if meeting is provided, only collect for meeting documents
+      // IMPORTANT: Pass a fresh copy of document IDs to avoid any caching issues
+      // If meeting has no documents, pass empty array explicitly (not undefined)
+      let allAttachments: any[] = [];
+      if (meeting) {
+        if (meetingDocumentIds.length > 0) {
+          allAttachments = await this.collectAllAttachments(
+            selectedProject.id,
+            [...meetingDocumentIds]
+          );
+        } else {
+          // Meeting has no documents, so no attachments
+          console.log(`[PDF Report] Meeting ${meeting.numeroAta || meeting.id} has no documents, returning empty attachments`);
+          allAttachments = [];
+        }
+      } else {
+        // General report (no meeting)
+        allAttachments = await this.collectAllAttachments(selectedProject.id, undefined);
+      }
       const totalSize = this.calculateTotalSize(allAttachments);
+      
+      console.log(`[PDF Report] Final attachment count: ${allAttachments.length}, total size: ${totalSize}`);
 
       const reportData: ReportData = {
         projectTracker: {
           kpiData: projectStore.getKpiData(),
           timelineData: projectStore.getTimelineData(),
           statusDistribution: projectStore.getStatusDistribution(),
-          documents: projectStore.getFilteredDocuments(),
+          // If meeting is provided, use meeting documents; otherwise use all filtered documents
+          documents: meeting ? meetingDocuments : projectStore.getFilteredDocuments(),
           filters: projectStore.filters
         },
         documentMonitor: {
@@ -137,19 +187,22 @@ export class PDFReportGenerator {
         };
       }
 
-      // Generate PDF content with screenshots
-      await this.generatePDFContent(reportData, screenshots);
+      // Generate PDF content (no screenshots needed for meeting reports)
+      await this.generatePDFContent(reportData, {});
       
-      // Save the PDF with same timestamp
-      const sanitizedProject = selectedProject.name.replace(/\s+/g, '_');
-      let fileName = `Relatorio_${sanitizedProject}_${timestampForFilename}.pdf`;
+      // For meeting reports, open PDF in new tab instead of downloading
       if (meeting) {
-        const meetingIdentifier = (meeting.numeroAta || meeting.data || meeting.id || 'reuniao')
-          .toString()
-          .replace(/[^\w\-]+/g, '_');
-        fileName = `Relatorio_Reuniao_${meetingIdentifier}_${timestampForFilename}.pdf`;
+        const pdfBlob = this.pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, '_blank');
+        // Clean up the URL after a delay (give browser time to open the tab)
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+      } else {
+        // For general reports, download as before
+        const sanitizedProject = selectedProject.name.replace(/\s+/g, '_');
+        const fileName = `Relatorio_${sanitizedProject}_${timestampForFilename}.pdf`;
+        this.pdf.save(fileName);
       }
-      this.pdf.save(fileName);
       
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
@@ -222,23 +275,45 @@ export class PDFReportGenerator {
     this.addCoverPage(data.projectInfo);
     this.addNewPage();
 
-    // Project Tracker section
-    this.addSectionHeader('PROJECT TRACKER');
+    // If this is a meeting report, show simplified version
     if (data.meeting) {
+      // Meeting Overview section
+      this.addSectionHeader('RESUMO DA REUNIÃO');
       this.addMeetingOverview(data.meeting);
       this.currentY += 10;
+      this.addNewPage();
+
+      // Meeting Items section (Itens da Reunião)
+      this.addSectionHeader('ITENS DA REUNIÃO');
+      if (data.projectTracker.documents.length > 0) {
+        this.addDocumentsTable(data.projectTracker.documents);
+      } else {
+        this.pdf.setFontSize(10);
+        this.pdf.setFont('helvetica', 'normal');
+        this.pdf.text('Nenhum item encontrado para esta reunião.', this.margin, this.currentY);
+        this.currentY += this.lineHeight;
+      }
+      this.addNewPage();
+
+      // Attachments section
+      this.addSectionHeader('ANEXOS');
+      this.addAttachmentsContent(data.attachments);
+    } else {
+      // General report (keep original structure)
+      // Project Tracker section
+      this.addSectionHeader('PROJECT TRACKER');
+      await this.addProjectTrackerContent(data.projectTracker, screenshots);
+      this.addNewPage();
+
+      // Document Monitor section
+      this.addSectionHeader('MONITOR DE DOCUMENTOS');
+      await this.addDocumentMonitorContent(data.documentMonitor, screenshots);
+      this.addNewPage();
+
+      // Attachments section
+      this.addSectionHeader('ANEXOS');
+      this.addAttachmentsContent(data.attachments);
     }
-    await this.addProjectTrackerContent(data.projectTracker, screenshots);
-    this.addNewPage();
-
-    // Document Monitor section
-    this.addSectionHeader('MONITOR DE DOCUMENTOS');
-    await this.addDocumentMonitorContent(data.documentMonitor, screenshots);
-    this.addNewPage();
-
-    // Attachments section
-    this.addSectionHeader('ANEXOS');
-    this.addAttachmentsContent(data.attachments);
   }
   
   private async expandChartsSection(): Promise<void> {
@@ -947,50 +1022,122 @@ export class PDFReportGenerator {
 
   /**
    * Collect attachments only for filtered documents
+   * @param projectId - The project ID
+   * @param documentIds - Optional: specific document IDs to collect attachments for (for meeting-specific reports)
    */
-  private async collectAllAttachments(projectId: string): Promise<any[]> {
+  private async collectAllAttachments(projectId: string, documentIds?: string[]): Promise<any[]> {
     try {
+      // Always start with a fresh, empty array
       const allAttachments: any[] = [];
       
-      // Get FILTERED documents from the project store (same as used in the report)
+      // Get documents - if documentIds provided, filter by them; otherwise use filtered documents
       const projectStore = useProjectStore.getState();
-      const filteredDocuments = projectStore.getFilteredDocuments(); // This respects current filters
+      let targetDocuments: any[] = [];
       
-      // Log for debugging
-      console.log('Collecting attachments for filtered documents:', {
-        totalFilteredDocuments: filteredDocuments.length,
-        activeFilters: projectStore.filters,
-        documentIds: filteredDocuments.map(d => ({ id: d.id, name: d.documento, status: d.status }))
-      });
+      if (documentIds && documentIds.length > 0) {
+        // For meeting-specific reports: only collect attachments for meeting documents
+        // Create a Set for faster lookup and ensure we only get exact matches
+        const documentIdsSet = new Set(documentIds);
+        targetDocuments = projectStore.documents.filter(doc => documentIdsSet.has(doc.id));
+        console.log('[collectAllAttachments] Collecting attachments for meeting documents:', {
+          requestedDocumentIds: documentIds,
+          totalMeetingDocuments: targetDocuments.length,
+          foundDocumentIds: targetDocuments.map(d => d.id),
+          documentNames: targetDocuments.map(d => ({ id: d.id, name: d.documento, status: d.status }))
+        });
+      } else if (!documentIds) {
+        // For general reports: use filtered documents (only if documentIds is undefined, not empty array)
+        targetDocuments = projectStore.getFilteredDocuments();
+        console.log('[collectAllAttachments] Collecting attachments for filtered documents:', {
+          totalFilteredDocuments: targetDocuments.length,
+          activeFilters: projectStore.filters,
+          documentIds: targetDocuments.map(d => ({ id: d.id, name: d.documento, status: d.status }))
+        });
+      } else {
+        // Empty documentIds array means no documents for this meeting
+        console.log('[collectAllAttachments] No documents provided (empty array), returning empty attachments');
+        return [];
+      }
       
-      // Collect attachments only for filtered documents
-      for (const document of filteredDocuments) {
-        // Get attachments from fileManager (which stores original names in localStorage)
-        let documentAttachments = fileManager.getDocumentAttachments(projectId, document.id);
+      // If no target documents, return empty array immediately
+      if (targetDocuments.length === 0) {
+        console.log('[collectAllAttachments] No target documents found, returning empty attachments');
+        return [];
+      }
+      
+      // Collect attachments only for target documents
+      // Use a Set to track document IDs we've already processed to avoid duplicates
+      const processedDocumentIds = new Set<string>();
+      
+      for (const document of targetDocuments) {
+        // Skip if we've already processed this document (safety check)
+        if (processedDocumentIds.has(document.id)) {
+          console.warn(`[collectAllAttachments] Skipping duplicate document: ${document.id}`);
+          continue;
+        }
+        processedDocumentIds.add(document.id);
         
-        // If no attachments in localStorage, fetch from backend
-        if (documentAttachments.length === 0) {
-          documentAttachments = await this.fetchAttachmentsFromBackend(projectId, document.id);
+        let documentAttachments: any[] = [];
+        
+        // First, check if document has attachments directly stored
+        if (document.attachments && Array.isArray(document.attachments) && document.attachments.length > 0) {
+          // Create a fresh copy to avoid any reference issues
+          documentAttachments = document.attachments.map(att => ({ ...att }));
+          console.log(`[collectAllAttachments] Document ${document.documento} (${document.id}): Found ${documentAttachments.length} attachments in document.attachments`);
         }
         
-        console.log(`Document ${document.documento} (${document.id}): ${documentAttachments.length} attachments`);
-        documentAttachments.forEach(att => console.log(`  - ${att.fileName}`));
+        // If no attachments in document, try fileManager (which stores original names in localStorage)
+        if (documentAttachments.length === 0) {
+          const fileManagerAttachments = fileManager.getDocumentAttachments(projectId, document.id);
+          if (fileManagerAttachments && fileManagerAttachments.length > 0) {
+            // Create a fresh copy
+            documentAttachments = fileManagerAttachments.map(att => ({ ...att }));
+            console.log(`[collectAllAttachments] Document ${document.documento} (${document.id}): Found ${documentAttachments.length} attachments in fileManager`);
+          }
+        }
         
+        // If still no attachments, fetch from backend
+        if (documentAttachments.length === 0) {
+          documentAttachments = await this.fetchAttachmentsFromBackend(projectId, document.id);
+          if (documentAttachments.length > 0) {
+            console.log(`[collectAllAttachments] Document ${document.documento} (${document.id}): Found ${documentAttachments.length} attachments from backend`);
+          }
+        }
+        
+        console.log(`[collectAllAttachments] Document ${document.documento} (${document.id}): Total ${documentAttachments.length} attachments`);
+        documentAttachments.forEach(att => console.log(`  - ${att.fileName || att.originalName || 'Unknown'}`));
+        
+        // Process each attachment and add to the collection
         documentAttachments.forEach(attachment => {
           // Ensure uploadedAt is properly handled
           const processedAttachment = {
-            ...attachment,
+            id: attachment.id || `${document.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            fileName: attachment.fileName || attachment.originalName || 'Unknown',
+            fileSize: attachment.fileSize || 0,
+            fileType: attachment.fileType || this.getFileTypeFromExtension(attachment.fileName || attachment.originalName || ''),
+            uploadedAt: attachment.uploadedAt instanceof Date ? attachment.uploadedAt : new Date(attachment.uploadedAt || Date.now()),
+            filePath: attachment.filePath || attachment.path || '',
             documentName: document.documento || 'Documento sem nome',
             documentId: document.id,
-            uploadedAt: attachment.uploadedAt instanceof Date ? attachment.uploadedAt : new Date(attachment.uploadedAt)
           };
           allAttachments.push(processedAttachment);
         });
       }
       
-      console.log(`Total attachments collected: ${allAttachments.length}`);
+      console.log(`[collectAllAttachments] Total attachments collected: ${allAttachments.length}`);
+      if (allAttachments.length > 0) {
+        console.log(`[collectAllAttachments] Attachments breakdown:`, allAttachments.map(att => ({
+          document: att.documentName,
+          fileName: att.fileName,
+          documentId: att.documentId
+        })));
+      } else {
+        console.log(`[collectAllAttachments] No attachments found for the provided documents`);
+      }
       
-      return allAttachments;
+      // Return a fresh copy to avoid any reference issues
+      // Always return a new array, even if empty
+      return allAttachments.length > 0 ? [...allAttachments] : [];
     } catch (error) {
       console.error('Error collecting attachments:', error);
       return [];
@@ -1061,16 +1208,21 @@ export class PDFReportGenerator {
    * Add attachments content to PDF
    */
   private addAttachmentsContent(attachmentsData: any): void {
+    // Ensure we have valid data
+    const allAttachments = attachmentsData.allAttachments || [];
+    const totalFiles = allAttachments.length;
+    const totalSize = attachmentsData.totalSize || '0 B';
+    
     // Summary
     this.addSubsectionHeader('Resumo dos Anexos');
     this.pdf.setFontSize(10);
     this.pdf.setFont('helvetica', 'normal');
-    this.pdf.text(`Total de arquivos: ${attachmentsData.totalFiles}`, this.margin, this.currentY);
+    this.pdf.text(`Total de arquivos: ${totalFiles}`, this.margin, this.currentY);
     this.currentY += this.lineHeight;
-    this.pdf.text(`Tamanho total: ${attachmentsData.totalSize}`, this.margin, this.currentY);
+    this.pdf.text(`Tamanho total: ${totalSize}`, this.margin, this.currentY);
     this.currentY += 10;
 
-    if (attachmentsData.allAttachments.length === 0) {
+    if (totalFiles === 0 || allAttachments.length === 0) {
       this.pdf.text('Nenhum anexo encontrado', this.margin, this.currentY);
       this.currentY += this.lineHeight;
       return;
@@ -1096,7 +1248,7 @@ export class PDFReportGenerator {
 
     // Table rows
     this.pdf.setFont('helvetica', 'normal');
-    attachmentsData.allAttachments.forEach(attachment => {
+    allAttachments.forEach(attachment => {
       if (this.currentY > this.pageHeight - 30) {
         this.addNewPage();
         // Re-add header on new page
@@ -1114,10 +1266,12 @@ export class PDFReportGenerator {
       }
       
       // Truncate text to fit columns
-      this.pdf.text(attachment.documentName.substring(0, 20), this.margin, this.currentY);
-      this.pdf.text(attachment.fileName.substring(0, 18), this.margin + 50, this.currentY);
-      this.pdf.text(this.getFileTypeDisplay(attachment.fileType), this.margin + 100, this.currentY);
-      this.pdf.text(fileManager.formatFileSize(attachment.fileSize), this.margin + 130, this.currentY);
+      const docName = attachment.documentName || 'Documento sem nome';
+      const fileName = attachment.fileName || attachment.originalName || 'Arquivo sem nome';
+      this.pdf.text(docName.substring(0, 20), this.margin, this.currentY);
+      this.pdf.text(fileName.substring(0, 18), this.margin + 50, this.currentY);
+      this.pdf.text(this.getFileTypeDisplay(attachment.fileType || ''), this.margin + 100, this.currentY);
+      this.pdf.text(fileManager.formatFileSize(attachment.fileSize || 0), this.margin + 130, this.currentY);
       
       // Format date more compactly
       const dateStr = this.formatUploadDateCompact(attachment.uploadedAt);
