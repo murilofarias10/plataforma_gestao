@@ -28,6 +28,8 @@ const MeetingEnvironment = () => {
   const updateProject = useProjectStore((state) => state.updateProject);
   const deleteDocument = useProjectStore((state) => state.deleteDocument);
   const getSelectedProject = useProjectStore((state) => state.getSelectedProject);
+  const loadDocumentsForProject = useProjectStore((state) => state.loadDocumentsForProject);
+  const loadData = useProjectStore((state) => state.loadData);
 
   const selectedProject = getSelectedProject();
 
@@ -188,25 +190,6 @@ const MeetingEnvironment = () => {
     }
   }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
 
-  const handleEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
-    console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
-    
-    // CHECK: Is there already an active edit in progress?
-    const currentEditState = useMeetingContextStore.getState();
-    if (currentEditState.isEditMode) {
-      console.log('[MeetingEnvironment] ⚠️ Active edit detected! Meeting:', currentEditState.editingMeetingId);
-      console.log('[MeetingEnvironment] User is trying to open another meeting:', meeting.id);
-      
-      // Store the meeting to edit and show conflict dialog
-      setPendingMeetingToEdit(meeting);
-      setEditConflictDialogOpen(true);
-      return;
-    }
-    
-    // No active edit, proceed with opening the meeting
-    await proceedWithEditMeeting(meeting);
-  }, [navigate, startEditMeeting, documents]);
-
   const proceedWithEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
     console.log('[MeetingEnvironment] Proceeding with edit for meeting:', meeting.id);
     console.log('[MeetingEnvironment] Meeting document IDs:', meeting.relatedDocumentIds);
@@ -220,11 +203,11 @@ const MeetingEnvironment = () => {
     if (originalDocIds.length > 0) {
       console.log('[MeetingEnvironment] Creating temporary duplicates of', originalDocIds.length, 'documents...');
       
-      // Import the store to access addDocument
-      const { addDocument } = useProjectStore.getState();
+      // Get fresh documents from store to ensure we have the latest state
+      const { addDocument, documents: freshDocuments } = useProjectStore.getState();
       
       for (const originalDocId of originalDocIds) {
-        const originalDoc = documents.find(d => d.id === originalDocId);
+        const originalDoc = freshDocuments.find(d => d.id === originalDocId);
         if (originalDoc) {
           // Create a duplicate for editing (without id, createdAt, updatedAt)
           // IMPORTANT: Preserve history to track modifications across meetings
@@ -272,7 +255,26 @@ const MeetingEnvironment = () => {
     // Pass original IDs and temp duplicate IDs to the context store
     startEditMeeting(meetingWithDuplicates, originalDocIds, duplicateDocIds);
     navigate("/project-tracker", { state: { focus: "meetings", editMode: true } });
-  }, [navigate, startEditMeeting, documents]);
+  }, [navigate, startEditMeeting]);
+
+  const handleEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
+    console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
+    
+    // CHECK: Is there already an active edit in progress?
+    const currentEditState = useMeetingContextStore.getState();
+    if (currentEditState.isEditMode) {
+      console.log('[MeetingEnvironment] ⚠️ Active edit detected! Meeting:', currentEditState.editingMeetingId);
+      console.log('[MeetingEnvironment] User is trying to open another meeting:', meeting.id);
+      
+      // Store the meeting to edit and show conflict dialog
+      setPendingMeetingToEdit(meeting);
+      setEditConflictDialogOpen(true);
+      return;
+    }
+    
+    // No active edit, proceed with opening the meeting
+    await proceedWithEditMeeting(meeting);
+  }, [proceedWithEditMeeting]);
 
   const getMeetingRelatedDocuments = useCallback((meeting: MeetingMetadata): ProjectDocument[] => {
     // Use relatedDocumentIds (new) or fall back to relatedItems (old) for backward compatibility
@@ -320,16 +322,32 @@ const MeetingEnvironment = () => {
           console.log('[MeetingEnvironment] ✓ All temp duplicates deleted');
         }
         
-        // Small delay to ensure state updates after deletions
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // CRITICAL FIX: Reload data from backend to ensure clean state
+        // This ensures that documents from the saved meeting are properly assigned and hidden
+        console.log('[MeetingEnvironment] Reloading data from backend to ensure clean state...');
+        await loadData();
+        console.log('[MeetingEnvironment] ✓ Data reloaded from backend');
+        
+        // Small delay to ensure state updates after reload
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get fresh meeting data from reloaded projects to ensure we have the latest state
+        const { projects: reloadedProjects } = useProjectStore.getState();
+        const project = reloadedProjects.find(p => p.id === selectedProjectId);
+        const freshMeeting = project?.meetings?.find(m => m.id === locationState.openMeetingToEdit.id);
+        
+        if (!freshMeeting) {
+          console.error('[MeetingEnvironment] Meeting not found after reload:', locationState.openMeetingToEdit.id);
+          return;
+        }
         
         console.log('[MeetingEnvironment] Now proceeding with edit for new meeting');
-        proceedWithEditMeeting(locationState.openMeetingToEdit);
+        proceedWithEditMeeting(freshMeeting);
       }
     };
     
     handleOpenMeeting();
-  }, [location.state, proceedWithEditMeeting]);
+  }, [location.state, proceedWithEditMeeting, loadData, selectedProjectId]);
 
   return (
     <div className="h-full bg-background overflow-hidden">
