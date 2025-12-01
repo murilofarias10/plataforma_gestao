@@ -382,7 +382,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
         </div>
 
         {/* Second Row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
               Detalhes
@@ -395,18 +395,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               onChange={(e) => setMeetingDetalhes(e.target.value)}
             />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              Resumo
-            </label>
-            <Input
-              type="text"
-              placeholder="Resumo da reunião"
-              className="h-8 text-sm w-full"
-              value={meetingResumo}
-              onChange={(e) => setMeetingResumo(e.target.value)}
-            />
-          </div>
+          {/* Resumo field hidden from user input - kept in backend for future use and auto-filled via API in meeting-environment */}
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
               Participantes
