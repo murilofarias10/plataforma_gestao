@@ -15,6 +15,7 @@ import {
 import { useProjectStore } from "@/stores/projectStore";
 import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
+import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle } from "lucide-react";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
@@ -33,14 +34,10 @@ const MeetingEnvironment = () => {
 
   const selectedProject = getSelectedProject();
 
-  // Meeting filters - must be declared before use
-  const [filters, setFilters] = useState({
-    data: '',
-    numeroAta: '',
-    participante: '',
-    fornecedor: '',
-    disciplina: ''
-  });
+  // Meeting filters - use store instead of local state
+  const filters = useMeetingFilterStore((state) => state.filters);
+  const setFilters = useMeetingFilterStore((state) => state.setFilters);
+  const setFilteredMeetings = useMeetingFilterStore((state) => state.setFilteredMeetings);
 
   const meetings = useMemo(() => {
     if (!selectedProjectId) {
@@ -52,7 +49,7 @@ const MeetingEnvironment = () => {
 
   // Filtered meetings based on filter criteria
   const filteredMeetings = useMemo(() => {
-    return meetings.filter((meeting) => {
+    const filtered = meetings.filter((meeting) => {
       // Filter by data
       if (filters.data && !meeting.data?.toLowerCase().includes(filters.data.toLowerCase())) {
         return false;
@@ -78,18 +75,19 @@ const MeetingEnvironment = () => {
       }
       return true;
     });
-  }, [meetings, filters]);
+    
+    // Update store with filtered meetings so Sidebar can access them
+    setFilteredMeetings(filtered);
+    
+    return filtered;
+  }, [meetings, filters, setFilteredMeetings]);
 
   const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
 
+  const resetFilters = useMeetingFilterStore((state) => state.resetFilters);
+  
   const clearAllFilters = () => {
-    setFilters({
-      data: '',
-      numeroAta: '',
-      participante: '',
-      fornecedor: '',
-      disciplina: ''
-    });
+    resetFilters();
   };
 
   // Format date input to Brazilian format (DD-MM-YYYY)
@@ -107,7 +105,7 @@ const MeetingEnvironment = () => {
       value = value.slice(0, 5) + '-' + value.slice(5);
     }
     
-    setFilters({ ...filters, data: value });
+    setFilters({ data: value });
   };
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -409,25 +407,25 @@ const MeetingEnvironment = () => {
                   <Input
                     placeholder="Número da Ata..."
                     value={filters.numeroAta}
-                    onChange={(e) => setFilters({ ...filters, numeroAta: e.target.value })}
+                    onChange={(e) => setFilters({ numeroAta: e.target.value })}
                     className="text-xs"
                   />
                   <Input
                     placeholder="Participante..."
                     value={filters.participante}
-                    onChange={(e) => setFilters({ ...filters, participante: e.target.value })}
+                    onChange={(e) => setFilters({ participante: e.target.value })}
                     className="text-xs"
                   />
                   <Input
                     placeholder="Fornecedor..."
                     value={filters.fornecedor}
-                    onChange={(e) => setFilters({ ...filters, fornecedor: e.target.value })}
+                    onChange={(e) => setFilters({ fornecedor: e.target.value })}
                     className="text-xs"
                   />
                   <Input
                     placeholder="Disciplina..."
                     value={filters.disciplina}
-                    onChange={(e) => setFilters({ ...filters, disciplina: e.target.value })}
+                    onChange={(e) => setFilters({ disciplina: e.target.value })}
                     className="text-xs"
                   />
                 </div>

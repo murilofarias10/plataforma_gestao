@@ -83,6 +83,136 @@ export class PDFReportGenerator {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   }
 
+  async generateReportForMultipleMeetings(meetings: MeetingMetadata[]): Promise<void> {
+    if (meetings.length === 0) {
+      throw new Error('Nenhuma reunião selecionada para gerar o relatório');
+    }
+
+    try {
+      // Reset PDF instance
+      this.pdf = new jsPDF('l', 'mm', 'a4');
+      this.pageHeight = this.pdf.internal.pageSize.height;
+      this.pageWidth = this.pdf.internal.pageSize.width;
+      this.currentY = this.margin;
+
+      // Get current data from stores
+      const projectStore = useProjectStore.getState();
+      const selectedProject = projectStore.getSelectedProject();
+      
+      if (!selectedProject) {
+        throw new Error('Nenhum projeto selecionado');
+      }
+
+      // Generate timestamp
+      const timestamp = this.formatDateTimeForDisplay();
+      const timestampForFilename = timestamp.replace(/[:\/ ]/g, (match) => match === '/' ? '-' : '_');
+
+      // Collect all documents from all meetings
+      const allDocuments: any[] = [];
+      const allDocumentIds = new Set<string>();
+      
+      for (const meeting of meetings) {
+        const allDocumentsList = projectStore.documents;
+        let meetingDocumentIds: string[] = [];
+        
+        if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+          meetingDocumentIds = [...meeting.relatedDocumentIds];
+        } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+          const meetingDocs = allDocumentsList.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
+          meetingDocumentIds = meetingDocs.map(doc => doc.id);
+        }
+        
+        meetingDocumentIds.forEach(id => allDocumentIds.add(id));
+      }
+      
+      allDocuments.push(...projectStore.documents.filter(doc => allDocumentIds.has(doc.id)));
+
+      // Collect all attachments from all meetings
+      const allAttachments = await this.collectAllAttachments(
+        selectedProject.id,
+        Array.from(allDocumentIds)
+      );
+      const totalSize = this.calculateTotalSize(allAttachments);
+
+      // Generate cover page
+      this.addCoverPage({
+        name: selectedProject.name,
+        description: selectedProject.description || '',
+        generatedAt: timestamp
+      });
+      this.addNewPage();
+
+      // Add summary section
+      this.addSectionHeader('RESUMO DAS REUNIÕES');
+      this.pdf.setFontSize(12);
+      this.pdf.setFont('helvetica', 'normal');
+      this.pdf.text(`Total de reuniões: ${meetings.length}`, this.margin, this.currentY);
+      this.currentY += this.lineHeight;
+      this.pdf.text(`Total de documentos: ${allDocuments.length}`, this.margin, this.currentY);
+      this.currentY += this.lineHeight;
+      this.pdf.text(`Total de anexos: ${allAttachments.length}`, this.margin, this.currentY);
+      this.currentY += 15;
+      this.addNewPage();
+
+      // Generate report for each meeting
+      for (let i = 0; i < meetings.length; i++) {
+        const meeting = meetings[i];
+        
+        // Meeting Overview section
+        this.addSectionHeader(`REUNIÃO ${i + 1} - ${meeting.numeroAta || meeting.id}`);
+        this.addMeetingOverview(meeting);
+        this.currentY += 10;
+        
+        // Get documents for this meeting
+        let meetingDocuments: any[] = [];
+        let meetingDocumentIds: string[] = [];
+        
+        if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+          meetingDocumentIds = [...meeting.relatedDocumentIds];
+          meetingDocuments = allDocuments.filter(doc => meetingDocumentIds.includes(doc.id));
+        } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+          meetingDocuments = allDocuments.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
+          meetingDocumentIds = meetingDocuments.map(doc => doc.id);
+        }
+
+        // Meeting Items section
+        this.addSectionHeader('ITENS DA REUNIÃO');
+        if (meetingDocuments.length > 0) {
+          this.addDocumentsTable(meetingDocuments);
+        } else {
+          this.pdf.setFontSize(10);
+          this.pdf.setFont('helvetica', 'normal');
+          this.pdf.text('Nenhum item encontrado para esta reunião.', this.margin, this.currentY);
+          this.currentY += this.lineHeight;
+        }
+        
+        // Add page break between meetings (except for the last one)
+        if (i < meetings.length - 1) {
+          this.addNewPage();
+        }
+      }
+
+      // Add attachments section at the end
+      this.addNewPage();
+      this.addSectionHeader('ANEXOS');
+      this.addAttachmentsContent({
+        allAttachments: allAttachments,
+        totalFiles: allAttachments.length,
+        totalSize: totalSize
+      });
+
+      // Open PDF in new tab
+      const pdfBlob = this.pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+      
+    } catch (error) {
+      console.error('Erro ao gerar relatório de múltiplas reuniões:', error);
+      throw error;
+    }
+  }
+
   async generateComprehensiveReport(meeting?: MeetingMetadata): Promise<void> {
     try {
       // Reset PDF instance to ensure fresh start
@@ -1329,4 +1459,9 @@ export const generateComprehensiveReport = async (): Promise<void> => {
 export const generateMeetingReportForMeeting = async (meeting: MeetingMetadata): Promise<void> => {
   const generator = new PDFReportGenerator();
   await generator.generateComprehensiveReport(meeting);
+};
+
+export const generateReportForMultipleMeetings = async (meetings: MeetingMetadata[]): Promise<void> => {
+  const generator = new PDFReportGenerator();
+  await generator.generateReportForMultipleMeetings(meetings);
 };

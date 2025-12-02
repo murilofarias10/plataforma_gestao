@@ -5,8 +5,10 @@ import { cn } from "@/lib/utils";
 import { FileSpreadsheet, BarChart3, CalendarClock, Download, LogOut, User, Shield, Plus, FolderOpen, Trash2 } from "lucide-react";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
 import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
+import { generateReportForMultipleMeetings } from "@/services/pdfReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { toast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -130,9 +132,39 @@ const Sidebar = ({ className }: SidebarProps) => {
       if (!selectedProject) {
         throw new Error('Nenhum projeto selecionado');
       }
-      await generateComprehensiveZipReport(selectedProject.id);
+
+      // Check if we're on the meeting-environment page
+      const isMeetingEnvironmentPage = location.pathname === '/meeting-environment';
+      
+      if (isMeetingEnvironmentPage) {
+        // Generate report for all filtered meetings
+        const filteredMeetings = useMeetingFilterStore.getState().filteredMeetings;
+        
+        if (filteredMeetings.length === 0) {
+          toast({
+            title: "Nenhuma reunião encontrada",
+            description: "Não há reuniões para gerar o relatório. Aplique filtros ou verifique se há reuniões registradas.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        await generateReportForMultipleMeetings(filteredMeetings);
+        toast({
+          title: "Relatório gerado",
+          description: `Relatório gerado para ${filteredMeetings.length} ${filteredMeetings.length === 1 ? 'reunião' : 'reuniões'}.`,
+        });
+      } else {
+        // Generate comprehensive ZIP report for other pages
+        await generateComprehensiveZipReport(selectedProject.id);
+      }
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
+      toast({
+        title: "Erro ao gerar relatório",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao gerar o relatório.",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -257,7 +289,11 @@ const Sidebar = ({ className }: SidebarProps) => {
             </TooltipTrigger>
             <TooltipContent side="right">
               <p className="font-medium">Gerar Relatório</p>
-              <p className="text-xs text-muted-foreground mt-1">Exportar relatório completo do projeto</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {location.pathname === '/meeting-environment' 
+                  ? 'Gerar relatório de todas as reuniões filtradas'
+                  : 'Exportar relatório completo do projeto'}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
