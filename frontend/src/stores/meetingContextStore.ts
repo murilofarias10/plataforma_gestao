@@ -12,12 +12,15 @@ interface MeetingContextStore {
   originalDocumentIds: string[];
   // Temporary duplicate document IDs created for editing (to be cleaned up)
   tempDuplicateIds: string[];
+  // Newly added document IDs during edit mode (to be cleaned up on cancel)
+  newlyAddedDocumentIds: string[];
 
   // Actions
   startMeeting: (meeting?: Partial<MeetingMetadata>) => void;
   endMeeting: () => void;
   updateMeetingData: (data: Partial<MeetingMetadata>) => void;
   startEditMeeting: (meeting: MeetingMetadata, originalDocIds: string[], tempDuplicateIds: string[]) => void;
+  addNewlyAddedDocumentId: (documentId: string) => void;
   clearMeetingContext: () => void;
   hasActiveMeeting: () => boolean;
 }
@@ -28,6 +31,7 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
   editingMeetingId: null,
   originalDocumentIds: [],
   tempDuplicateIds: [],
+  newlyAddedDocumentIds: [],
 
   startMeeting: (meeting) => {
     set({
@@ -47,6 +51,7 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       editingMeetingId: null,
       originalDocumentIds: [],
       tempDuplicateIds: [],
+      newlyAddedDocumentIds: [],
     });
   },
 
@@ -57,6 +62,7 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       editingMeetingId: null,
       originalDocumentIds: [],
       tempDuplicateIds: [],
+      newlyAddedDocumentIds: [],
     });
   },
 
@@ -79,7 +85,18 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       editingMeetingId: meeting.id,
       originalDocumentIds: originalDocIds,
       tempDuplicateIds: tempDuplicateIds,
+      newlyAddedDocumentIds: [],
     });
+  },
+
+  addNewlyAddedDocumentId: (documentId) => {
+    const { isEditMode, newlyAddedDocumentIds } = get();
+    if (isEditMode && !newlyAddedDocumentIds.includes(documentId)) {
+      set({
+        newlyAddedDocumentIds: [...newlyAddedDocumentIds, documentId],
+      });
+      console.log('[meetingContextStore] Tracked newly added document:', documentId);
+    }
   },
 
   clearMeetingContext: () => {
@@ -90,6 +107,7 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
       editingMeetingId: null,
       originalDocumentIds: [],
       tempDuplicateIds: [],
+      newlyAddedDocumentIds: [],
     });
     console.log('[meetingContextStore] Context cleared - isEditMode: false, editingMeetingId: null');
   },

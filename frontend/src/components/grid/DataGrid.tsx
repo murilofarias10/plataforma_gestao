@@ -24,6 +24,7 @@ export function DataGrid() {
     documents: allDocuments
   } = useProjectStore();
   const { canCreate } = usePermissions();
+  const { isEditMode, addNewlyAddedDocumentId } = useMeetingContextStore();
   
   // Use table documents for display (only unassigned docs)
   const documents = getTableDocuments();
@@ -193,9 +194,31 @@ export function DataGrid() {
     }
     
     try {
+      // Get current document IDs to identify the newly added document
+      const documentsBeforeAdd = useProjectStore.getState().documents;
+      const documentIdsBeforeAdd = new Set(documentsBeforeAdd.map(doc => doc.id));
+      
       // Add document even if it's empty (user will fill it later)
       await addDocument(blankRow as Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>);
       console.log('[DataGrid] Document added successfully');
+      
+      // Get the newly added document ID
+      // Wait a bit for the store to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const documentsAfterAdd = useProjectStore.getState().documents;
+      
+      // Find the newly added document by comparing IDs
+      const newlyAddedDoc = documentsAfterAdd.find(doc => !documentIdsBeforeAdd.has(doc.id));
+      
+      if (newlyAddedDoc) {
+        console.log('[DataGrid] Newly added document ID:', newlyAddedDoc.id);
+        
+        // Track this document if we're in edit mode
+        if (isEditMode) {
+          addNewlyAddedDocumentId(newlyAddedDoc.id);
+          console.log('[DataGrid] Tracked newly added document for edit mode cleanup');
+        }
+      }
       
       // Calculate next number based on VISIBLE documents only
       const visibleDocs = useProjectStore.getState().getTableDocuments();
@@ -231,7 +254,7 @@ export function DataGrid() {
         variant: 'destructive',
       });
     }
-  }, [blankRow, addDocument, selectedProjectId]);
+  }, [blankRow, addDocument, selectedProjectId, isEditMode, addNewlyAddedDocumentId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, field: string) => {
     if (e.key === 'Enter') {

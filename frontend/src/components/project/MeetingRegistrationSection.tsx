@@ -259,15 +259,28 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
     // CLEANUP: Delete temporary duplicate documents
     const contextState = useMeetingContextStore.getState();
     const tempDuplicateIds = contextState.tempDuplicateIds || [];
+    const newlyAddedDocumentIds = contextState.newlyAddedDocumentIds || [];
     
+    const deleteDocument = useProjectStore.getState().deleteDocument;
+    
+    // Delete temporary duplicate documents
     if (tempDuplicateIds.length > 0) {
       console.log('[MeetingRegistration] Cleaning up', tempDuplicateIds.length, 'temporary duplicates...');
-      const deleteDocument = useProjectStore.getState().deleteDocument;
       for (const tempId of tempDuplicateIds) {
         console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
         await deleteDocument(tempId);
       }
       console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
+    }
+    
+    // Delete newly added documents during edit mode
+    if (newlyAddedDocumentIds.length > 0) {
+      console.log('[MeetingRegistration] Cleaning up', newlyAddedDocumentIds.length, 'newly added documents...');
+      for (const newDocId of newlyAddedDocumentIds) {
+        console.log('[MeetingRegistration] Deleting newly added document:', newDocId);
+        await deleteDocument(newDocId);
+      }
+      console.log('[MeetingRegistration] ✓ Newly added documents cleaned up');
     }
     
     // Clear context first to trigger table refresh
