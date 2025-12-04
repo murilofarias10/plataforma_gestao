@@ -75,6 +75,23 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
           ...data,
         },
       });
+    } else {
+      // If no current meeting exists, create one for CREATE mode
+      // This allows real-time saving of form data even before the meeting is saved
+      set({
+        currentMeeting: {
+          id: '',
+          data: data.data || '',
+          numeroAta: data.numeroAta || '',
+          detalhes: data.detalhes,
+          fornecedor: data.fornecedor,
+          disciplina: data.disciplina,
+          resumo: data.resumo,
+          participants: data.participants || [],
+          relatedItems: [],
+          createdAt: new Date().toISOString(),
+        },
+      });
     }
   },
 

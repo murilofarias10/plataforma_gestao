@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { MeetingMetadata } from '@/types/project';
 import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
   const currentMeeting = useMeetingContextStore((state) => state.currentMeeting);
   const clearMeetingContext = useMeetingContextStore((state) => state.clearMeetingContext);
   const startMeeting = useMeetingContextStore((state) => state.startMeeting);
+  const updateMeetingData = useMeetingContextStore((state) => state.updateMeetingData);
   
   const selectedProject = getSelectedProject();
   
@@ -48,40 +49,66 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
   const [newParticipant, setNewParticipant] = useState('');
   const [tempParticipants, setTempParticipants] = useState<string[]>([]);
 
-  // Handler to update meeting data
+  // Handler to update meeting data - saves to store in real-time
   const handleMeetingDataChange = useCallback((value: string) => {
     setMeetingData(value);
-  }, []);
+    // Save to store in real-time
+    updateMeetingData({ data: value });
+  }, [updateMeetingData]);
 
-  // Handler to update meeting number
+  // Handler to update meeting number - saves to store in real-time
   const handleMeetingNumeroChange = useCallback((value: string) => {
     setMeetingNumero(value);
-  }, []);
+    // Save to store in real-time
+    updateMeetingData({ numeroAta: value });
+  }, [updateMeetingData]);
   
-  // Sync form with currentMeeting when in edit mode
+  // Sync form with currentMeeting from store (both edit mode and create mode)
+  // This restores form data when currentMeeting changes (e.g., after adding a row)
+  // Use a ref to track the last currentMeeting to avoid unnecessary updates
+  const lastMeetingRef = useRef<MeetingMetadata | null>(null);
+  
   useEffect(() => {
-    if (isEditMode && currentMeeting) {
-      console.log('[MeetingRegistration] Loading meeting for edit:', currentMeeting.id);
-      setMeetingData(currentMeeting.data);
-      setMeetingNumero(currentMeeting.numeroAta);
+    // Only restore if currentMeeting actually changed (different reference or different id)
+    const meetingChanged = 
+      !lastMeetingRef.current || 
+      !currentMeeting || 
+      lastMeetingRef.current.id !== currentMeeting.id ||
+      lastMeetingRef.current.data !== currentMeeting.data ||
+      lastMeetingRef.current.numeroAta !== currentMeeting.numeroAta ||
+      lastMeetingRef.current.detalhes !== currentMeeting.detalhes ||
+      lastMeetingRef.current.fornecedor !== currentMeeting.fornecedor ||
+      lastMeetingRef.current.disciplina !== currentMeeting.disciplina ||
+      lastMeetingRef.current.resumo !== currentMeeting.resumo ||
+      JSON.stringify(lastMeetingRef.current.participants) !== JSON.stringify(currentMeeting.participants);
+    
+    if (currentMeeting && meetingChanged) {
+      // Restore form from store
+      setMeetingData(currentMeeting.data || '');
+      setMeetingNumero(currentMeeting.numeroAta || '');
       setMeetingDetalhes(currentMeeting.detalhes || '');
       setMeetingFornecedor(currentMeeting.fornecedor || '');
       setMeetingDisciplina(currentMeeting.disciplina || '');
       setMeetingResumo(currentMeeting.resumo || '');
-      setTempParticipants(currentMeeting.participants);
-    } else if (!isEditMode && !currentMeeting) {
-      // When exiting edit mode (context cleared), clear the form
-      console.log('[MeetingRegistration] Exiting edit mode - clearing form');
-      setMeetingData('');
-      setMeetingNumero('');
-      setMeetingDetalhes('');
-      setMeetingFornecedor('');
-      setMeetingDisciplina('');
-      setMeetingResumo('');
-      setNewParticipant('');
-      setTempParticipants([]);
+      setTempParticipants(currentMeeting.participants || []);
+      lastMeetingRef.current = currentMeeting;
+    } else if (!currentMeeting && lastMeetingRef.current) {
+      // When context is cleared, clear the form
+      const contextState = useMeetingContextStore.getState();
+      if (!contextState.isEditMode && !contextState.currentMeeting) {
+        // Only clear if there's truly no meeting context
+        setMeetingData('');
+        setMeetingNumero('');
+        setMeetingDetalhes('');
+        setMeetingFornecedor('');
+        setMeetingDisciplina('');
+        setMeetingResumo('');
+        setNewParticipant('');
+        setTempParticipants([]);
+        lastMeetingRef.current = null;
+      }
     }
-  }, [isEditMode, currentMeeting]);
+  }, [currentMeeting]);
 
   // Log current mode for debugging
   useEffect(() => {
@@ -90,14 +117,20 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
 
   const handleAddParticipant = useCallback(() => {
     if (newParticipant.trim()) {
-      setTempParticipants([...tempParticipants, newParticipant.trim()]);
+      const updatedParticipants = [...tempParticipants, newParticipant.trim()];
+      setTempParticipants(updatedParticipants);
       setNewParticipant('');
+      // Save to store in real-time
+      updateMeetingData({ participants: updatedParticipants });
     }
-  }, [newParticipant, tempParticipants]);
+  }, [newParticipant, tempParticipants, updateMeetingData]);
 
   const handleRemoveParticipant = useCallback((index: number) => {
-    setTempParticipants(tempParticipants.filter((_, i) => i !== index));
-  }, [tempParticipants]);
+    const updatedParticipants = tempParticipants.filter((_, i) => i !== index);
+    setTempParticipants(updatedParticipants);
+    // Save to store in real-time
+    updateMeetingData({ participants: updatedParticipants });
+  }, [tempParticipants, updateMeetingData]);
 
 
   const handleAddMeeting = useCallback(async () => {
@@ -377,7 +410,12 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               placeholder="Nome do fornecedor"
               className="h-8 text-sm w-full"
               value={meetingFornecedor}
-              onChange={(e) => setMeetingFornecedor(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMeetingFornecedor(value);
+                // Save to store in real-time
+                updateMeetingData({ fornecedor: value });
+              }}
             />
           </div>
           <div>
@@ -389,7 +427,12 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               placeholder="Disciplina"
               className="h-8 text-sm w-full"
               value={meetingDisciplina}
-              onChange={(e) => setMeetingDisciplina(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMeetingDisciplina(value);
+                // Save to store in real-time
+                updateMeetingData({ disciplina: value });
+              }}
             />
           </div>
         </div>
@@ -405,7 +448,12 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               placeholder="Detalhes da reunião"
               className="h-8 text-sm w-full"
               value={meetingDetalhes}
-              onChange={(e) => setMeetingDetalhes(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMeetingDetalhes(value);
+                // Save to store in real-time
+                updateMeetingData({ detalhes: value });
+              }}
             />
           </div>
           {/* Resumo field hidden from user input - kept in backend for future use and auto-filled via API in meeting-environment */}
