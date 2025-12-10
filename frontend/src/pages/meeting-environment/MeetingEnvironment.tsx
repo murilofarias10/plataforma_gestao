@@ -449,17 +449,10 @@ const MeetingEnvironment = () => {
                           
                           return (
                             <div key={meeting.id} className="border-b border-border last:border-b-0 relative">
-                              {isCurrentlyOpen && (
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-teal-500 z-10" />
-                              )}
                               <div 
-                                className={`grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 hover:opacity-90 transition-all relative ${
-                                  isCurrentlyOpen ? 'ring-2 ring-teal-500 ring-offset-1 bg-teal-50/30' : ''
-                                }`}
+                                className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 relative"
                                 style={{ 
-                                  backgroundColor: isCurrentlyOpen 
-                                    ? (index % 2 === 0 ? '#f0fdfa' : '#b2f5ea')
-                                    : (index % 2 === 0 ? '#ffffff' : '#6BDDA9')
+                                  backgroundColor: index % 2 === 0 ? '#ffffff' : '#6BDDA9'
                                 }}
                               >
                                 {/* First Column: Date, Numero Ata, Participants, Fornecedor, Disciplina */}
