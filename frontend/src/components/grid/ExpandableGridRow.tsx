@@ -79,9 +79,6 @@ export function ExpandableGridRow({
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-2">
                 <Clock className="w-3 h-3" />
                 Histórico de Alterações
-                {document.history && document.history.length > 0 && (
-                  <span className="text-muted-foreground">({document.history.length})</span>
-                )}
               </div>
 
               {/* History List - Always shown when expanded */}
