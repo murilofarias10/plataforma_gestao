@@ -512,16 +512,10 @@ export class PDFReportGenerator {
   private async generatePDFContent(data: ReportData, screenshots?: Record<string, string | null>): Promise<void> {
     screenshots = screenshots || {};
     
-    // Cover page
-    this.addCoverPage(data.projectInfo);
-    this.addNewPage();
-
-    // If this is a meeting report, show simplified version
+    // If this is a meeting report, combine cover and overview on first page
     if (data.meeting) {
-      // Meeting Overview section
-      this.addSectionHeader('RESUMO DA REUNIÃO');
-      this.addMeetingOverview(data.meeting);
-      this.currentY += 10;
+      // Combined cover page with meeting overview
+      this.addCoverPageWithMeetingOverview(data.projectInfo, data.meeting);
       this.addNewPage();
 
       // Meeting Items section (Itens da Reunião)
@@ -594,6 +588,53 @@ export class PDFReportGenerator {
     // Logo placeholder
     this.pdf.setFontSize(10);
     this.pdf.text('KUBIK ENGENHARIA', this.pageWidth / 2, this.pageHeight - 30, { align: 'center' });
+  }
+
+  /**
+   * Combined cover page with meeting overview for meeting reports
+   * Optimizes space by putting everything on the first page
+   */
+  private addCoverPageWithMeetingOverview(projectInfo: any, meeting: MeetingMetadata): void {
+    // Title (slightly smaller to save space)
+    this.pdf.setFontSize(20);
+    this.setMontserratFont('bold');
+    this.pdf.text('RELATÓRIO GERAL PLATAFORMA DE GESTÃO', this.pageWidth / 2, this.currentY, { align: 'center' });
+    this.currentY += 15;
+
+    // Project info
+    this.pdf.setFontSize(14);
+    this.setMontserratFont('normal');
+    this.pdf.text(`Projeto: ${projectInfo.name}`, this.pageWidth / 2, this.currentY, { align: 'center' });
+    this.currentY += 8;
+    if (projectInfo.description) {
+      this.pdf.text(projectInfo.description, this.pageWidth / 2, this.currentY, { align: 'center' });
+      this.currentY += 8;
+    }
+
+    // Generated date
+    this.pdf.setFontSize(11);
+    this.pdf.text(`Gerado em: ${projectInfo.generatedAt}`, this.pageWidth / 2, this.currentY, { align: 'center' });
+    this.currentY += 18;
+
+    // Section header for meeting overview (inline, no extra spacing)
+    this.pdf.setFontSize(16);
+    this.setMontserratFont('bold');
+    this.pdf.text('RESUMO DA REUNIÃO', this.margin, this.currentY);
+    this.currentY += 12;
+
+    // Add line separator
+    this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+    this.currentY += 8;
+    
+    // Meeting overview content
+    this.addMeetingOverview(meeting);
+    
+    // Logo at bottom if there's space
+    const remainingSpace = this.pageHeight - this.currentY;
+    if (remainingSpace > 40) {
+      this.pdf.setFontSize(10);
+      this.pdf.text('KUBIK ENGENHARIA', this.pageWidth / 2, this.pageHeight - 20, { align: 'center' });
+    }
   }
 
   private addSectionHeader(title: string): void {
