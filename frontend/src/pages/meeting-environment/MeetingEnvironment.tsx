@@ -351,7 +351,7 @@ const MeetingEnvironment = () => {
     <div className="h-full bg-background overflow-hidden">
       <main className="container mx-auto px-6 py-6 space-y-6 h-full flex flex-col">
         <section className="space-y-4 flex-1 flex flex-col min-h-0">
-          <div className="flex flex-col gap-4 flex-shrink-0">
+          <div className="flex items-center justify-between gap-4 flex-shrink-0">
             <div>
               <h2 className="text-2xl font-bold text-foreground">
                 Ambiente de Reuniões
@@ -361,6 +361,14 @@ const MeetingEnvironment = () => {
                   </span>
                 )}
               </h2>
+            </div>
+            {/* KUBIK Logo - Prominent company branding */}
+            <div className="bg-card border border-border rounded-lg p-2 shadow-sm">
+              <img 
+                src="/kubik-logo_2.png" 
+                alt="KUBIK" 
+                className="h-16 w-auto"
+              />
             </div>
           </div>
 

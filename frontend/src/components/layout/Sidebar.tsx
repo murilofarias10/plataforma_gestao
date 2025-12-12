@@ -174,17 +174,8 @@ const Sidebar = ({ className }: SidebarProps) => {
       "flex flex-col h-screen bg-card border-r border-border w-16",
       className
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-center p-4 border-b border-border">
-        <img 
-          src="/kubik-logo.png" 
-          alt="KUBIK" 
-          className="h-8 w-auto"
-        />
-      </div>
-
-      {/* Project Actions */}
-      <div className="p-2 border-b border-border space-y-2">
+      {/* Project Actions - More space now that logo is removed */}
+      <div className="p-3 border-b border-border space-y-3">
         <TooltipProvider>
           {/* Create Project */}
           <Tooltip delayDuration={300}>
@@ -192,10 +183,10 @@ const Sidebar = ({ className }: SidebarProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full h-10 px-2 py-3 justify-center hover:bg-primary/10"
+                className="w-full h-12 px-2 py-3 justify-center hover:bg-primary/10 transition-all"
                 onClick={() => setIsCreateProjectOpen(true)}
               >
-                <Plus className="h-5 w-5 text-primary" />
+                <Plus className="h-6 w-6 text-primary" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -210,10 +201,10 @@ const Sidebar = ({ className }: SidebarProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full h-10 px-2 py-3 justify-center hover:bg-blue-500/10"
+                className="w-full h-12 px-2 py-3 justify-center hover:bg-blue-500/10 transition-all"
                 onClick={() => setIsSelectProjectOpen(true)}
               >
-                <FolderOpen className="h-5 w-5 text-blue-500" />
+                <FolderOpen className="h-6 w-6 text-blue-500" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -230,11 +221,11 @@ const Sidebar = ({ className }: SidebarProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full h-10 px-2 py-3 justify-center hover:bg-destructive/10"
+                className="w-full h-12 px-2 py-3 justify-center hover:bg-destructive/10 transition-all"
                 onClick={() => setIsDeleteDialogOpen(true)}
                 disabled={!selectedProject}
               >
-                <Trash2 className="h-5 w-5 text-destructive" />
+                <Trash2 className="h-6 w-6 text-destructive" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">

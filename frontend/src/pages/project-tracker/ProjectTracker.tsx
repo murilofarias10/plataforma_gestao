@@ -228,19 +228,18 @@ const ProjectTracker = () => {
               </h2>
             </div>
             
-            {projects.length === 0 && (
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleReloadData}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Database className="h-4 w-4" />
-                  Recarregar dados
-                </Button>
-              </div>
-            )}
+            <div className="bg-card border border-border rounded-lg p-2 shadow-sm">
+                <img 
+                  src="/kubik-logo_2.png" 
+                  alt="KUBIK" 
+                  className="h-16 w-auto"
+                />
+            </div>
           </div>
+
+
+
+
 
           {/* Collapsible Meeting Registration Section */}
           <div className="mb-8">

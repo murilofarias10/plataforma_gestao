@@ -21,15 +21,27 @@ const DocumentMonitor = () => {
       <main className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground">
-            Monitor de Documentos
-            {selectedProject && (
-              <span className="text-lg font-normal text-muted-foreground ml-2">
-                - {selectedProject.name}
-              </span>
-            )}
-          </h2>
-          <p className="text-muted-foreground">Monitoramento de status de documentos técnicos</p>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Monitor de Documentos
+                {selectedProject && (
+                  <span className="text-lg font-normal text-muted-foreground ml-2">
+                    - {selectedProject.name}
+                  </span>
+                )}
+              </h2>
+              <p className="text-muted-foreground">Monitoramento de status de documentos técnicos</p>
+            </div>
+            {/* KUBIK Logo - Prominent company branding */}
+            <div className="bg-card border border-border rounded-lg p-2 shadow-sm">
+              <img 
+                src="/kubik-logo_2.png" 
+                alt="KUBIK" 
+                className="h-16 w-auto"
+              />
+            </div>
+          </div>
         </div>
 
         {/* KPI Cards */}
