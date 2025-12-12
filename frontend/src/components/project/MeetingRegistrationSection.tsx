@@ -15,6 +15,7 @@ export interface MeetingRegistrationHandle {
   canAddMeeting: boolean;
   isEditMode: boolean;
   cancelEdit: () => Promise<void>;
+  hasItemsInGrid: () => boolean;
 }
 
 interface MeetingRegistrationProps {
@@ -330,13 +331,20 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
     console.log('[MeetingRegistration] Edit mode canceled, ready for new meeting');
   }, [clearMeetingContext]);
 
+  // Check if there are items in the grid
+  const hasItemsInGrid = useCallback(() => {
+    const visibleDocuments = useProjectStore.getState().getTableDocuments();
+    return visibleDocuments.length > 0;
+  }, []);
+
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     handleAddMeeting,
     canAddMeeting,
     isEditMode,
-    cancelEdit
-  }), [handleAddMeeting, canAddMeeting, isEditMode, cancelEdit]);
+    cancelEdit,
+    hasItemsInGrid
+  }), [handleAddMeeting, canAddMeeting, isEditMode, cancelEdit, hasItemsInGrid]);
 
   // Notify parent when validity changes
   useEffect(() => {
@@ -511,7 +519,6 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
           </div>
         )}
       </div>
-
     </div>
   );
 });

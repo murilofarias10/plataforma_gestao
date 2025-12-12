@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { MeetingRegistrationSection, MeetingRegistrationHandle } from "@/components/project/MeetingRegistrationSection";
 
 const ProjectTracker = () => {
-  const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized, filters, resetFilters } = useProjectStore();
+  const { documents, projects, loadData, getSelectedProject, initializeDefaultProject, isLoading, isInitialized, filters, resetFilters, getTableDocuments } = useProjectStore();
   const location = useLocation();
   const navigate = useNavigate();
   const selectedProject = getSelectedProject();
@@ -31,6 +31,7 @@ const ProjectTracker = () => {
   const isEditMode = useMeetingContextStore((state) => state.isEditMode);
   const [canSaveMeeting, setCanSaveMeeting] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [showNoItemsModal, setShowNoItemsModal] = useState(false);
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<any>(null);
   const shouldAutoSaveRef = useRef(false);
   
@@ -146,6 +147,14 @@ const ProjectTracker = () => {
   };
 
   const handleSaveClick = () => {
+    // Check if there is at least 1 item in the DataGrid before showing confirmation
+    const visibleDocuments = getTableDocuments();
+    if (visibleDocuments.length === 0) {
+      setShowNoItemsModal(true);
+      return;
+    }
+    
+    // If validation passes, show confirmation modal
     setShowSaveConfirmation(true);
   };
 
@@ -323,6 +332,23 @@ const ProjectTracker = () => {
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
+
+      {/* No Items Validation Modal - Shows BEFORE confirmation */}
+      <AlertDialog open={showNoItemsModal} onOpenChange={setShowNoItemsModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Não é possível salvar a reunião</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para salvar a reunião você precisa inserir pelo menos 1 item
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowNoItemsModal(false)}>
+              Entendi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Save Confirmation Modal */}
       <AlertDialog open={showSaveConfirmation} onOpenChange={setShowSaveConfirmation}>
