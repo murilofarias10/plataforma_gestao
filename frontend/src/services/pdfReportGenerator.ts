@@ -61,12 +61,117 @@ export class PDFReportGenerator {
   private pageWidth: number = 0;
   private margin: number = 20;
   private lineHeight: number = 7;
+  private static montserratFontLoaded: boolean = false;
 
   constructor() {
     this.pdf = new jsPDF('l', 'mm', 'a4');
     this.pageHeight = this.pdf.internal.pageSize.height;
     this.pageWidth = this.pdf.internal.pageSize.width;
     this.currentY = this.margin;
+    // Font loading is async, but we'll try to load it
+    // If it fails, we'll use helvetica as fallback
+    this.initializeMontserratFont().catch(() => {
+      // Silently fail, helvetica will be used as fallback
+    });
+  }
+
+  /**
+   * Initialize Montserrat font for jsPDF
+   * Loads Montserrat font from CDN and adds it to jsPDF
+   * Uses a static cache to avoid reloading the font data multiple times
+   */
+  private static montserratFontData: {
+    regular?: string;
+    bold?: string;
+  } = {};
+
+  private async initializeMontserratFont(): Promise<void> {
+    try {
+      // Check if we have cached font data
+      if (PDFReportGenerator.montserratFontData.regular || PDFReportGenerator.montserratFontData.bold) {
+        // Font data is cached, just add it to this PDF instance
+        if (PDFReportGenerator.montserratFontData.regular) {
+          this.pdf.addFileToVFS('Montserrat-Regular.ttf', PDFReportGenerator.montserratFontData.regular);
+          this.pdf.addFont('Montserrat-Regular.ttf', 'Montserrat', 'normal');
+        }
+        if (PDFReportGenerator.montserratFontData.bold) {
+          this.pdf.addFileToVFS('Montserrat-Bold.ttf', PDFReportGenerator.montserratFontData.bold);
+          this.pdf.addFont('Montserrat-Bold.ttf', 'Montserrat', 'bold');
+        }
+        PDFReportGenerator.montserratFontLoaded = true;
+        return;
+      }
+
+      // If not cached, load from CDN
+      if (PDFReportGenerator.montserratFontLoaded) {
+        // Already attempted to load but failed, skip
+        return;
+      }
+
+      // Use a reliable CDN source for Montserrat TTF
+      // Using raw.githubusercontent.com for Google Fonts Montserrat
+      const regularTTFUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Regular.ttf';
+      const boldTTFUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Bold.ttf';
+      
+      // Try to load both regular and bold fonts
+      const [regularResponse, boldResponse] = await Promise.all([
+        fetch(regularTTFUrl).catch(() => null),
+        fetch(boldTTFUrl).catch(() => null)
+      ]);
+
+      if (regularResponse && regularResponse.ok) {
+        const regularArrayBuffer = await regularResponse.arrayBuffer();
+        const regularBase64 = btoa(String.fromCharCode(...new Uint8Array(regularArrayBuffer)));
+        
+        // Cache the font data
+        PDFReportGenerator.montserratFontData.regular = regularBase64;
+        
+        // Add font to jsPDF's virtual file system
+        this.pdf.addFileToVFS('Montserrat-Regular.ttf', regularBase64);
+        this.pdf.addFont('Montserrat-Regular.ttf', 'Montserrat', 'normal');
+      }
+
+      if (boldResponse && boldResponse.ok) {
+        const boldArrayBuffer = await boldResponse.arrayBuffer();
+        const boldBase64 = btoa(String.fromCharCode(...new Uint8Array(boldArrayBuffer)));
+        
+        // Cache the font data
+        PDFReportGenerator.montserratFontData.bold = boldBase64;
+        
+        this.pdf.addFileToVFS('Montserrat-Bold.ttf', boldBase64);
+        this.pdf.addFont('Montserrat-Bold.ttf', 'Montserrat', 'bold');
+      }
+
+      // Mark as loaded if at least one font was loaded
+      if ((regularResponse && regularResponse.ok) || (boldResponse && boldResponse.ok)) {
+        PDFReportGenerator.montserratFontLoaded = true;
+      } else {
+        // If both fail, mark as loaded to prevent retries and use helvetica
+        PDFReportGenerator.montserratFontLoaded = true;
+      }
+    } catch (error) {
+      console.warn('Could not load Montserrat font, using helvetica fallback:', error);
+      PDFReportGenerator.montserratFontLoaded = true; // Prevent retries
+    }
+  }
+
+  /**
+   * Set font to Montserrat (or helvetica as fallback)
+   */
+  private setMontserratFont(style: 'normal' | 'bold' | 'italic' | 'bolditalic' = 'normal'): void {
+    try {
+      // Try to use Montserrat if loaded, otherwise fallback to helvetica
+      if (PDFReportGenerator.montserratFontLoaded) {
+        const fontStyle = style === 'bold' || style === 'bolditalic' ? 'bold' : 'normal';
+        this.pdf.setFont('Montserrat', fontStyle);
+      } else {
+        // Fallback to helvetica if Montserrat is not loaded
+        this.pdf.setFont('helvetica', style);
+      }
+    } catch (error) {
+      // Fallback to helvetica if Montserrat is not available
+      this.pdf.setFont('helvetica', style);
+    }
   }
 
   /**
@@ -94,6 +199,9 @@ export class PDFReportGenerator {
       this.pageHeight = this.pdf.internal.pageSize.height;
       this.pageWidth = this.pdf.internal.pageSize.width;
       this.currentY = this.margin;
+
+      // Ensure Montserrat font is loaded before generating content
+      await this.initializeMontserratFont();
 
       // Get current data from stores
       const projectStore = useProjectStore.getState();
@@ -145,7 +253,7 @@ export class PDFReportGenerator {
       // Add summary section
       this.addSectionHeader('RESUMO DAS REUNIÕES');
       this.pdf.setFontSize(12);
-      this.pdf.setFont('helvetica', 'normal');
+      this.setMontserratFont('normal');
       this.pdf.text(`Total de reuniões: ${meetings.length}`, this.margin, this.currentY);
       this.currentY += this.lineHeight;
       this.pdf.text(`Total de documentos: ${allDocuments.length}`, this.margin, this.currentY);
@@ -181,7 +289,7 @@ export class PDFReportGenerator {
           this.addDocumentsTable(meetingDocuments);
         } else {
           this.pdf.setFontSize(10);
-          this.pdf.setFont('helvetica', 'normal');
+          this.setMontserratFont('normal');
           this.pdf.text('Nenhum item encontrado para esta reunião.', this.margin, this.currentY);
           this.currentY += this.lineHeight;
         }
@@ -220,6 +328,9 @@ export class PDFReportGenerator {
       this.pageHeight = this.pdf.internal.pageSize.height;
       this.pageWidth = this.pdf.internal.pageSize.width;
       this.currentY = this.margin;
+      
+      // Ensure Montserrat font is loaded before generating content
+      await this.initializeMontserratFont();
       
       // Get current data from stores
       const projectStore = useProjectStore.getState();
@@ -419,7 +530,7 @@ export class PDFReportGenerator {
         this.addDocumentsTable(data.projectTracker.documents);
       } else {
         this.pdf.setFontSize(10);
-        this.pdf.setFont('helvetica', 'normal');
+        this.setMontserratFont('normal');
         this.pdf.text('Nenhum item encontrado para esta reunião.', this.margin, this.currentY);
         this.currentY += this.lineHeight;
       }
@@ -463,13 +574,13 @@ export class PDFReportGenerator {
   private addCoverPage(projectInfo: any): void {
     // Title
     this.pdf.setFontSize(24);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('RELATÓRIO GERAL PLATAFORMA DE GESTÃO', this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 20;
 
     // Project info
     this.pdf.setFontSize(16);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     this.pdf.text(`Projeto: ${projectInfo.name}`, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 10;
     this.pdf.text(projectInfo.description, this.pageWidth / 2, this.currentY, { align: 'center' });
@@ -487,7 +598,7 @@ export class PDFReportGenerator {
 
   private addSectionHeader(title: string): void {
     this.pdf.setFontSize(16);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text(title, this.margin, this.currentY);
     this.currentY += 15;
 
@@ -498,12 +609,12 @@ export class PDFReportGenerator {
 
   private addMeetingOverview(meeting: MeetingMetadata): void {
     this.pdf.setFontSize(12);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('Resumo da Reunião', this.margin, this.currentY);
     this.currentY += 8;
 
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
 
     const infoRows: Array<{ label: string; value: string }> = [
       { label: 'Data', value: meeting.data || '-' },
@@ -521,9 +632,9 @@ export class PDFReportGenerator {
 
     infoRows.forEach((row) => {
       const valueLines = this.pdf.splitTextToSize(row.value, valueWidth);
-      this.pdf.setFont('helvetica', 'bold');
+      this.setMontserratFont('bold');
       this.pdf.text(`${row.label}:`, this.margin, this.currentY);
-      this.pdf.setFont('helvetica', 'normal');
+      this.setMontserratFont('normal');
       valueLines.forEach((line, index) => {
         const lineY = this.currentY + index * this.lineHeight;
         this.pdf.text(line, this.margin + labelWidth, lineY);
@@ -533,10 +644,10 @@ export class PDFReportGenerator {
 
     if (meeting.detalhes) {
       this.currentY += 5;
-      this.pdf.setFont('helvetica', 'bold');
+      this.setMontserratFont('bold');
       this.pdf.text('Detalhes:', this.margin, this.currentY);
       this.currentY += this.lineHeight;
-      this.pdf.setFont('helvetica', 'normal');
+      this.setMontserratFont('normal');
       const detailLines = this.pdf.splitTextToSize(meeting.detalhes, this.pageWidth - this.margin * 2);
       detailLines.forEach((line) => {
         if (this.currentY > this.pageHeight - this.margin) {
@@ -716,7 +827,7 @@ export class PDFReportGenerator {
   
   private addDocumentMonitorKPIsFormatted(kpiData: any): void {
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     // Create a card-like display
     const cardWidth = 80;
@@ -726,9 +837,9 @@ export class PDFReportGenerator {
     // Emitidos card
     this.pdf.setDrawColor(200, 200, 200);
     this.pdf.rect(cardX, this.currentY, cardWidth, cardHeight);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('Emitidos', cardX + 2, this.currentY + 5);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     this.pdf.setFontSize(14);
     this.pdf.text(`${kpiData.emitidos}%`, cardX + 2, this.currentY + 12);
     
@@ -736,10 +847,10 @@ export class PDFReportGenerator {
     const cardX2 = cardX + cardWidth + 10;
     this.pdf.setDrawColor(200, 200, 200);
     this.pdf.rect(cardX2, this.currentY, cardWidth, cardHeight);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.setFontSize(10);
     this.pdf.text('Aprovados', cardX2 + 2, this.currentY + 5);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     this.pdf.setFontSize(14);
     this.pdf.text(`${kpiData.aprovados}%`, cardX2 + 2, this.currentY + 12);
     
@@ -749,10 +860,10 @@ export class PDFReportGenerator {
   
   private addSCurveDataFormatted(sCurveData: any[]): void {
     this.pdf.setFontSize(9);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     // Table header
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('Data', this.margin, this.currentY);
     this.pdf.text('Projetado', this.margin + 40, this.currentY);
     this.pdf.text('Baseline', this.margin + 80, this.currentY);
@@ -760,18 +871,18 @@ export class PDFReportGenerator {
     this.currentY += this.lineHeight;
     
     // Table rows
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     sCurveData.forEach(item => {
       if (this.currentY > this.pageHeight - 30) {
         this.addNewPage();
         // Re-add header
-        this.pdf.setFont('helvetica', 'bold');
+        this.setMontserratFont('bold');
         this.pdf.text('Data', this.margin, this.currentY);
         this.pdf.text('Projetado', this.margin + 40, this.currentY);
         this.pdf.text('Baseline', this.margin + 80, this.currentY);
         this.pdf.text('Avançado', this.margin + 120, this.currentY);
         this.currentY += this.lineHeight;
-        this.pdf.setFont('helvetica', 'normal');
+        this.setMontserratFont('normal');
       }
       
       this.pdf.text(item.time, this.margin, this.currentY);
@@ -784,7 +895,7 @@ export class PDFReportGenerator {
 
   private addSubsectionHeader(title: string): void {
     this.pdf.setFontSize(12);
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text(title, this.margin, this.currentY);
     this.currentY += 8;
   }
@@ -803,7 +914,7 @@ export class PDFReportGenerator {
     const aIniciarPercent = total > 0 ? Math.round((kpiData.aIniciar / total) * 100) : 0;
 
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     this.pdf.text(`Total de Documentos: ${total}`, this.margin, this.currentY);
     this.currentY += this.lineHeight;
@@ -818,7 +929,7 @@ export class PDFReportGenerator {
 
   private addDocumentMonitorKPIs(kpiData: any): void {
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     this.pdf.text(`Emitidos: ${kpiData.emitidos}%`, this.margin, this.currentY);
     this.currentY += this.lineHeight;
@@ -827,7 +938,7 @@ export class PDFReportGenerator {
 
   private addFiltersInfo(filters: any): void {
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     if (filters.searchQuery) {
       this.pdf.text(`Busca: "${filters.searchQuery}"`, this.margin, this.currentY);
@@ -858,7 +969,7 @@ export class PDFReportGenerator {
 
   private addDocumentMonitorFilters(filters: any): void {
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     this.pdf.text(`Período: ${filters.dateRange.start} até ${filters.dateRange.end}`, this.margin, this.currentY);
     this.currentY += this.lineHeight;
@@ -873,7 +984,7 @@ export class PDFReportGenerator {
     }
 
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     timelineData.forEach(item => {
       this.pdf.text(`${item.month}: Criados ${item.created}, Finalizados ${item.finished}`, this.margin, this.currentY);
@@ -889,7 +1000,7 @@ export class PDFReportGenerator {
     }
 
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     statusData.forEach(item => {
       this.pdf.text(`${item.status}: ${item.count} documentos (${item.percentage}%)`, this.margin, this.currentY);
@@ -899,7 +1010,7 @@ export class PDFReportGenerator {
 
   private addSCurveData(sCurveData: any[]): void {
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     sCurveData.forEach(item => {
       this.pdf.text(`${item.time}: Projetado ${item.projetado}, Baseline ${item.baseline}, Avançado ${item.avancado}`, this.margin, this.currentY);
@@ -909,10 +1020,10 @@ export class PDFReportGenerator {
 
   private addDocumentStatusTable(tableData: any[]): void {
     this.pdf.setFontSize(9);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     // Table header
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('Status', this.margin, this.currentY);
     this.pdf.text('Quantidade', this.margin + 50, this.currentY);
     this.pdf.text('Início', this.margin + 90, this.currentY);
@@ -924,12 +1035,12 @@ export class PDFReportGenerator {
     this.currentY += 2;
     
     // Table rows
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     tableData.forEach(item => {
       if (this.currentY > this.pageHeight - 30) {
         this.addNewPage();
         // Re-add header
-        this.pdf.setFont('helvetica', 'bold');
+        this.setMontserratFont('bold');
         this.pdf.text('Status', this.margin, this.currentY);
         this.pdf.text('Quantidade', this.margin + 50, this.currentY);
         this.pdf.text('Início', this.margin + 90, this.currentY);
@@ -937,7 +1048,7 @@ export class PDFReportGenerator {
         this.currentY += this.lineHeight;
         this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
         this.currentY += 2;
-        this.pdf.setFont('helvetica', 'normal');
+        this.setMontserratFont('normal');
       }
       
       this.pdf.text(item.status, this.margin, this.currentY);
@@ -1025,7 +1136,7 @@ export class PDFReportGenerator {
 
     const drawHeader = () => {
       this.pdf.setFontSize(9);
-      this.pdf.setFont('helvetica', 'bold');
+      this.setMontserratFont('bold');
       let x = startX;
       columns.forEach((col) => {
         const textX =
@@ -1043,7 +1154,7 @@ export class PDFReportGenerator {
       this.pdf.line(startX, this.currentY, startX + tableWidth, this.currentY);
       this.pdf.setDrawColor(0, 0, 0);
       this.currentY += 2;
-      this.pdf.setFont('helvetica', 'normal');
+      this.setMontserratFont('normal');
     };
 
     const getColumnXPositions = () => {
@@ -1346,7 +1457,7 @@ export class PDFReportGenerator {
     // Summary
     this.addSubsectionHeader('Resumo dos Anexos');
     this.pdf.setFontSize(10);
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     this.pdf.text(`Total de arquivos: ${totalFiles}`, this.margin, this.currentY);
     this.currentY += this.lineHeight;
     this.pdf.text(`Tamanho total: ${totalSize}`, this.margin, this.currentY);
@@ -1361,10 +1472,10 @@ export class PDFReportGenerator {
     // Attachments list
     this.addSubsectionHeader('Lista de Anexos');
     this.pdf.setFontSize(8); // Smaller font for better fit
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     
     // Table header - Adjusted column positions
-    this.pdf.setFont('helvetica', 'bold');
+    this.setMontserratFont('bold');
     this.pdf.text('Documento', this.margin, this.currentY);
     this.pdf.text('Arquivo', this.margin + 50, this.currentY);
     this.pdf.text('Tipo', this.margin + 100, this.currentY);
@@ -1377,12 +1488,12 @@ export class PDFReportGenerator {
     this.currentY += 2;
 
     // Table rows
-    this.pdf.setFont('helvetica', 'normal');
+    this.setMontserratFont('normal');
     allAttachments.forEach(attachment => {
       if (this.currentY > this.pageHeight - 30) {
         this.addNewPage();
         // Re-add header on new page
-        this.pdf.setFont('helvetica', 'bold');
+        this.setMontserratFont('bold');
         this.pdf.setFontSize(8);
         this.pdf.text('Documento', this.margin, this.currentY);
         this.pdf.text('Arquivo', this.margin + 50, this.currentY);
@@ -1392,7 +1503,7 @@ export class PDFReportGenerator {
         this.currentY += this.lineHeight;
         this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
         this.currentY += 2;
-        this.pdf.setFont('helvetica', 'normal');
+        this.setMontserratFont('normal');
       }
       
       // Truncate text to fit columns
