@@ -1,14 +1,18 @@
 import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { MeetingMetadata } from '@/types/project';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Calendar as CalendarIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { v4 as uuidv4 } from 'uuid';
 import { useProjectStore } from '@/stores/projectStore';
 import { useMeetingContextStore } from '@/stores/meetingContextStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
+import { parseBRDateLocal } from '@/lib/utils';
+import { ptBR } from 'date-fns/locale';
 
 export interface MeetingRegistrationHandle {
   handleAddMeeting: () => Promise<void>;
@@ -370,32 +374,71 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
             <label className="text-xs text-muted-foreground mb-1 block">
               Data da Reunião
             </label>
-            <Input
-              type="text"
-              placeholder="dd-mm-aaaa"
-              className="h-8 text-sm w-full"
-              value={meetingData}
-              onChange={(e) => {
-                let value = e.target.value;
-                // Remove non-numeric characters except dashes
-                value = value.replace(/[^0-9-]/g, '');
-                
-                // Auto-format as user types (dd-mm-aaaa)
-                if (value.length <= 2) {
-                  value = value;
-                } else if (value.length <= 5) {
-                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
-                } else if (value.length <= 10) {
-                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
-                } else {
-                  value = value.substring(0, 10);
-                }
-                
-                handleMeetingDataChange(value);
-              }}
-              maxLength={10}
-              inputMode="numeric"
-            />
+            <div className="relative flex gap-1">
+              <Input
+                type="text"
+                placeholder="dd-mm-aaaa"
+                className="h-8 text-sm flex-1"
+                value={meetingData}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Remove non-numeric characters except dashes
+                  value = value.replace(/[^0-9-]/g, '');
+                  
+                  // Auto-format as user types (dd-mm-aaaa)
+                  if (value.length <= 2) {
+                    value = value;
+                  } else if (value.length <= 5) {
+                    value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                  } else if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                  } else {
+                    value = value.substring(0, 10);
+                  }
+                  
+                  handleMeetingDataChange(value);
+                }}
+                maxLength={10}
+                inputMode="numeric"
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    type="button"
+                  >
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-auto p-0 z-[100]" 
+                  align="start" 
+                  side="top" 
+                  sideOffset={8}
+                  collisionPadding={24}
+                  avoidCollisions={true}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={meetingData ? parseBRDateLocal(meetingData) || undefined : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        // Format date as dd-mm-aaaa
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        const formattedDate = `${day}-${month}-${year}`;
+                        handleMeetingDataChange(formattedDate);
+                      }
+                    }}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
