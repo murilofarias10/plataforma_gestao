@@ -458,51 +458,119 @@ const MeetingEnvironment = () => {
                           return (
                             <div key={meeting.id} className="border-b border-border last:border-b-0 relative">
                               <div 
-                                className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr_auto] gap-4 p-4 relative"
+                                className="p-4 space-y-3 relative"
                                 style={{ 
                                   backgroundColor: index % 2 === 0 ? '#ffffff' : '#6BDDA9'
                                 }}
                               >
-                                {/* First Column: Date, Numero Ata, Participants, Fornecedor, Disciplina */}
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
+                                {/* First Row: Horizontal fields matching filter layout */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-center">
+                                  <div className="text-xs">
+                                    <span className="font-semibold text-foreground">Data:</span>{' '}
+                                    <span className="text-muted-foreground">{meeting.data}</span>
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="font-semibold text-foreground">Número da Ata:</span>{' '}
+                                    <span className="text-muted-foreground">{meeting.numeroAta}</span>
+                                  </div>
+                                  {meeting.participants.length > 0 ? (
                                     <div className="text-xs">
-                                      <span className="font-semibold text-foreground">Data:</span>{' '}
-                                      <span className="text-muted-foreground">{meeting.data}</span>
+                                      <span className="font-semibold text-foreground">Participantes:</span>{' '}
+                                      <span className="text-muted-foreground">{meeting.participants.join(', ')}</span>
                                     </div>
+                                  ) : (
+                                    <div className="text-xs text-muted-foreground/60">-</div>
+                                  )}
+                                  {meeting.fornecedor ? (
+                                    <div className="text-xs">
+                                      <span className="font-semibold text-foreground">Fornecedor:</span>{' '}
+                                      <span className="text-muted-foreground">{meeting.fornecedor}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-muted-foreground/60">-</div>
+                                  )}
+                                  {meeting.disciplina ? (
+                                    <div className="text-xs">
+                                      <span className="font-semibold text-foreground">Disciplina:</span>{' '}
+                                      <span className="text-muted-foreground">{meeting.disciplina}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-muted-foreground/60">-</div>
+                                  )}
+                                </div>
+
+                                {/* Second Row: Description field (full width, no truncation) */}
+                                <div>
+                                  <div className="text-xs font-semibold text-foreground mb-1">Detalhes</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {meeting.detalhes ? (
+                                      <p className="whitespace-pre-wrap">{meeting.detalhes}</p>
+                                    ) : (
+                                      <p className="italic text-muted-foreground/60">Sem detalhes</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Third Row: API field with action buttons */}
+                                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-start">
+                                  {/* Resumo/API Column */}
+                                  <div>
+                                    <div className="text-xs font-semibold text-foreground mb-1">Resumo</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {meeting.resumo ? (
+                                        <p className="line-clamp-4">{meeting.resumo}</p>
+                                      ) : (
+                                        <p className="italic text-muted-foreground/60">API FROM GPT</p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex items-start gap-2 justify-end flex-wrap">
                                     {isCurrentlyOpen && (
                                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500 text-white text-xs font-medium shadow-sm">
                                         <Circle className="h-2.5 w-2.5 fill-current" />
                                         <span>Aberto</span>
                                       </div>
                                     )}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEditMeeting(meeting)}
+                                      className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
+                                      aria-label="Editar reunião"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openMeetingDialog(meeting)}
+                                      className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
+                                      aria-label="Gerar relatório da reunião"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    {canDelete && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleOpenDeleteDialog(meeting)}
+                                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                        aria-label="Excluir reunião"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
                                   </div>
-                                  <div className="text-xs">
-                                    <span className="font-semibold text-foreground">Número da Ata:</span>{' '}
-                                    <span className="text-muted-foreground">{meeting.numeroAta}</span>
-                                  </div>
-                                  {meeting.participants.length > 0 && (
-                                    <div className="text-xs">
-                                      <span className="font-semibold text-foreground">Participantes:</span>{' '}
-                                      <span className="text-muted-foreground">{meeting.participants.join(', ')}</span>
-                                    </div>
-                                  )}
-                                  {meeting.fornecedor && (
-                                    <div className="text-xs">
-                                      <span className="font-semibold text-foreground">Fornecedor:</span>{' '}
-                                      <span className="text-muted-foreground">{meeting.fornecedor}</span>
-                                    </div>
-                                  )}
-                                  {meeting.disciplina && (
-                                    <div className="text-xs">
-                                      <span className="font-semibold text-foreground">Disciplina:</span>{' '}
-                                      <span className="text-muted-foreground">{meeting.disciplina}</span>
-                                    </div>
-                                  )}
-                                  {hasRelatedItems && (
+                                </div>
+
+                                {/* Third Row: Expandable items button */}
+                                {hasRelatedItems && (
+                                  <div className="flex items-center">
                                     <button
                                       onClick={() => toggleMeetingItems(meeting.id)}
-                                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors mt-2"
+                                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
                                     >
                                       {isItemsExpanded ? (
                                         <ChevronDown className="h-3 w-3" />
@@ -512,63 +580,8 @@ const MeetingEnvironment = () => {
                                       <FileText className="h-3 w-3" />
                                       <span>{relatedDocuments.length} {relatedDocuments.length === 1 ? 'item' : 'itens'}</span>
                                     </button>
-                                  )}
-                                </div>
-
-                                {/* Second Column: Detalhes */}
-                                <div className="flex items-start">
-                                  <div className="text-sm text-muted-foreground">
-                                    {meeting.detalhes ? (
-                                      <p className="line-clamp-4">{meeting.detalhes}</p>
-                                    ) : (
-                                      <p className="italic text-muted-foreground/60">Sem detalhes</p>
-                                    )}
                                   </div>
-                                </div>
-
-                                {/* Third Column: Resumo */}
-                                <div className="flex items-start">
-                                  <div className="text-sm text-muted-foreground">
-                                    {meeting.resumo ? (
-                                      <p className="line-clamp-4">{meeting.resumo}</p>
-                                    ) : (
-                                      <p className="italic text-muted-foreground/60">API FROM GPT</p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Fourth Column: Action Buttons */}
-                                <div className="flex items-start gap-2 lg:justify-end flex-wrap">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEditMeeting(meeting)}
-                                    className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
-                                    aria-label="Editar reunião"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => openMeetingDialog(meeting)}
-                                    className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
-                                    aria-label="Gerar relatório da reunião"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  {canDelete && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleOpenDeleteDialog(meeting)}
-                                      className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                      aria-label="Excluir reunião"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
+                                )}
                               </div>
 
                               {/* Expandable Related Items - Table View */}
