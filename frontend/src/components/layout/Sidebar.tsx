@@ -111,18 +111,18 @@ const Sidebar = ({ className }: SidebarProps) => {
       description: "Controle de documentos e acompanhamento de projetos"
     },
     {
-      id: "document-monitor", 
-      label: "Monitor de Documentos",
-      icon: BarChart3,
-      path: "/document-monitor",
-      description: "Monitoramento de status de documentos técnicos"
-    },
-    {
       id: "meeting-environment",
       label: "Ambiente de Reuniões",
       icon: CalendarClock,
       path: "/meeting-environment",
       description: "Histórico e gestão de reuniões registradas"
+    },
+    {
+      id: "document-monitor", 
+      label: "Monitor de Documentos",
+      icon: BarChart3,
+      path: "/document-monitor",
+      description: "Monitoramento de status de documentos técnicos"
     }
   ];
 
