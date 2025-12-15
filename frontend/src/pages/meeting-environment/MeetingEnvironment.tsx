@@ -511,22 +511,40 @@ const MeetingEnvironment = () => {
                                   </div>
                                 </div>
 
-                                {/* Third Row: API field with action buttons */}
-                                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-start">
-                                  {/* Resumo/API Column */}
-                                  <div>
-                                    <div className="text-xs font-semibold text-foreground mb-1">Resumo</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {meeting.resumo ? (
-                                        <p className="line-clamp-4">{meeting.resumo}</p>
-                                      ) : (
-                                        <p className="italic text-muted-foreground/60">API FROM GPT</p>
-                                      )}
-                                    </div>
+                                {/* Third Row: API field */}
+                                <div>
+                                  <div className="text-xs font-semibold text-foreground mb-1">Resumo</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {meeting.resumo ? (
+                                      <p className="line-clamp-4">{meeting.resumo}</p>
+                                    ) : (
+                                      <p className="italic text-muted-foreground/60">API FROM GPT</p>
+                                    )}
                                   </div>
+                                </div>
 
+                                {/* Fourth Row: Expandable items button and Action buttons */}
+                                <div className="flex items-center justify-between">
+                                  {/* Expandable items button */}
+                                  {hasRelatedItems ? (
+                                    <button
+                                      onClick={() => toggleMeetingItems(meeting.id)}
+                                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                      {isItemsExpanded ? (
+                                        <ChevronDown className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronRight className="h-3 w-3" />
+                                      )}
+                                      <FileText className="h-3 w-3" />
+                                      <span>{relatedDocuments.length} {relatedDocuments.length === 1 ? 'item' : 'itens'}</span>
+                                    </button>
+                                  ) : (
+                                    <div></div>
+                                  )}
+                                  
                                   {/* Action Buttons */}
-                                  <div className="flex items-start gap-2 justify-end flex-wrap">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     {isCurrentlyOpen && (
                                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500 text-white text-xs font-medium shadow-sm">
                                         <Circle className="h-2.5 w-2.5 fill-current" />
@@ -564,24 +582,6 @@ const MeetingEnvironment = () => {
                                     )}
                                   </div>
                                 </div>
-
-                                {/* Third Row: Expandable items button */}
-                                {hasRelatedItems && (
-                                  <div className="flex items-center">
-                                    <button
-                                      onClick={() => toggleMeetingItems(meeting.id)}
-                                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                                    >
-                                      {isItemsExpanded ? (
-                                        <ChevronDown className="h-3 w-3" />
-                                      ) : (
-                                        <ChevronRight className="h-3 w-3" />
-                                      )}
-                                      <FileText className="h-3 w-3" />
-                                      <span>{relatedDocuments.length} {relatedDocuments.length === 1 ? 'item' : 'itens'}</span>
-                                    </button>
-                                  </div>
-                                )}
                               </div>
 
                               {/* Expandable Related Items - Table View */}
