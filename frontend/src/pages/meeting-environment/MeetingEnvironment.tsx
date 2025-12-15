@@ -17,7 +17,11 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { parseBRDateLocal } from "@/lib/utils";
+import { ptBR } from "date-fns/locale";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -423,12 +427,54 @@ const MeetingEnvironment = () => {
                 
                 {/* Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-                  <Input
-                    placeholder="Data..."
-                    value={filters.data}
-                    onChange={handleDateChange}
-                    className="text-xs"
-                  />
+                  <div className="relative flex gap-1">
+                    <Input
+                      type="text"
+                      placeholder="dd-mm-aaaa"
+                      value={filters.data}
+                      onChange={handleDateChange}
+                      className="text-xs flex-1"
+                      maxLength={10}
+                      inputMode="numeric"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          type="button"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="w-auto p-0 z-[100]" 
+                        align="start" 
+                        side="top" 
+                        sideOffset={8}
+                        collisionPadding={24}
+                        avoidCollisions={true}
+                      >
+                        <Calendar
+                          mode="single"
+                          selected={filters.data ? parseBRDateLocal(filters.data) || undefined : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              // Format date as dd-mm-aaaa
+                              const day = String(date.getDate()).padStart(2, '0');
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const year = date.getFullYear();
+                              const formattedDate = `${day}-${month}-${year}`;
+                              setFilters({ data: formattedDate });
+                            }
+                          }}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <Input
                     placeholder="Número da Ata..."
                     value={filters.numeroAta}
