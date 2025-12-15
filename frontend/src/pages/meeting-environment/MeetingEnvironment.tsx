@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +113,7 @@ const MeetingEnvironment = () => {
   const [expandedMeetingItems, setExpandedMeetingItems] = useState<Set<string>>(new Set());
   const [editConflictDialogOpen, setEditConflictDialogOpen] = useState(false);
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<MeetingMetadata | null>(null);
+  const isEditingInProgressRef = useRef(false);
   const { openMeetingDialog } = useMeetingReportStore();
   const { canDelete } = usePermissions();
   const { startEditMeeting, isEditMode, clearMeetingContext, editingMeetingId } = useMeetingContextStore();
@@ -258,6 +259,12 @@ const MeetingEnvironment = () => {
   const handleEditMeeting = useCallback(async (meeting: MeetingMetadata) => {
     console.log('[MeetingEnvironment] Starting edit for meeting:', meeting.id);
     
+    // Prevent rapid clicks - if an edit operation is already in progress, ignore
+    if (isEditingInProgressRef.current) {
+      console.log('[MeetingEnvironment] Edit operation already in progress, ignoring click');
+      return;
+    }
+    
     // CHECK: Is there already an active edit in progress?
     const currentEditState = useMeetingContextStore.getState();
     if (currentEditState.isEditMode) {
@@ -270,8 +277,18 @@ const MeetingEnvironment = () => {
       return;
     }
     
-    // No active edit, proceed with opening the meeting
-    await proceedWithEditMeeting(meeting);
+    // Set flag to prevent multiple rapid clicks
+    isEditingInProgressRef.current = true;
+    
+    try {
+      // No active edit, proceed with opening the meeting
+      await proceedWithEditMeeting(meeting);
+    } catch (error) {
+      console.error('[MeetingEnvironment] Error editing meeting:', error);
+      // Reset flag on error so user can try again
+      isEditingInProgressRef.current = false;
+    }
+    // Note: We don't reset the flag on success because navigation happens and component unmounts
   }, [proceedWithEditMeeting]);
 
   const getMeetingRelatedDocuments = useCallback((meeting: MeetingMetadata): ProjectDocument[] => {
