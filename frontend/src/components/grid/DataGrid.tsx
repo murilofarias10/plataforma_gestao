@@ -63,6 +63,7 @@ export function DataGrid() {
 
   const gridRef = useRef<HTMLDivElement>(null);
   const savedScrollPosition = useRef<number | null>(null);
+  const insertButtonRef = useRef<HTMLButtonElement>(null);
 
   // Restore scroll position after any render if it was saved
   useEffect(() => {
@@ -265,8 +266,63 @@ export function DataGrid() {
       setEditingCell(null);
     } else if (e.key === 'Escape') {
       setEditingCell(null);
+    } else if (e.key === 'Tab' && !e.shiftKey) {
+      // Handle Tab: move to next editable cell in the same row
+      const currentIndex = columns.findIndex(col => col.key === field);
+      let foundNext = false;
+      
+      // Special case: after responsavel column, go to Insert button
+      if (field === 'responsavel') {
+        e.preventDefault();
+        setEditingCell(null); // Stop editing current cell
+        // Focus Insert button after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          insertButtonRef.current?.focus();
+        }, 0);
+        return;
+      }
+      
+      if (currentIndex !== -1 && currentIndex < columns.length - 1) {
+        // Find next editable column (skip numeroItem as it's not editable)
+        for (let i = currentIndex + 1; i < columns.length; i++) {
+          const nextColumn = columns[i];
+          if (nextColumn.key !== 'numeroItem') {
+            e.preventDefault();
+            setEditingCell({ id, field: nextColumn.key });
+            foundNext = true;
+            break;
+          }
+        }
+      }
+      
+      // If no next editable cell found, allow default Tab behavior
+      if (!foundNext) {
+        setEditingCell(null); // Stop editing current cell
+      }
+    } else if (e.key === 'Tab' && e.shiftKey) {
+      // Handle Shift+Tab: move to previous editable cell in the same row
+      const currentIndex = columns.findIndex(col => col.key === field);
+      let foundPrevious = false;
+      
+      if (currentIndex > 0) {
+        // Find previous editable column (skip numeroItem as it's not editable)
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          const prevColumn = columns[i];
+          if (prevColumn.key !== 'numeroItem') {
+            e.preventDefault();
+            setEditingCell({ id, field: prevColumn.key });
+            foundPrevious = true;
+            break;
+          }
+        }
+      }
+      
+      // If no previous editable cell found, allow default Shift+Tab behavior
+      if (!foundPrevious) {
+        setEditingCell(null); // Stop editing current cell
+      }
     }
-  }, [handleBlankRowSave]);
+  }, [handleBlankRowSave, columns]);
 
   const handleSelectionChange = useCallback((id: string, selected: boolean) => {
     setSelectedRows(prev => {
@@ -342,6 +398,7 @@ export function DataGrid() {
       {canCreate && (
         <div className="flex justify-end">
           <Button 
+            ref={insertButtonRef}
             onClick={handleBlankRowSave}
             className="flex items-center gap-2"
           >

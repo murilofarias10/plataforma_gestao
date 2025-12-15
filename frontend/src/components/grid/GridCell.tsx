@@ -83,8 +83,14 @@ export function GridCell({
     } else if (e.key === 'Escape') {
       setLocalValue(value || '');
       onStopEdit();
+    } else if (e.key === 'Tab') {
+      // Prevent default Tab behavior - we'll handle it in parent component
+      e.preventDefault();
+      handleSave(); // Save current cell before moving
+      onKeyDown(e);
+    } else {
+      onKeyDown(e);
     }
-    onKeyDown(e);
   };
 
   const formatDisplayValue = (val: any) => {
@@ -114,13 +120,29 @@ export function GridCell({
 
     if (type === 'select') {
       return (
-        <div className="p-2 w-full min-h-[44px] flex items-center">
+        <div 
+          className="p-2 w-full min-h-[44px] flex items-center"
+          onKeyDown={(e) => {
+            if (e.key === 'Tab') {
+              e.preventDefault();
+              handleSave();
+              onKeyDown(e);
+            }
+          }}
+        >
           <Select
             value={localValue}
             onValueChange={(value) => {
               setLocalValue(value);
               onEdit(value);
               onStopEdit();
+            }}
+            onOpenChange={(open) => {
+              // If Select closes without value change and Tab was pressed,
+              // the onKeyDown handler on the wrapper will handle navigation
+              if (!open) {
+                handleSave();
+              }
             }}
           >
             <SelectTrigger className="w-full text-xs h-auto">
