@@ -17,7 +17,7 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye } from "lucide-react";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -555,7 +555,7 @@ const MeetingEnvironment = () => {
                                     className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
                                     aria-label="Gerar relatório da reunião"
                                   >
-                                    <Download className="h-4 w-4" />
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                   {canDelete && (
                                     <Button
