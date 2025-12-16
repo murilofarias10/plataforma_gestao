@@ -669,22 +669,28 @@ app.get('/api/download/:projectId/:documentId/:filename', async (req, res) => {
       });
     }
 
-    // Find the document to get the original filename
-    const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
-    let originalFileName = filename; // Fallback to server filename
+    // Get original filename - prioritize query parameter, then lookup in document
+    let originalFileName = req.query.originalName || filename; // Use query param if provided
     
-    if (document && document.attachments) {
-      const attachment = document.attachments.find((att) => {
-        const serverFileName = att.filePath.split('/').pop();
-        return serverFileName === filename;
-      });
-      if (attachment) {
-        originalFileName = attachment.fileName || attachment.originalName || filename;
+    // If no query param, try to find the document to get the original filename
+    if (!req.query.originalName) {
+      const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
+      
+      if (document && document.attachments) {
+        const attachment = document.attachments.find((att) => {
+          const serverFileName = att.filePath.split('/').pop();
+          return serverFileName === filename;
+        });
+        if (attachment) {
+          originalFileName = attachment.fileName || attachment.originalName || filename;
+        }
       }
     }
 
     // Set headers to force download with original filename
-    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    // Use RFC 6266 encoding for proper international filename support
+    const encodedFileName = encodeURIComponent(originalFileName);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"; filename*=UTF-8''${encodedFileName}`);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');

@@ -154,8 +154,10 @@ export function FileUploadModal({
     const serverFileName = pathParts[3]; // uploads/projectId/documentId/[filename]
     
     // Use the new download API endpoint which sets proper Content-Disposition header
+    // Pass the original filename as a query parameter so backend can use it
     const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-    const downloadUrl = `${apiBase}/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}`;
+    const encodedOriginalName = encodeURIComponent(attachment.fileName);
+    const downloadUrl = `${apiBase}/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}?originalName=${encodedOriginalName}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = attachment.fileName;
