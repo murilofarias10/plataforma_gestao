@@ -940,32 +940,22 @@ const MeetingEnvironment = () => {
               Reunião em Edição
             </DialogTitle>
             <DialogDescription className="space-y-3 mt-4">
-              <p>Você está editando uma reunião no momento. Deseja salvar como uma nova reunião e abrir a outra?</p>
+              <p>Não é possível abrir outra reunião, voce está editando uma reunião no momento</p>
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="sm:justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditConflictDialogOpen(false);
-                setPendingMeetingToEdit(null);
-              }}
-            >
-              Voltar
-            </Button>
+          <DialogFooter className="sm:justify-end">
             <Button
               onClick={() => {
-                console.log('[MeetingEnvironment] User chose to save and open new meeting');
+                console.log('[MeetingEnvironment] User chose to go to the meeting being edited');
                 setEditConflictDialogOpen(false);
-                // Navigate to project-tracker to save first, then open the new meeting
-                // Pass autoSave flag to trigger save immediately
-                navigate("/project-tracker", { state: { focus: "meetings", editMode: true, pendingMeetingToEdit, autoSave: true } });
                 setPendingMeetingToEdit(null);
+                // Navigate to project-tracker where the meeting is being edited
+                navigate("/project-tracker", { state: { focus: "meetings", editMode: true } });
               }}
               className="bg-teal-600 hover:bg-teal-700"
             >
-              Salvar
+              Ir para reunião
             </Button>
           </DialogFooter>
         </DialogContent>
