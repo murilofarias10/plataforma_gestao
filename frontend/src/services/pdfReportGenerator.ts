@@ -52,6 +52,14 @@ export interface ReportData {
     totalSize: string;
   };
   meeting?: MeetingMetadata;
+  reportSettings?: {
+    images: Array<{
+      id: string;
+      imageData: string;
+      fileName: string;
+      enabled: boolean;
+    }>;
+  };
 }
 
 export class PDFReportGenerator {
@@ -418,7 +426,8 @@ export class PDFReportGenerator {
           allAttachments: allAttachments,
           totalFiles: allAttachments.length,
           totalSize: totalSize
-        }
+        },
+        reportSettings: selectedProject.reportSettings
       };
 
       if (meeting) {
@@ -515,7 +524,7 @@ export class PDFReportGenerator {
     // If this is a meeting report, combine cover and overview on first page
     if (data.meeting) {
       // Combined cover page with meeting overview
-      this.addCoverPageWithMeetingOverview(data.projectInfo, data.meeting);
+      await this.addCoverPageWithMeetingOverview(data.projectInfo, data.meeting, data.reportSettings);
       this.addNewPage();
 
       // Meeting Items section (Itens da Reunião)
@@ -577,24 +586,138 @@ export class PDFReportGenerator {
     this.setMontserratFont('normal');
     this.pdf.text(`Projeto: ${projectInfo.name}`, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 10;
+    this.setMontserratFont('normal');
     this.pdf.text(projectInfo.description, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 20;
 
     // Generated date
     this.pdf.setFontSize(12);
+    this.setMontserratFont('normal');
     this.pdf.text(`Gerado em: ${projectInfo.generatedAt}`, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 30;
 
     // Logo placeholder
     this.pdf.setFontSize(10);
+    this.setMontserratFont('normal');
     this.pdf.text('KUBIK ENGENHARIA', this.pageWidth / 2, this.pageHeight - 30, { align: 'center' });
+  }
+
+  /**
+   * Helper function to convert backend image URL to base64
+   */
+  private async loadImageAsBase64(imageUrl: string): Promise<string | null> {
+    try {
+      // If it's already base64, return as is
+      if (imageUrl.startsWith('data:')) {
+        return imageUrl;
+      }
+      
+      // Construct full URL
+      const fullUrl = imageUrl.startsWith('http') ? imageUrl : `http://localhost:3001${imageUrl}`;
+      
+      // Fetch the image
+      const response = await fetch(fullUrl);
+      const blob = await response.blob();
+      
+      // Convert to base64
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error loading image as base64:', error);
+      return null;
+    }
   }
 
   /**
    * Combined cover page with meeting overview for meeting reports
    * Optimizes space by putting everything on the first page
    */
-  private addCoverPageWithMeetingOverview(projectInfo: any, meeting: MeetingMetadata): void {
+  private async addCoverPageWithMeetingOverview(projectInfo: any, meeting: MeetingMetadata, reportSettings?: { images: Array<{ id: string; imageData: string; fileName: string; enabled: boolean }> }): Promise<void> {
+    // Add report images centered at the top if they exist and are enabled
+    if (reportSettings?.images) {
+      const enabledImages = reportSettings.images.filter(img => img.enabled && img.imageData);
+      if (enabledImages.length > 0) {
+        const imageHeight = 20; // Height for each image in mm
+        const imageSpacing = 5; // Spacing between images in mm
+        const imageY = this.currentY;
+        
+        // First pass: calculate total width of all images
+        let totalWidth = 0;
+        const imageWidths: number[] = [];
+        
+        for (const image of enabledImages) {
+          try {
+            // Load image as base64
+            const base64Image = await this.loadImageAsBase64(image.imageData);
+            
+            if (base64Image) {
+              // Calculate width to maintain aspect ratio
+              const imgElement = new Image();
+              imgElement.src = base64Image;
+              
+              // Wait for image to load to get dimensions
+              await new Promise((resolve) => {
+                imgElement.onload = resolve;
+                imgElement.onerror = resolve; // Continue even if image fails
+              });
+              
+              if (imgElement.naturalWidth > 0) {
+                const aspectRatio = imgElement.naturalWidth / imgElement.naturalHeight;
+                const imageWidth = imageHeight * aspectRatio;
+                imageWidths.push(imageWidth);
+                totalWidth += imageWidth;
+              } else {
+                imageWidths.push(0);
+              }
+            } else {
+              imageWidths.push(0);
+            }
+          } catch (error) {
+            console.error(`Error calculating image width for ${image.fileName}:`, error);
+            imageWidths.push(0);
+          }
+        }
+        
+        // Calculate total width including spacing
+        const totalSpacing = (enabledImages.length - 1) * imageSpacing;
+        const totalImagesWidth = totalWidth + totalSpacing;
+        
+        // Calculate starting X position to center images
+        const startX = (this.pageWidth - totalImagesWidth) / 2;
+        let imageX = startX;
+        
+        // Second pass: add images to PDF
+        for (let i = 0; i < enabledImages.length; i++) {
+          const image = enabledImages[i];
+          const imageWidth = imageWidths[i];
+          
+          if (imageWidth > 0) {
+            try {
+              // Load image as base64
+              const base64Image = await this.loadImageAsBase64(image.imageData);
+              
+              if (base64Image) {
+                // Add image to PDF
+                this.pdf.addImage(base64Image, 'PNG', imageX, imageY, imageWidth, imageHeight);
+                
+                // Move X position for next image
+                imageX += imageWidth + imageSpacing;
+              }
+            } catch (error) {
+              console.error(`Error adding image ${image.fileName} to PDF:`, error);
+            }
+          }
+        }
+        
+        // Move currentY down after images
+        this.currentY += imageHeight + 10;
+      }
+    }
+    
     // Title (slightly smaller to save space)
     this.pdf.setFontSize(20);
     this.setMontserratFont('bold');
@@ -607,12 +730,14 @@ export class PDFReportGenerator {
     this.pdf.text(`Projeto: ${projectInfo.name}`, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 8;
     if (projectInfo.description) {
+      this.setMontserratFont('normal');
       this.pdf.text(projectInfo.description, this.pageWidth / 2, this.currentY, { align: 'center' });
       this.currentY += 8;
     }
 
     // Generated date
     this.pdf.setFontSize(11);
+    this.setMontserratFont('normal');
     this.pdf.text(`Gerado em: ${projectInfo.generatedAt}`, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 18;
 
@@ -633,6 +758,7 @@ export class PDFReportGenerator {
     const remainingSpace = this.pageHeight - this.currentY;
     if (remainingSpace > 40) {
       this.pdf.setFontSize(10);
+      this.setMontserratFont('normal');
       this.pdf.text('KUBIK ENGENHARIA', this.pageWidth / 2, this.pageHeight - 20, { align: 'center' });
     }
   }
@@ -675,9 +801,9 @@ export class PDFReportGenerator {
       const valueLines = this.pdf.splitTextToSize(row.value, valueWidth);
       this.setMontserratFont('bold');
       this.pdf.text(`${row.label}:`, this.margin, this.currentY);
-      this.setMontserratFont('normal');
       valueLines.forEach((line, index) => {
         const lineY = this.currentY + index * this.lineHeight;
+        this.setMontserratFont('normal');
         this.pdf.text(line, this.margin + labelWidth, lineY);
       });
       this.currentY += valueLines.length * this.lineHeight;
@@ -694,6 +820,7 @@ export class PDFReportGenerator {
         if (this.currentY > this.pageHeight - this.margin) {
           this.addNewPage();
         }
+        this.setMontserratFont('normal');
         this.pdf.text(line, this.margin, this.currentY);
         this.currentY += this.lineHeight;
       });
@@ -882,6 +1009,7 @@ export class PDFReportGenerator {
     this.pdf.text('Emitidos', cardX + 2, this.currentY + 5);
     this.setMontserratFont('normal');
     this.pdf.setFontSize(14);
+    this.setMontserratFont('normal');
     this.pdf.text(`${kpiData.emitidos}%`, cardX + 2, this.currentY + 12);
     
     // Aprovados card
@@ -893,6 +1021,7 @@ export class PDFReportGenerator {
     this.pdf.text('Aprovados', cardX2 + 2, this.currentY + 5);
     this.setMontserratFont('normal');
     this.pdf.setFontSize(14);
+    this.setMontserratFont('normal');
     this.pdf.text(`${kpiData.aprovados}%`, cardX2 + 2, this.currentY + 12);
     
     this.currentY += cardHeight + 5;
@@ -926,6 +1055,7 @@ export class PDFReportGenerator {
         this.setMontserratFont('normal');
       }
       
+      this.setMontserratFont('normal');
       this.pdf.text(item.time, this.margin, this.currentY);
       this.pdf.text(item.projetado.toString(), this.margin + 40, this.currentY);
       this.pdf.text(item.baseline.toString(), this.margin + 80, this.currentY);
@@ -1019,6 +1149,8 @@ export class PDFReportGenerator {
 
   private addTimelineData(timelineData: any[]): void {
     if (timelineData.length === 0) {
+      this.pdf.setFontSize(10);
+      this.setMontserratFont('normal');
       this.pdf.text('Nenhum dado disponível', this.margin, this.currentY);
       this.currentY += this.lineHeight;
       return;
@@ -1035,6 +1167,8 @@ export class PDFReportGenerator {
 
   private addStatusDistribution(statusData: any[]): void {
     if (statusData.length === 0) {
+      this.pdf.setFontSize(10);
+      this.setMontserratFont('normal');
       this.pdf.text('Nenhum dado disponível', this.margin, this.currentY);
       this.currentY += this.lineHeight;
       return;
@@ -1092,6 +1226,7 @@ export class PDFReportGenerator {
         this.setMontserratFont('normal');
       }
       
+      this.setMontserratFont('normal');
       this.pdf.text(item.status, this.margin, this.currentY);
       this.pdf.text(item.qtde.toString(), this.margin + 50, this.currentY);
       this.pdf.text(item.inicio?.toString() || '-', this.margin + 90, this.currentY);
@@ -1112,6 +1247,8 @@ export class PDFReportGenerator {
 
   private addDocumentsTable(documents: any[]): void {
     if (documents.length === 0) {
+      this.pdf.setFontSize(10);
+      this.setMontserratFont('normal');
       this.pdf.text('Nenhum documento encontrado', this.margin, this.currentY);
       this.currentY += this.lineHeight;
       return;
@@ -1212,6 +1349,7 @@ export class PDFReportGenerator {
 
     drawHeader();
     this.pdf.setFontSize(8);
+    this.setMontserratFont('normal');
 
     documents.forEach((doc, index) => {
       const cellContents = columns.map((col) => {
@@ -1229,9 +1367,11 @@ export class PDFReportGenerator {
       if (this.currentY + rowHeight > this.pageHeight - this.margin) {
         this.addNewPage();
         this.pdf.setFontSize(8);
+        this.setMontserratFont('normal');
         columnPositions.splice(0, columnPositions.length, ...getColumnXPositions());
         drawHeader();
         this.pdf.setFontSize(8);
+        this.setMontserratFont('normal');
       }
 
       // Optional zebra striping for readability
@@ -1253,6 +1393,7 @@ export class PDFReportGenerator {
 
         cell.lines.forEach((line, lineIdx) => {
           const lineY = this.currentY + (lineIdx + 1) * rowLineSpacing;
+          this.setMontserratFont('normal');
           if (col.align === 'left') {
             this.pdf.text(line, textX, lineY);
           } else {

@@ -253,9 +253,9 @@ app.post('/api/projects', (req, res) => {
 app.put('/api/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, meetings } = req.body;
+    const { name, description, meetings, reportSettings } = req.body;
 
-    console.log('[Backend] PUT /api/projects/:id - Request:', { id, name, description, meetings });
+    console.log('[Backend] PUT /api/projects/:id - Request:', { id, name, description, meetings, reportSettings });
 
     const projectIndex = projectsData.findIndex(p => p.id === id);
     if (projectIndex === -1) {
@@ -269,23 +269,30 @@ app.put('/api/projects/:id', (req, res) => {
     const currentMeetings = projectsData[projectIndex].meetings || [];
     const updatedMeetings = meetings !== undefined ? meetings : currentMeetings;
     
+    // Handle reportSettings update
+    const currentReportSettings = projectsData[projectIndex].reportSettings || { images: [] };
+    const updatedReportSettings = reportSettings !== undefined ? reportSettings : currentReportSettings;
+    
     console.log('[Backend] Current meetings:', currentMeetings);
     console.log('[Backend] Updated meetings:', updatedMeetings);
+    console.log('[Backend] Updated report settings:', updatedReportSettings);
     
     projectsData[projectIndex] = {
       ...projectsData[projectIndex],
       name: name || projectsData[projectIndex].name,
       description: description !== undefined ? description : projectsData[projectIndex].description,
       meetings: updatedMeetings,
+      reportSettings: updatedReportSettings,
       updatedAt: new Date().toISOString()
     };
 
     saveData();
 
-    // Ensure the response includes meetings
+    // Ensure the response includes meetings and reportSettings
     const responseProject = {
       ...projectsData[projectIndex],
-      meetings: updatedMeetings
+      meetings: updatedMeetings,
+      reportSettings: updatedReportSettings
     };
 
     console.log('[Backend] Response project:', JSON.stringify(responseProject, null, 2));
@@ -527,6 +534,63 @@ app.post('/api/upload', upload.array('files', 5), handleMulterError, async (req,
     res.status(500).json({
       success: false,
       error: 'Erro interno do servidor ao fazer upload dos arquivos'
+    });
+  }
+});
+
+// Report images upload endpoint
+app.post('/api/projects/:projectId/report-images', upload.single('image'), handleMulterError, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { imageId } = req.body;
+    
+    if (!projectId || !imageId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project ID and Image ID are required'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhuma imagem foi enviada'
+      });
+    }
+
+    // Create the final destination directory for report images
+    const finalDir = path.join(__dirname, 'uploads', projectId, 'report-images');
+    await fs.ensureDir(finalDir);
+
+    // Move file from temp to final location
+    const finalPath = path.join(finalDir, req.file.filename);
+    await fs.move(req.file.path, finalPath);
+
+    // Return the file path
+    const filePath = `/uploads/${projectId}/report-images/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: 'Imagem enviada com sucesso!',
+      filePath: filePath,
+      fileName: req.file.originalname
+    });
+
+  } catch (error) {
+    console.error('Report image upload error:', error);
+    
+    // Clean up temp file if there was an error
+    if (req.file) {
+      try {
+        await fs.remove(req.file.path);
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao fazer upload da imagem'
     });
   }
 });

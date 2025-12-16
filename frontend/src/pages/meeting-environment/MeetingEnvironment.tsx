@@ -17,7 +17,7 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseBRDateLocal } from "@/lib/utils";
@@ -118,6 +118,17 @@ const MeetingEnvironment = () => {
   const [editConflictDialogOpen, setEditConflictDialogOpen] = useState(false);
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<MeetingMetadata | null>(null);
   const isEditingInProgressRef = useRef(false);
+  const [reportSettingsDialogOpen, setReportSettingsDialogOpen] = useState(false);
+  const [reportImages, setReportImages] = useState<Array<{
+    id: string;
+    imageData: string;
+    fileName: string;
+    enabled: boolean;
+  }>>([
+    { id: '1', imageData: '', fileName: '', enabled: true },
+    { id: '2', imageData: '', fileName: '', enabled: true },
+    { id: '3', imageData: '', fileName: '', enabled: true }
+  ]);
   const { openMeetingDialog } = useMeetingReportStore();
   const { canDelete } = usePermissions();
   const { startEditMeeting, isEditMode, clearMeetingContext, editingMeetingId } = useMeetingContextStore();
@@ -307,6 +318,116 @@ const MeetingEnvironment = () => {
     return [];
   }, [documents]);
 
+  // Load report images from project settings
+  useEffect(() => {
+    if (selectedProject?.reportSettings?.images) {
+      const loadedImages = [...selectedProject.reportSettings.images];
+      // Ensure we always have 3 slots
+      while (loadedImages.length < 3) {
+        loadedImages.push({
+          id: `${loadedImages.length + 1}`,
+          imageData: '',
+          fileName: '',
+          enabled: true
+        });
+      }
+      setReportImages(loadedImages.slice(0, 3));
+    }
+  }, [selectedProject]);
+
+  const handleImageUpload = useCallback(async (index: number, file: File) => {
+    if (!selectedProjectId) return;
+
+    try {
+      // Upload image to backend
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('imageId', `image-${index + 1}`);
+
+      const response = await fetch(`http://localhost:3001/api/projects/${selectedProjectId}/report-images`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store the file path from backend
+        setReportImages(prev => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            imageData: data.filePath, // Store backend path
+            fileName: data.fileName
+          };
+          return updated;
+        });
+      } else {
+        console.error('Error uploading image:', data.error);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+    }
+  }, [selectedProjectId]);
+
+  const handleImageToggle = useCallback((index: number) => {
+    setReportImages(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        enabled: !updated[index].enabled
+      };
+      return updated;
+    });
+  }, []);
+
+  const handleImageRemove = useCallback(async (index: number) => {
+    if (!selectedProjectId) return;
+
+    const image = reportImages[index];
+    
+    // If there's an image to delete, delete it from backend
+    if (image.imageData) {
+      try {
+        // Extract filename from path
+        const filename = image.imageData.split('/').pop();
+        if (filename) {
+          await fetch(`http://localhost:3001/api/files/${selectedProjectId}/report-images/${filename}`, {
+            method: 'DELETE'
+          });
+        }
+      } catch (error) {
+        console.error('Error deleting image:', error);
+      }
+    }
+    
+    // Clear the image from state
+    setReportImages(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        imageData: '',
+        fileName: ''
+      };
+      return updated;
+    });
+  }, [selectedProjectId, reportImages]);
+
+  const handleSaveReportSettings = useCallback(async () => {
+    if (!selectedProjectId) return;
+
+    try {
+      await updateProject(selectedProjectId, {
+        reportSettings: {
+          images: reportImages
+        }
+      });
+      setReportSettingsDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving report settings:', error);
+    }
+  }, [selectedProjectId, reportImages, updateProject]);
+
   // Handle pending meeting to edit after save
   useEffect(() => {
     const handleOpenMeeting = async () => {
@@ -412,17 +533,28 @@ const MeetingEnvironment = () => {
                       <span>{meetings.length} reuniões registradas</span>
                     </div>
                   </div>
-                  {activeFiltersCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    {activeFiltersCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="flex items-center gap-2"
+                      >
+                        <X className="h-3 w-3" />
+                        Limpar filtros ({activeFiltersCount})
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllFilters}
-                      className="flex items-center gap-2"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setReportSettingsDialogOpen(true)}
+                      className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
+                      aria-label="Configurações do relatório"
                     >
-                      <X className="h-3 w-3" />
-                      Limpar filtros ({activeFiltersCount})
+                      <Settings className="h-4 w-4" />
                     </Button>
-                  )}
+                  </div>
                 </div>
                 
                 {/* Filters */}
@@ -834,6 +966,131 @@ const MeetingEnvironment = () => {
               className="bg-teal-600 hover:bg-teal-700"
             >
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Settings Dialog - Configure images for report header */}
+      <Dialog open={reportSettingsDialogOpen} onOpenChange={setReportSettingsDialogOpen}>
+        <DialogContent className="sm:max-w-3xl backdrop-blur-md bg-background/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Configurações do Relatório
+            </DialogTitle>
+            <DialogDescription>
+              Configure até 3 imagens para aparecer na primeira página do relatório de cada reunião.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
+            {reportImages.map((image, index) => (
+              <div key={image.id} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Imagem {index + 1}</h4>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={image.enabled}
+                        onChange={() => handleImageToggle(index)}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-xs text-muted-foreground">Ativar</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div
+                  className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                    image.imageData ? 'border-primary' : 'border-muted-foreground/30'
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('border-primary', 'bg-primary/5');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                      handleImageUpload(index, file);
+                    }
+                  }}
+                >
+                  {image.imageData ? (
+                    <div className="space-y-2">
+                      <img
+                        src={`http://localhost:3001${image.imageData}`}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-contain rounded"
+                        onError={(e) => {
+                          console.error('Error loading image:', image.imageData);
+                          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="50%" y="50%" text-anchor="middle" fill="gray">Error</text></svg>';
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground truncate">{image.fileName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleImageRemove(index)}
+                        className="w-full"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Remover
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex justify-center">
+                        <Download className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Arraste uma imagem ou clique para selecionar
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleImageUpload(index, file);
+                          }
+                        }}
+                        className="hidden"
+                        id={`image-upload-${index}`}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById(`image-upload-${index}`)?.click()}
+                        className="w-full"
+                      >
+                        Selecionar Imagem
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setReportSettingsDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveReportSettings}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              Salvar Configurações
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,3 +1,14 @@
+export interface ReportImage {
+  id: string;
+  imageData: string; // File path from backend (e.g., /uploads/projectId/report-images/filename.png)
+  fileName: string;
+  enabled: boolean;
+}
+
+export interface ReportSettings {
+  images: ReportImage[]; // Up to 3 images for report header
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -5,6 +16,7 @@ export interface Project {
   createdAt: Date;
   updatedAt: Date;
   meetings?: MeetingMetadata[]; // Project-level meetings
+  reportSettings?: ReportSettings; // Settings for report generation
 }
 
 export interface ProjectDocument {
