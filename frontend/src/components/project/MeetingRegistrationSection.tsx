@@ -203,7 +203,15 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               status: doc.status, // This will have the edited status!
               area: doc.area,
               isCleared: doc.isCleared,
-              attachments: doc.attachments ? [...doc.attachments] : undefined,
+              // Deep copy attachments to preserve all fields including fileName
+              attachments: doc.attachments ? doc.attachments.map(att => ({
+                id: att.id,
+                fileName: att.fileName,
+                fileSize: att.fileSize,
+                fileType: att.fileType,
+                uploadedAt: att.uploadedAt,
+                filePath: att.filePath
+              })) : undefined,
               participants: doc.participants ? [...doc.participants] : undefined,
               history: doc.history ? [...doc.history] : undefined,
             };
@@ -216,9 +224,104 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
             const updatedDocuments = useProjectStore.getState().documents;
             const newDoc = updatedDocuments[updatedDocuments.length - 1];
             
+            console.log('[MeetingRegistration] Created final document with ID:', newDoc.id);
+            
+            // CRITICAL: Copy physical files for this new meeting's document
+            if (doc.attachments && doc.attachments.length > 0) {
+              console.log('[MeetingRegistration] ============================================');
+              console.log('[MeetingRegistration] COPYING FILES FOR NEW MEETING');
+              console.log('[MeetingRegistration] Source doc:', doc.id, '→ Target doc:', newDoc.id);
+              console.log('[MeetingRegistration] Files to copy:', doc.attachments.length);
+              console.log('[MeetingRegistration] Files:', doc.attachments.map(a => ({
+                fileName: a.fileName,
+                filePath: a.filePath
+              })));
+              console.log('[MeetingRegistration] ============================================');
+              
+              const copiedAttachments = [];
+              for (const attachment of doc.attachments) {
+                try {
+                  // Extract source location from attachment filePath
+                  const pathParts = attachment.filePath.split('/').filter(p => p);
+                  if (pathParts.length < 4) {
+                    console.warn('[MeetingRegistration] Invalid filePath:', attachment.filePath);
+                    continue;
+                  }
+                  
+                  const sourceProjectId = pathParts[1];
+                  const sourceDocumentId = pathParts[2];
+                  const filename = pathParts[3];
+                  
+                  console.log('[MeetingRegistration] Copying file:', {
+                    from: `${sourceProjectId}/${sourceDocumentId}/${filename}`,
+                    to: `${selectedProjectId}/${newDoc.id}/${filename}`,
+                    fileName: attachment.fileName
+                  });
+                  
+                  // Copy file via backend API
+                  const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+                  const response = await fetch(`${apiBase}/api/files/copy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      sourceProjectId,
+                      sourceDocumentId,
+                      targetProjectId: selectedProjectId,
+                      targetDocumentId: newDoc.id,
+                      filename,
+                      originalFileName: attachment.fileName
+                    })
+                  });
+                  
+                  if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[MeetingRegistration] HTTP error copying file:', response.status, errorText);
+                    continue;
+                  }
+                  
+                  const result = await response.json();
+                  
+                  if (result.success) {
+                    // Create new attachment with updated file path
+                    copiedAttachments.push({
+                      id: attachment.id,
+                      fileName: attachment.fileName,
+                      fileSize: attachment.fileSize,
+                      fileType: attachment.fileType,
+                      uploadedAt: attachment.uploadedAt,
+                      filePath: result.filePath // New path pointing to copied file
+                    });
+                    console.log('[MeetingRegistration] ✓ File copied successfully:', result.filePath);
+                  } else {
+                    console.error('[MeetingRegistration] ✗ Backend reported failure:', result.error);
+                  }
+                } catch (error) {
+                  console.error('[MeetingRegistration] Error copying file:', error);
+                }
+              }
+              
+              // Update the document with the new attachment paths
+              // IMPORTANT: If some files failed to copy, keep original paths for those
+              const finalAttachments = copiedAttachments.length === doc.attachments.length 
+                ? copiedAttachments // All files copied successfully
+                : doc.attachments; // Some failed, keep original paths
+              
+              if (finalAttachments.length > 0) {
+                const { updateDocument } = useProjectStore.getState();
+                await updateDocument(newDoc.id, { attachments: finalAttachments });
+                
+                if (copiedAttachments.length === doc.attachments.length) {
+                  console.log('[MeetingRegistration] ✓ All', copiedAttachments.length, 'files copied successfully - meetings are independent');
+                } else {
+                  console.warn('[MeetingRegistration] ⚠️ Only', copiedAttachments.length, 'of', doc.attachments.length, 'files copied - using original paths for failed files');
+                  toast.warning(`Aviso: Alguns arquivos não puderam ser copiados. As reuniões podem compartilhar alguns arquivos.`);
+                }
+              }
+            }
+            
             finalDocumentIds.push(newDoc.id);
             finalDocumentItemNumbers.push(newDoc.numeroItem);
-            console.log('[MeetingRegistration] Created final document with ID:', newDoc.id);
+            console.log('[MeetingRegistration] Document ready with independent file copies');
           } else {
             // This is a newly added document (not from temp duplicates) - use as is
             console.log('[MeetingRegistration] New document added during edit:', doc.id, '(item', doc.numeroItem, ')');

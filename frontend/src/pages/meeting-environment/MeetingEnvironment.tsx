@@ -22,6 +22,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseBRDateLocal } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -236,7 +237,15 @@ const MeetingEnvironment = () => {
             responsavel: originalDoc.responsavel,
             status: originalDoc.status,
             area: originalDoc.area,
-            attachments: originalDoc.attachments ? [...originalDoc.attachments] : [],
+            // Deep copy attachments to preserve all fields including fileName
+            attachments: originalDoc.attachments ? originalDoc.attachments.map(att => ({
+              id: att.id,
+              fileName: att.fileName,
+              fileSize: att.fileSize,
+              fileType: att.fileType,
+              uploadedAt: att.uploadedAt,
+              filePath: att.filePath
+            })) : [],
             isCleared: originalDoc.isCleared,
             participants: originalDoc.participants ? [...originalDoc.participants] : [],
             history: originalDoc.history ? [...originalDoc.history] : [],
@@ -249,9 +258,107 @@ const MeetingEnvironment = () => {
           await new Promise(resolve => setTimeout(resolve, 50));
           const updatedDocuments = useProjectStore.getState().documents;
           const newDoc = updatedDocuments[updatedDocuments.length - 1];
-          duplicateDocIds.push(newDoc.id);
           
           console.log('[MeetingEnvironment] Created duplicate:', originalDocId, '→', newDoc.id);
+          
+          // CRITICAL: Copy physical files for this temp editing duplicate
+          // This ensures deleting files during editing doesn't affect the original meeting
+          if (originalDoc.attachments && originalDoc.attachments.length > 0) {
+            console.log('[MeetingEnvironment] ============================================');
+            console.log('[MeetingEnvironment] COPYING FILES FOR TEMP EDITING DUPLICATE');
+            console.log('[MeetingEnvironment] Original doc:', originalDocId, '→ New temp doc:', newDoc.id);
+            console.log('[MeetingEnvironment] Files to copy:', originalDoc.attachments.length);
+            console.log('[MeetingEnvironment] Files:', originalDoc.attachments.map(a => ({
+              fileName: a.fileName,
+              filePath: a.filePath
+            })));
+            console.log('[MeetingEnvironment] ============================================');
+            
+            const copiedAttachments = [];
+            for (const attachment of originalDoc.attachments) {
+              try {
+                // Extract source location from attachment filePath
+                const pathParts = attachment.filePath.split('/').filter(p => p);
+                if (pathParts.length < 4) {
+                  console.warn('[MeetingEnvironment] Invalid filePath:', attachment.filePath);
+                  continue;
+                }
+                
+                const sourceProjectId = pathParts[1];
+                const sourceDocumentId = pathParts[2];
+                const filename = pathParts[3];
+                
+                console.log('[MeetingEnvironment] Copying file for temp edit:', {
+                  from: `${sourceProjectId}/${sourceDocumentId}/${filename}`,
+                  to: `${originalDoc.projectId}/${newDoc.id}/${filename}`,
+                  fileName: attachment.fileName
+                });
+                
+                // Copy file via backend API
+                const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+                const response = await fetch(`${apiBase}/api/files/copy`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    sourceProjectId,
+                    sourceDocumentId,
+                    targetProjectId: originalDoc.projectId,
+                    targetDocumentId: newDoc.id,
+                    filename,
+                    originalFileName: attachment.fileName
+                  })
+                });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  console.error('[MeetingEnvironment] HTTP error copying file:', response.status, errorText);
+                  continue;
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                  // Create new attachment with updated file path
+                  copiedAttachments.push({
+                    id: attachment.id,
+                    fileName: attachment.fileName,
+                    fileSize: attachment.fileSize,
+                    fileType: attachment.fileType,
+                    uploadedAt: attachment.uploadedAt,
+                    filePath: result.filePath // New path pointing to copied file
+                  });
+                  console.log('[MeetingEnvironment] ✓ File copied successfully:', result.filePath);
+                } else {
+                  console.error('[MeetingEnvironment] ✗ Backend reported failure:', result.error);
+                }
+              } catch (error) {
+                console.error('[MeetingEnvironment] Error copying file:', error);
+              }
+            }
+            
+            // Update the temp document with the new attachment paths
+            // CRITICAL: We MUST have independent copies, otherwise deleting affects original meeting
+            if (originalDoc.attachments && originalDoc.attachments.length > 0) {
+              if (copiedAttachments.length !== originalDoc.attachments.length) {
+                console.error('[MeetingEnvironment] ❌ CRITICAL ERROR: Only copied', copiedAttachments.length, 'of', originalDoc.attachments.length, 'files!');
+                console.error('[MeetingEnvironment] This meeting will share files with the original! Deleting files will affect both meetings!');
+                toast.error(`Erro crítico: Não foi possível copiar todos os arquivos. A reunião compartilhará arquivos com a original.`, {
+                  duration: 10000
+                });
+              }
+              
+              const finalAttachments = copiedAttachments.length > 0 ? copiedAttachments : originalDoc.attachments;
+              const { updateDocument } = useProjectStore.getState();
+              await updateDocument(newDoc.id, { attachments: finalAttachments });
+              
+              console.log('[MeetingEnvironment] Temp doc attachments:', finalAttachments.map(a => ({
+                fileName: a.fileName,
+                filePath: a.filePath
+              })));
+            }
+          }
+          
+          duplicateDocIds.push(newDoc.id);
         }
       }
       

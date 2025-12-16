@@ -122,12 +122,60 @@ export function FileUploadModal({
   const confirmDelete = async () => {
     if (!fileToDelete) return;
     
-    const success = await fileManager.removeAttachment(projectId, documentId, fileToDelete.id);
-    if (success) {
-      const updatedAttachments = attachments.filter(att => att.id !== fileToDelete.id);
-      onAttachmentsChange(updatedAttachments);
-      toast.success("Arquivo removido com sucesso!");
-    } else {
+    try {
+      console.log('[FileUploadModal] Deleting attachment:', {
+        id: fileToDelete.id,
+        fileName: fileToDelete.fileName,
+        filePath: fileToDelete.filePath,
+        currentDocumentId: documentId
+      });
+      
+      // Extract projectId, documentId, and filename directly from the attachment's filePath
+      // filePath format: /uploads/{projectId}/{documentId}/{filename}
+      const pathParts = fileToDelete.filePath.split('/').filter(part => part);
+      
+      if (pathParts.length < 4) {
+        console.error('[FileUploadModal] Invalid file path format:', fileToDelete.filePath);
+        toast.error("Caminho do arquivo inválido.");
+        setFileToDelete(null);
+        return;
+      }
+      
+      const fileProjectId = pathParts[1]; // uploads/[projectId]/documentId/filename
+      const fileDocumentId = pathParts[2]; // uploads/projectId/[documentId]/filename
+      const filename = pathParts[3]; // uploads/projectId/documentId/[filename]
+      
+      console.log('[FileUploadModal] Deleting from:', {
+        fileProjectId,
+        fileDocumentId,
+        filename
+      });
+      
+      // Delete file from backend using the IDs from the file path
+      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+      const deleteUrl = `${apiBase}/api/files/${fileProjectId}/${fileDocumentId}/${filename}`;
+      
+      console.log('[FileUploadModal] DELETE request to:', deleteUrl);
+      
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      console.log('[FileUploadModal] Delete response:', result);
+      
+      if (result.success) {
+        const updatedAttachments = attachments.filter(att => att.id !== fileToDelete.id);
+        onAttachmentsChange(updatedAttachments);
+        toast.success("Arquivo removido com sucesso!");
+        console.log('[FileUploadModal] File deleted successfully');
+      } else {
+        console.error('[FileUploadModal] Backend delete error:', result.error);
+        toast.error("Erro ao remover arquivo.");
+      }
+    } catch (error) {
+      console.error('[FileUploadModal] Delete error:', error);
       toast.error("Erro ao remover arquivo.");
     }
     

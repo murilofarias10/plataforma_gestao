@@ -599,45 +599,55 @@ app.post('/api/projects/:projectId/report-images', upload.single('image'), handl
 app.get('/api/files/:projectId/:documentId', async (req, res) => {
   try {
     const { projectId, documentId } = req.params;
-    const uploadPath = path.join(__dirname, 'uploads', projectId, documentId);
     
-    // Check if directory exists
-    if (!await fs.pathExists(uploadPath)) {
+    // Find the document to get its attachments with the correct file paths
+    const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
+    
+    if (!document || !document.attachments || document.attachments.length === 0) {
       return res.json({
         success: true,
         files: []
       });
     }
 
-    // Read directory contents
-    const files = await fs.readdir(uploadPath);
+    // Build file list from document's attachments
+    // This ensures we use the actual file paths from attachments, not assuming current documentId
     const fileList = [];
-
-    for (const file of files) {
-      const filePath = path.join(uploadPath, file);
-      const stats = await fs.stat(filePath);
-      
-      if (stats.isFile()) {
-        // Try to find original filename from documents data
-        let originalFileName = file;
-        const document = documentsData.find(d => d.id === documentId && d.projectId === projectId);
-        if (document && document.attachments) {
-          const attachment = document.attachments.find((att) => {
-            const serverFileName = att.filePath.split('/').pop();
-            return serverFileName === file;
-          });
-          if (attachment) {
-            originalFileName = attachment.fileName || attachment.originalName || file;
-          }
+    
+    for (const attachment of document.attachments) {
+      try {
+        // Extract the actual file location from the attachment's filePath
+        // filePath format: /uploads/{projectId}/{documentId}/{filename}
+        const pathParts = attachment.filePath.split('/').filter(p => p);
+        
+        if (pathParts.length < 4) {
+          console.warn(`Invalid filePath format: ${attachment.filePath}`);
+          continue;
         }
         
-        fileList.push({
-          fileName: originalFileName,
-          serverFileName: file, // Keep server filename for reference
-          fileSize: stats.size,
-          uploadedAt: stats.mtime.toISOString(),
-          filePath: `/uploads/${projectId}/${documentId}/${file}`
-        });
+        const fileProjectId = pathParts[1];
+        const fileDocumentId = pathParts[2];
+        const filename = pathParts[3];
+        
+        // Build the actual file path on disk
+        const diskPath = path.join(__dirname, 'uploads', fileProjectId, fileDocumentId, filename);
+        
+        // Check if file exists
+        if (await fs.pathExists(diskPath)) {
+          const stats = await fs.stat(diskPath);
+          
+          fileList.push({
+            fileName: attachment.fileName || attachment.originalName || filename,
+            serverFileName: filename,
+            fileSize: attachment.fileSize || stats.size,
+            uploadedAt: attachment.uploadedAt || stats.mtime.toISOString(),
+            filePath: attachment.filePath
+          });
+        } else {
+          console.warn(`File not found on disk: ${diskPath}`);
+        }
+      } catch (error) {
+        console.error(`Error processing attachment:`, error);
       }
     }
 
@@ -704,6 +714,78 @@ app.get('/api/download/:projectId/:documentId/:filename', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erro ao baixar arquivo'
+    });
+  }
+});
+
+// Copy file endpoint - copies file from one document folder to another
+app.post('/api/files/copy', async (req, res) => {
+  try {
+    const { sourceProjectId, sourceDocumentId, targetProjectId, targetDocumentId, filename, originalFileName } = req.body;
+    
+    if (!sourceProjectId || !sourceDocumentId || !targetProjectId || !targetDocumentId || !filename) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters'
+      });
+    }
+    
+    const sourcePath = path.join(__dirname, 'uploads', sourceProjectId, sourceDocumentId, filename);
+    const targetDir = path.join(__dirname, 'uploads', targetProjectId, targetDocumentId);
+    const targetPath = path.join(targetDir, filename);
+    
+    console.log('============================================');
+    console.log('[Copy File] REQUEST:', {
+      sourceProjectId,
+      sourceDocumentId,
+      targetProjectId,
+      targetDocumentId,
+      filename,
+      originalFileName
+    });
+    console.log(`[Copy File] Source: ${sourcePath}`);
+    console.log(`[Copy File] Target: ${targetPath}`);
+    
+    // Check if source file exists
+    const sourceExists = await fs.pathExists(sourcePath);
+    console.log(`[Copy File] Source exists: ${sourceExists}`);
+    
+    if (!sourceExists) {
+      console.error(`[Copy File] ❌ ERROR: Source file NOT FOUND`);
+      console.log('============================================');
+      return res.status(404).json({
+        success: false,
+        error: `Source file not found: ${sourceProjectId}/${sourceDocumentId}/${filename}`
+      });
+    }
+    
+    console.log(`[Copy File] ✓ Source file exists, proceeding with copy`);
+    
+    // Create target directory
+    await fs.ensureDir(targetDir);
+    console.log(`[Copy File] ✓ Target directory ensured: ${targetDir}`);
+    
+    // Copy file to target location
+    await fs.copy(sourcePath, targetPath);
+    console.log(`[Copy File] ✓ File copied successfully`);
+    
+    const stats = await fs.stat(targetPath);
+    console.log(`[Copy File] ✓ Target file size: ${stats.size} bytes`);
+    console.log('============================================');
+    
+    res.json({
+      success: true,
+      message: 'File copied successfully',
+      filePath: `/uploads/${targetProjectId}/${targetDocumentId}/${filename}`,
+      fileName: originalFileName || filename,
+      fileSize: stats.size
+    });
+
+  } catch (error) {
+    console.error('Copy file error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error copying file'
     });
   }
 });
