@@ -139,11 +139,23 @@ export function FileUploadModal({
   };
 
   const downloadAttachment = (attachment: ProjectAttachment) => {
-    // Extract server filename from filePath
-    const serverFileName = attachment.filePath.split('/').pop();
+    // Extract projectId, documentId, and filename from the filePath
+    // filePath format: /uploads/{projectId}/{documentId}/{filename}
+    const pathParts = attachment.filePath.split('/').filter(part => part);
+    
+    if (pathParts.length < 4) {
+      toast.error('Caminho do arquivo inválido');
+      return;
+    }
+    
+    // Extract the IDs and filename from the path
+    const fileProjectId = pathParts[1]; // uploads/[projectId]/documentId/filename
+    const fileDocumentId = pathParts[2]; // uploads/projectId/[documentId]/filename
+    const serverFileName = pathParts[3]; // uploads/projectId/documentId/[filename]
+    
     // Use the new download API endpoint which sets proper Content-Disposition header
     const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-    const downloadUrl = `${apiBase}/api/download/${projectId}/${documentId}/${serverFileName}`;
+    const downloadUrl = `${apiBase}/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = attachment.fileName;

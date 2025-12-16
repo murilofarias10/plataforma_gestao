@@ -190,12 +190,21 @@ export class FileManagerService {
       const attachment = document.attachments.find(att => att.id === attachmentId);
       if (!attachment) return false;
 
-      // Extract filename from filePath (format: /uploads/projectId/documentId/filename)
-      const filename = attachment.filePath.split('/').pop();
-      if (!filename) return false;
+      // Extract projectId, documentId, and filename from the filePath
+      // filePath format: /uploads/{projectId}/{documentId}/{filename}
+      const pathParts = attachment.filePath.split('/').filter(part => part);
+      
+      if (pathParts.length < 4) {
+        console.error('Invalid file path format:', attachment.filePath);
+        return false;
+      }
+      
+      const fileProjectId = pathParts[1]; // uploads/[projectId]/documentId/filename
+      const fileDocumentId = pathParts[2]; // uploads/projectId/[documentId]/filename
+      const filename = pathParts[3]; // uploads/projectId/documentId/[filename]
 
-      // Delete file from backend
-      const response = await fetch(`${API_BASE_URL}/files/${projectId}/${documentId}/${filename}`, {
+      // Delete file from backend using the IDs from the file path
+      const response = await fetch(`${API_BASE_URL}/files/${fileProjectId}/${fileDocumentId}/${filename}`, {
         method: 'DELETE',
       });
 
