@@ -76,11 +76,7 @@ export class PDFReportGenerator {
     this.pageHeight = this.pdf.internal.pageSize.height;
     this.pageWidth = this.pdf.internal.pageSize.width;
     this.currentY = this.margin;
-    // Font loading is async, but we'll try to load it
-    // If it fails, we'll use helvetica as fallback
-    this.initializeMontserratFont().catch(() => {
-      // Silently fail, helvetica will be used as fallback
-    });
+    // Font will be loaded in generateComprehensiveReport before generating content
   }
 
   /**
@@ -116,20 +112,34 @@ export class PDFReportGenerator {
         return;
       }
 
-      // Use a reliable CDN source for Montserrat TTF
-      // Using raw.githubusercontent.com for Google Fonts Montserrat
-      const regularTTFUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Regular.ttf';
-      const boldTTFUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/static/Montserrat-Bold.ttf';
+      // Load fonts from local backend (no CORS issues, reliable)
+      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
+      const regularTTFUrl = `${apiBase}/api/fonts/montserrat/regular`;
+      const boldTTFUrl = `${apiBase}/api/fonts/montserrat/bold`;
+      
+      console.log('[PDF] Loading Montserrat fonts from backend...');
+      console.log('[PDF] Regular font URL:', regularTTFUrl);
+      console.log('[PDF] Bold font URL:', boldTTFUrl);
       
       // Try to load both regular and bold fonts
       const [regularResponse, boldResponse] = await Promise.all([
-        fetch(regularTTFUrl).catch(() => null),
-        fetch(boldTTFUrl).catch(() => null)
+        fetch(regularTTFUrl).catch(err => {
+          console.error('[PDF] Error fetching regular font:', err);
+          return null;
+        }),
+        fetch(boldTTFUrl).catch(err => {
+          console.error('[PDF] Error fetching bold font:', err);
+          return null;
+        })
       ]);
+      
+      console.log('[PDF] Regular font response:', regularResponse?.ok, regularResponse?.status);
+      console.log('[PDF] Bold font response:', boldResponse?.ok, boldResponse?.status);
 
       if (regularResponse && regularResponse.ok) {
         const regularArrayBuffer = await regularResponse.arrayBuffer();
-        const regularBase64 = btoa(String.fromCharCode(...new Uint8Array(regularArrayBuffer)));
+        // Convert ArrayBuffer to base64 using a chunked approach (avoids stack overflow)
+        const regularBase64 = this.arrayBufferToBase64(regularArrayBuffer);
         
         // Cache the font data
         PDFReportGenerator.montserratFontData.regular = regularBase64;
@@ -137,30 +147,73 @@ export class PDFReportGenerator {
         // Add font to jsPDF's virtual file system
         this.pdf.addFileToVFS('Montserrat-Regular.ttf', regularBase64);
         this.pdf.addFont('Montserrat-Regular.ttf', 'Montserrat', 'normal');
+        console.log('[PDF] ✓ Regular font loaded and added to jsPDF');
+      } else {
+        console.warn('[PDF] ✗ Regular font failed to load');
       }
 
       if (boldResponse && boldResponse.ok) {
         const boldArrayBuffer = await boldResponse.arrayBuffer();
-        const boldBase64 = btoa(String.fromCharCode(...new Uint8Array(boldArrayBuffer)));
+        // Convert ArrayBuffer to base64 using a chunked approach (avoids stack overflow)
+        const boldBase64 = this.arrayBufferToBase64(boldArrayBuffer);
         
         // Cache the font data
         PDFReportGenerator.montserratFontData.bold = boldBase64;
         
         this.pdf.addFileToVFS('Montserrat-Bold.ttf', boldBase64);
         this.pdf.addFont('Montserrat-Bold.ttf', 'Montserrat', 'bold');
+        console.log('[PDF] ✓ Bold font loaded and added to jsPDF');
+      } else {
+        console.warn('[PDF] ✗ Bold font failed to load');
       }
 
+      // Verify fonts are actually registered in jsPDF
+      const registeredFonts = (this.pdf as any).internal.getFontList();
+      const hasMontserratRegular = registeredFonts && registeredFonts['Montserrat-normal'];
+      const hasMontserratBold = registeredFonts && registeredFonts['Montserrat-bold'];
+      
+      console.log('[PDF] Registered fonts check:', {
+        hasRegular: hasMontserratRegular,
+        hasBold: hasMontserratBold,
+        allFonts: Object.keys(registeredFonts || {})
+      });
+      
       // Mark as loaded if at least one font was loaded
       if ((regularResponse && regularResponse.ok) || (boldResponse && boldResponse.ok)) {
         PDFReportGenerator.montserratFontLoaded = true;
+        
+        if (hasMontserratRegular || hasMontserratBold) {
+          console.log('[PDF] ✓✓✓ Montserrat fonts successfully loaded and verified in jsPDF');
+        } else {
+          console.warn('[PDF] ⚠️ Fonts loaded but not verified in jsPDF. Font registration may have failed.');
+        }
       } else {
         // If both fail, mark as loaded to prevent retries and use helvetica
+        console.warn('[PDF] ⚠️ WARNING: Could not load Montserrat fonts from backend. PDF will use Helvetica as fallback.');
+        console.warn('[PDF] Check backend logs for font download errors.');
         PDFReportGenerator.montserratFontLoaded = true;
       }
     } catch (error) {
-      console.warn('Could not load Montserrat font, using helvetica fallback:', error);
+      console.error('[PDF] ✗✗✗ Error loading Montserrat font:', error);
+      console.warn('[PDF] PDF will use Helvetica as fallback font.');
       PDFReportGenerator.montserratFontLoaded = true; // Prevent retries
     }
+  }
+
+  /**
+   * Convert ArrayBuffer to base64 string (chunked to avoid stack overflow)
+   */
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192; // Process in chunks to avoid stack overflow
+    
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    return btoa(binary);
   }
 
   /**
@@ -169,15 +222,40 @@ export class PDFReportGenerator {
   private setMontserratFont(style: 'normal' | 'bold' | 'italic' | 'bolditalic' = 'normal'): void {
     try {
       // Try to use Montserrat if loaded, otherwise fallback to helvetica
-      if (PDFReportGenerator.montserratFontLoaded) {
+      const hasRegular = !!PDFReportGenerator.montserratFontData.regular;
+      const hasBold = !!PDFReportGenerator.montserratFontData.bold;
+      
+      if (hasRegular || hasBold) {
         const fontStyle = style === 'bold' || style === 'bolditalic' ? 'bold' : 'normal';
-        this.pdf.setFont('Montserrat', fontStyle);
+        
+        // Check if we have the required style
+        let fontToUse = 'Montserrat';
+        let styleToUse = fontStyle;
+        
+        if (fontStyle === 'bold' && !hasBold) {
+          console.warn('[PDF] Bold requested but not available, using regular');
+          styleToUse = 'normal';
+        } else if (fontStyle === 'normal' && !hasRegular && hasBold) {
+          console.warn('[PDF] Regular requested but not available, using bold');
+          styleToUse = 'bold';
+        }
+        
+        // Set the font
+        this.pdf.setFont(fontToUse, styleToUse);
+        
+        // Verify the font was actually set (for debugging)
+        const currentFont = (this.pdf as any).internal.getFont();
+        if (currentFont && currentFont.fontName !== 'Montserrat') {
+          console.warn('[PDF] Font set to Montserrat but jsPDF is using:', currentFont.fontName);
+        }
       } else {
         // Fallback to helvetica if Montserrat is not loaded
+        console.warn('[PDF] Using Helvetica fallback - Montserrat not loaded (regular:', hasRegular, 'bold:', hasBold, ')');
         this.pdf.setFont('helvetica', style);
       }
     } catch (error) {
       // Fallback to helvetica if Montserrat is not available
+      console.error('[PDF] Error setting Montserrat font:', error);
       this.pdf.setFont('helvetica', style);
     }
   }

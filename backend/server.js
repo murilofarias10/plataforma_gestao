@@ -56,6 +56,101 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   }
 }));
 
+// Endpoint to download and cache Montserrat fonts
+app.get('/api/fonts/montserrat/:variant', async (req, res) => {
+  try {
+    const { variant } = req.params; // 'regular' or 'bold'
+    const fontsDir = path.join(__dirname, 'fonts');
+    await fs.ensureDir(fontsDir);
+    
+    const fontFileName = variant === 'bold' ? 'Montserrat-Bold.ttf' : 'Montserrat-Regular.ttf';
+    const fontPath = path.join(fontsDir, fontFileName);
+    
+    // Check if font already exists
+    if (fs.existsSync(fontPath)) {
+      console.log(`[Fonts] Serving cached font: ${fontFileName}`);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', 'font/ttf');
+      res.set('Cache-Control', 'public, max-age=31536000');
+      return res.sendFile(fontPath);
+    }
+    
+    // Download font from CDN
+    console.log(`[Fonts] Downloading ${fontFileName} from CDN...`);
+    // Use multiple reliable sources for TTF files
+    const fontUrls = variant === 'bold' 
+      ? [
+          // Bunny Fonts (privacy-friendly Google Fonts alternative)
+          'https://fonts.bunny.net/montserrat/files/montserrat-latin-700-normal.ttf',
+          // db-fonts CDN
+          'https://db.onlinewebfonts.com/t/157c6cc36dd65b1b2adc9e7f3329c761.ttf',
+          // Fallback to GitHub
+          'https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Bold.ttf'
+        ]
+      : [
+          // Bunny Fonts (privacy-friendly Google Fonts alternative)
+          'https://fonts.bunny.net/montserrat/files/montserrat-latin-400-normal.ttf',
+          // db-fonts CDN
+          'https://db.onlinewebfonts.com/t/8f0f6e5f43f60e29e5dcb26c062c7bb9.ttf',
+          // Fallback to GitHub
+          'https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Regular.ttf'
+        ];
+    
+    let fontBuffer = null;
+    for (const url of fontUrls) {
+      try {
+        const https = require('https');
+        const http = require('http');
+        const protocol = url.startsWith('https') ? https : http;
+        
+        fontBuffer = await new Promise((resolve, reject) => {
+          protocol.get(url, (response) => {
+            if (response.statusCode === 200) {
+              const chunks = [];
+              response.on('data', chunk => chunks.push(chunk));
+              response.on('end', () => resolve(Buffer.concat(chunks)));
+            } else {
+              reject(new Error(`HTTP ${response.statusCode}`));
+            }
+          }).on('error', reject);
+        });
+        
+        console.log(`[Fonts] ✓ Downloaded from ${url}`);
+        break;
+      } catch (error) {
+        console.log(`[Fonts] ✗ Failed to download from ${url}:`, error.message);
+      }
+    }
+    
+    if (!fontBuffer) {
+      return res.status(404).json({ success: false, error: 'Could not download font from any CDN' });
+    }
+    
+    // Save font to disk
+    await fs.writeFile(fontPath, fontBuffer);
+    console.log(`[Fonts] ✓ Saved ${fontFileName} to disk`);
+    
+    // Send font to client
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Content-Type', 'font/ttf');
+    res.set('Cache-Control', 'public, max-age=31536000');
+    res.send(fontBuffer);
+    
+  } catch (error) {
+    console.error('[Fonts] Error serving font:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Serve font files for PDF generation (static files)
+app.use('/fonts', express.static(path.join(__dirname, 'fonts'), {
+  setHeaders: (res, path) => {
+    // Allow CORS for fonts and cache them since they don't change
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+  }
+}));
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
