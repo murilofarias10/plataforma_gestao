@@ -96,10 +96,10 @@ interface ProjectStore {
   setSelectedProject: (projectId: string) => void;
   
   // Document management
-  addDocument: (document: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateDocument: (id: string, updates: Partial<ProjectDocument>, skipChangeTracking?: boolean) => void;
+  addDocument: (document: Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>, suppressLoading?: boolean) => Promise<void>;
+  updateDocument: (id: string, updates: Partial<ProjectDocument>, skipChangeTracking?: boolean, suppressLoading?: boolean) => Promise<boolean>;
   updateDocumentWithChangeTracking: (id: string, updates: Partial<ProjectDocument>, meetingContext?: { meetingId: string; meetingData: string; meetingNumber: string }) => Promise<boolean>;
-  deleteDocument: (id: string) => void;
+  deleteDocument: (id: string, suppressToast?: boolean) => Promise<void>;
   duplicateDocument: (id: string) => void;
   clearDocument: (id: string) => void;
   bulkUpdateDocuments: (ids: string[], updates: Partial<ProjectDocument>) => void;
@@ -314,7 +314,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
   },
 
-  addDocument: async (document) => {
+  addDocument: async (document, suppressLoading = false) => {
     const { selectedProjectId } = get();
     if (!selectedProjectId) {
       toast({
@@ -325,7 +325,9 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
 
     try {
-      set({ isLoading: true });
+      if (!suppressLoading) {
+        set({ isLoading: true });
+      }
       const response = await documentsApi.create(selectedProjectId, document);
       
       if (response.success) {
@@ -370,13 +372,15 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
         
         set((state) => ({
           documents: [...state.documents, newDocument],
-          isLoading: false,
+          isLoading: suppressLoading ? state.isLoading : false,
           lastUpdated: new Date().toISOString()
         }));
       }
     } catch (error) {
       console.error('Error adding document:', error);
-      set({ isLoading: false });
+      if (!suppressLoading) {
+        set({ isLoading: false });
+      }
       toast({
         title: 'Erro',
         description: 'Erro ao criar documento',
@@ -385,14 +389,16 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
   },
 
-  updateDocument: async (id, updates, skipChangeTracking = false) => {
+  updateDocument: async (id, updates, skipChangeTracking = false, suppressLoading = false) => {
     if (!skipChangeTracking) {
       // Use change tracking version for regular updates
       return await get().updateDocumentWithChangeTracking(id, updates);
     }
-    
+
     try {
-      set({ isLoading: true });
+      if (!suppressLoading) {
+        set({ isLoading: true });
+      }
       
       // Get current state
       const currentDocs = [...get().documents];
@@ -449,7 +455,9 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
       });
       return false;
     } finally {
-      set({ isLoading: false });
+      if (!suppressLoading) {
+        set({ isLoading: false });
+      }
     }
   },
 
@@ -527,7 +535,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }
   },
 
-  deleteDocument: async (id) => {
+  deleteDocument: async (id, suppressToast = false) => {
     try {
       set({ isLoading: true });
       const response = await documentsApi.delete(id);
@@ -538,12 +546,17 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           lastUpdated: new Date().toISOString(),
         }));
         
-        toast({ title: 'Sucesso', description: 'Documento excluído', variant: 'default' });
+        if (!suppressToast) {
+          toast({ title: 'Sucesso', description: 'Documento excluído', variant: 'default' });
+        }
       }
     } catch (error) {
       console.error('Error deleting document:', error);
       set({ isLoading: false });
-      toast({ title: 'Erro', description: 'Erro ao excluir documento', variant: 'destructive' });
+      if (!suppressToast) {
+        toast({ title: 'Erro', description: 'Erro ao excluir documento', variant: 'destructive' });
+      }
+      throw error;
     }
   },
 

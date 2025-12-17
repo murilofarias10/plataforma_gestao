@@ -216,8 +216,8 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               history: doc.history ? [...doc.history] : undefined,
             };
             
-            // Add the final document for the new meeting
-            await addDocument(newDocData);
+            // Add the final document for the new meeting (suppress loading state)
+            await addDocument(newDocData, true);
             
             // Get the newly created document ID
             await new Promise(resolve => setTimeout(resolve, 50));
@@ -308,7 +308,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
               
               if (finalAttachments.length > 0) {
                 const { updateDocument } = useProjectStore.getState();
-                await updateDocument(newDoc.id, { attachments: finalAttachments });
+                await updateDocument(newDoc.id, { attachments: finalAttachments }, true, true); // skipChangeTracking=true, suppressLoading=true
                 
                 if (copiedAttachments.length === doc.attachments.length) {
                   console.log('[MeetingRegistration] ✓ All', copiedAttachments.length, 'files copied successfully - meetings are independent');
@@ -337,7 +337,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
         const deleteDocument = useProjectStore.getState().deleteDocument;
         for (const tempId of tempDuplicateIds) {
           console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
-          await deleteDocument(tempId);
+          await deleteDocument(tempId, true); // Suppress toast notifications
         }
         console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
       } else {
@@ -365,8 +365,6 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
       await updateProject(selectedProjectId, { meetings: updatedMeetings });
       console.log('[MeetingRegistration] New meeting created successfully, total meetings now:', updatedMeetings.length);
       
-      toast.success(actualIsEditMode ? 'Nova reunião criada com sucesso!' : 'Reunião adicionada com sucesso!');
-      
       // IMPORTANT: Clear meeting context FIRST to trigger table refresh
       console.log('[MeetingRegistration] Clearing meeting context...');
       clearMeetingContext();
@@ -381,6 +379,9 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
       setMeetingResumo('');
       setNewParticipant('');
       setTempParticipants([]);
+      
+      // Show success toast only once at the end
+      toast.success(actualIsEditMode ? 'Nova reunião criada com sucesso!' : 'Reunião adicionada com sucesso!');
       
       // Verify the context is actually cleared
       const contextCheck = useMeetingContextStore.getState();
@@ -409,7 +410,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
       console.log('[MeetingRegistration] Cleaning up', tempDuplicateIds.length, 'temporary duplicates...');
       for (const tempId of tempDuplicateIds) {
         console.log('[MeetingRegistration] Deleting temp duplicate:', tempId);
-        await deleteDocument(tempId);
+        await deleteDocument(tempId, true); // Suppress toast notifications
       }
       console.log('[MeetingRegistration] ✓ Temporary duplicates cleaned up');
     }
@@ -419,7 +420,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
       console.log('[MeetingRegistration] Cleaning up', newlyAddedDocumentIds.length, 'newly added documents...');
       for (const newDocId of newlyAddedDocumentIds) {
         console.log('[MeetingRegistration] Deleting newly added document:', newDocId);
-        await deleteDocument(newDocId);
+        await deleteDocument(newDocId, true); // Suppress toast notifications
       }
       console.log('[MeetingRegistration] ✓ Newly added documents cleaned up');
     }

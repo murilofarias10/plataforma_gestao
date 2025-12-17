@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Database, Calendar, ArrowUp, RotateCcw, NotebookPen } from "lucide-react";
+import { Database, Calendar, ArrowUp, RotateCcw, NotebookPen, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MeetingRegistrationSection, MeetingRegistrationHandle } from "@/components/project/MeetingRegistrationSection";
@@ -33,6 +33,7 @@ const ProjectTracker = () => {
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [showNoItemsModal, setShowNoItemsModal] = useState(false);
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const shouldAutoSaveRef = useRef(false);
   
   const activeFiltersCount = 
@@ -160,6 +161,11 @@ const ProjectTracker = () => {
 
   const handleConfirmSave = useCallback(async () => {
     setShowSaveConfirmation(false);
+    // Set loading state immediately to show overlay before any async operations
+    setIsSaving(true);
+    
+    // Use requestAnimationFrame to ensure overlay renders before starting async operations
+    await new Promise(resolve => requestAnimationFrame(resolve));
     
     try {
       // Save the current meeting
@@ -183,6 +189,8 @@ const ProjectTracker = () => {
       }
     } catch (error) {
       console.error('[ProjectTracker] Error saving meeting:', error);
+    } finally {
+      setIsSaving(false);
     }
   }, [pendingMeetingToEdit, navigate]);
 
@@ -199,7 +207,8 @@ const ProjectTracker = () => {
     performAutoSave();
   }, [canSaveMeeting, isEditMode, handleConfirmSave]);
 
-  if (isLoading) {
+  // Don't show the default loading screen if we're saving (has its own overlay)
+  if (isLoading && !isSaving) {
     return (
       <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center">
@@ -211,7 +220,18 @@ const ProjectTracker = () => {
   }
 
   return (
-    <div className="h-full bg-background">
+    <div className="h-full bg-background relative">
+      {/* Loading Overlay - Higher z-index than GridHeader (z-100) */}
+      {isSaving && (
+       <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground font-medium">Salvando reunião...</p>
+            <p className="text-sm text-muted-foreground">Por favor, aguarde</p>
+          </div>
+        </div>
+      )}
+      
       <main className="container mx-auto px-6 py-6 space-y-6">
 
         {/* Header Section */}
@@ -261,10 +281,17 @@ const ProjectTracker = () => {
                         size="sm" 
                         className="h-8 text-xs px-3"
                         onClick={handleSaveClick}
-                        disabled={!canSaveMeeting}
+                        disabled={!canSaveMeeting || isSaving}
                         type="button"
                       >
-                        Salvar
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          'Salvar'
+                        )}
                       </Button>
                       {isEditMode && (
                         <Button

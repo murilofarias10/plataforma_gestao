@@ -17,7 +17,7 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings, Paperclip } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings, Paperclip, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseBRDateLocal } from "@/lib/utils";
@@ -115,6 +115,7 @@ const MeetingEnvironment = () => {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<MeetingMetadata | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [expandedMeetingItems, setExpandedMeetingItems] = useState<Set<string>>(new Set());
   const [editConflictDialogOpen, setEditConflictDialogOpen] = useState(false);
   const [pendingMeetingToEdit, setPendingMeetingToEdit] = useState<MeetingMetadata | null>(null);
@@ -170,6 +171,9 @@ const MeetingEnvironment = () => {
       clearMeetingContext();
     }
     
+    setIsDeleting(true);
+    handleCloseDeleteDialog();
+    
     try {
       // Step 1: Delete all documents (items) from this meeting
       // Since each meeting now has its own unique document copies, we can safely delete them all
@@ -179,7 +183,7 @@ const MeetingEnvironment = () => {
         
         for (const docId of documentIds) {
           console.log('[MeetingEnvironment] Deleting document:', docId);
-          await deleteDocument(docId);
+          await deleteDocument(docId, true); // Suppress toast notifications during batch delete
         }
         
         console.log('[MeetingEnvironment] ✓ All documents deleted (including attachments)');
@@ -197,11 +201,11 @@ const MeetingEnvironment = () => {
       
       console.log('[MeetingEnvironment] ✓✓✓ MEETING AND ALL ITS ITEMS PERMANENTLY DELETED ✓✓✓');
       console.log('[MeetingEnvironment] Meetings before:', currentMeetings.length, '→ after:', updatedMeetings.length);
-      
-      handleCloseDeleteDialog();
     } catch (error) {
       console.error('[MeetingEnvironment] Error deleting meeting:', error);
-      handleCloseDeleteDialog();
+      toast.error('Erro ao excluir reunião. Tente novamente.');
+    } finally {
+      setIsDeleting(false);
     }
   }, [projects, selectedProjectId, updateProject, deleteDocument, meetingToDelete, handleCloseDeleteDialog]);
 
@@ -597,7 +601,18 @@ const MeetingEnvironment = () => {
   }, [location.state, proceedWithEditMeeting, loadData, selectedProjectId]);
 
   return (
-    <div className="h-full bg-background overflow-hidden">
+    <div className="h-full bg-background overflow-hidden relative">
+      {/* Loading Overlay for Delete Operations */}
+      {isDeleting && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground font-medium">Excluindo reunião...</p>
+            <p className="text-sm text-muted-foreground">Por favor, aguarde</p>
+          </div>
+        </div>
+      )}
+      
       <main className="container mx-auto px-6 py-6 space-y-6 h-full flex flex-col">
         <section className="space-y-4 flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between gap-4 flex-shrink-0">
@@ -878,6 +893,7 @@ const MeetingEnvironment = () => {
                                         onClick={() => handleOpenDeleteDialog(meeting)}
                                         className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         aria-label="Excluir reunião"
+                                        disabled={isDeleting}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
@@ -1046,7 +1062,11 @@ const MeetingEnvironment = () => {
       </main>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={handleCloseDeleteDialog}>
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+        if (!open && !isDeleting) {
+          handleCloseDeleteDialog();
+        }
+      }}>
         <DialogContent className="sm:max-w-md backdrop-blur-md bg-background/95 border-border">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1085,15 +1105,26 @@ const MeetingEnvironment = () => {
             <Button
               variant="outline"
               onClick={handleCloseDeleteDialog}
+              disabled={isDeleting}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
+              disabled={isDeleting}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
