@@ -17,7 +17,7 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings, Paperclip } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseBRDateLocal } from "@/lib/utils";
@@ -951,11 +951,72 @@ const MeetingEnvironment = () => {
                                                     {doc.status}
                                                   </span>
                                                 </td>
-                                                <td className="px-3 py-2 text-center text-muted-foreground">
+                                                <td className="px-3 py-2">
                                                   {doc.attachments && doc.attachments.length > 0 ? (
-                                                    <span className="font-medium">{doc.attachments.length}</span>
+                                                    <Popover>
+                                                      <PopoverTrigger asChild>
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-7 px-2 text-xs hover:bg-muted"
+                                                        >
+                                                          <Paperclip className="h-3.5 w-3.5 mr-1" />
+                                                          {doc.attachments.length}
+                                                        </Button>
+                                                      </PopoverTrigger>
+                                                      <PopoverContent className="w-80 p-3" align="end">
+                                                        <div className="space-y-2">
+                                                          <div className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                                            <Paperclip className="h-4 w-4" />
+                                                            Anexos ({doc.attachments.length})
+                                                          </div>
+                                                          <div className="space-y-1.5 max-h-60 overflow-auto">
+                                                            {doc.attachments.map((attachment: any, idx: number) => {
+                                                              const fileExtension = attachment.fileName?.split('.').pop()?.toLowerCase() || '';
+                                                              const fileSize = attachment.fileSize 
+                                                                ? `${(attachment.fileSize / 1024).toFixed(1)} KB`
+                                                                : '';
+                                                              
+                                                              return (
+                                                                <div
+                                                                  key={idx}
+                                                                  className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50 group border border-border"
+                                                                >
+                                                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                                    <div className="min-w-0 flex-1">
+                                                                      <div className="text-xs font-medium truncate" title={attachment.fileName}>
+                                                                        {attachment.fileName}
+                                                                      </div>
+                                                                      {fileSize && (
+                                                                        <div className="text-[10px] text-muted-foreground">
+                                                                          {fileSize}
+                                                                        </div>
+                                                                      )}
+                                                                    </div>
+                                                                  </div>
+                                                                  <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-7 w-7 p-0 opacity-70 group-hover:opacity-100"
+                                                                    onClick={() => {
+                                                                      const serverFileName = attachment.filePath.split('/').pop();
+                                                                      const downloadUrl = `http://localhost:3001/api/download/${selectedProjectId}/${doc.id}/${serverFileName}?originalName=${encodeURIComponent(attachment.fileName)}`;
+                                                                      window.open(downloadUrl, '_blank');
+                                                                    }}
+                                                                    title="Download"
+                                                                  >
+                                                                    <Download className="h-3.5 w-3.5" />
+                                                                  </Button>
+                                                                </div>
+                                                              );
+                                                            })}
+                                                          </div>
+                                                        </div>
+                                                      </PopoverContent>
+                                                    </Popover>
                                                   ) : (
-                                                    '-'
+                                                    <div className="text-center text-muted-foreground">-</div>
                                                   )}
                                                 </td>
                                               </tr>
