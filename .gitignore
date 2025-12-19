@@ -137,6 +137,7 @@ backend/uploads/
 backend/data.json
 backend/logs/
 backend/*.log
+backend/fonts/
 
 # Upload directories
 uploads/
