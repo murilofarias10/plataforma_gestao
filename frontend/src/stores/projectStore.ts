@@ -4,11 +4,11 @@ import { parseBRDateLocal } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateFieldChanges, createChangeLogEntry, debounce } from '@/lib/changeTracking';
 import { useMeetingContextStore } from './meetingContextStore';
+import { API_BASE_URL } from '@/lib/api-config';
 
 // Use relative URL in production, absolute URL in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:3001/api' 
-  : '/api';
+const API_PREFIX = '/api';
+const API_URL = `${API_BASE_URL}${API_PREFIX}`;
 
 // API functions
 const apiCall = async (url: string, options: RequestInit = {}) => {
@@ -40,42 +40,42 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
 };
 
 const projectsApi = {
-  getAll: () => apiCall(`${API_BASE_URL}/projects`),
+  getAll: () => apiCall(`${API_URL}/projects`),
   create: (data: { name: string; description?: string }) => 
-    apiCall(`${API_BASE_URL}/projects`, {
+    apiCall(`${API_URL}/projects`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   update: (id: string, data: { name?: string; description?: string; meetings?: any[] }) => 
-    apiCall(`${API_BASE_URL}/projects/${id}`, {
+    apiCall(`${API_URL}/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    apiCall(`${API_BASE_URL}/projects/${id}`, {
+    apiCall(`${API_URL}/projects/${id}`, {
       method: 'DELETE',
     }),
 };
 
 const documentsApi = {
   getByProject: (projectId: string) => 
-    apiCall(`${API_BASE_URL}/projects/${projectId}/documents`),
+    apiCall(`${API_URL}/projects/${projectId}/documents`),
   create: (projectId: string, data: any) =>
-    apiCall(`${API_BASE_URL}/projects/${projectId}/documents`, {
+    apiCall(`${API_URL}/projects/${projectId}/documents`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   update: (id: string, data: any) =>
-    apiCall(`${API_BASE_URL}/documents/${id}`, {
+    apiCall(`${API_URL}/documents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    apiCall(`${API_BASE_URL}/documents/${id}`, {
+    apiCall(`${API_URL}/documents/${id}`, {
       method: 'DELETE',
     }),
   renumber: (projectId: string) =>
-    apiCall(`${API_BASE_URL}/projects/${projectId}/renumber`, {
+    apiCall(`${API_URL}/projects/${projectId}/renumber`, {
       method: 'POST',
     }),
 };

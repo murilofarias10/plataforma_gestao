@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { parseBRDateLocal } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { getApiUrl, getStaticUrl } from "@/lib/api-config";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
 
 const MeetingEnvironment = () => {
@@ -299,8 +300,7 @@ const MeetingEnvironment = () => {
                 });
                 
                 // Copy file via backend API
-                const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-                const response = await fetch(`${apiBase}/api/files/copy`, {
+                const response = await fetch(getApiUrl('/api/files/copy'), {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -455,7 +455,7 @@ const MeetingEnvironment = () => {
       formData.append('image', file);
       formData.append('imageId', `image-${index + 1}`);
 
-      const response = await fetch(`http://localhost:3001/api/projects/${selectedProjectId}/report-images`, {
+      const response = await fetch(getApiUrl(`/api/projects/${selectedProjectId}/report-images`), {
         method: 'POST',
         body: formData
       });
@@ -503,7 +503,7 @@ const MeetingEnvironment = () => {
         // Extract filename from path
         const filename = image.imageData.split('/').pop();
         if (filename) {
-          await fetch(`http://localhost:3001/api/files/${selectedProjectId}/report-images/${filename}`, {
+          await fetch(getApiUrl(`/api/files/${selectedProjectId}/report-images/${filename}`), {
             method: 'DELETE'
           });
         }
@@ -1011,19 +1011,43 @@ const MeetingEnvironment = () => {
                                                                       )}
                                                                     </div>
                                                                   </div>
-                                                                  <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-7 w-7 p-0 opacity-70 group-hover:opacity-100"
-                                                                    onClick={() => {
-                                                                      const serverFileName = attachment.filePath.split('/').pop();
-                                                                      const downloadUrl = `http://localhost:3001/api/download/${selectedProjectId}/${doc.id}/${serverFileName}?originalName=${encodeURIComponent(attachment.fileName)}`;
-                                                                      window.open(downloadUrl, '_blank');
-                                                                    }}
-                                                                    title="Download"
-                                                                  >
-                                                                    <Download className="h-3.5 w-3.5" />
-                                                                  </Button>
+                                                                  <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                      variant="ghost"
+                                                                      size="sm"
+                                                                      className="h-7 w-7 p-0 opacity-70 group-hover:opacity-100"
+                                                                      onClick={() => {
+                                                                        // Extract projectId, documentId, and filename from the filePath
+                                                                        // filePath format: /uploads/{projectId}/{documentId}/{filename}
+                                                                        const pathParts = attachment.filePath.split('/').filter(Boolean);
+                                                                        if (pathParts.length < 4) {
+                                                                          toast.error('Caminho do arquivo inválido');
+                                                                          return;
+                                                                        }
+                                                                        
+                                                                        const fileProjectId = pathParts[1];
+                                                                        const fileDocumentId = pathParts[2];
+                                                                        const serverFileName = pathParts[3];
+                                                                        
+                                                                        const downloadUrl = getApiUrl(`/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}?originalName=${encodeURIComponent(attachment.fileName)}`);
+                                                                        window.open(downloadUrl, '_blank');
+                                                                      }}
+                                                                      title="Download"
+                                                                    >
+                                                                      <Download className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                      variant="ghost"
+                                                                      size="sm"
+                                                                      className="h-7 w-7 p-0 opacity-70 group-hover:opacity-100"
+                                                                      onClick={() => {
+                                                                        window.open(getStaticUrl(attachment.filePath), '_blank');
+                                                                      }}
+                                                                      title="Visualizar"
+                                                                    >
+                                                                      <Eye className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                  </div>
                                                                 </div>
                                                               );
                                                             })}
@@ -1214,7 +1238,7 @@ const MeetingEnvironment = () => {
                   {image.imageData ? (
                     <div className="space-y-2">
                       <img
-                        src={`http://localhost:3001${image.imageData}`}
+                        src={getStaticUrl(image.imageData)}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-32 object-contain rounded"
                         onError={(e) => {

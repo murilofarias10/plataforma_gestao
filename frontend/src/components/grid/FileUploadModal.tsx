@@ -1,11 +1,12 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Download, Trash2, X } from "lucide-react";
+import { Upload, FileText, Download, Trash2, X, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProjectAttachment } from "@/types/project";
 import { fileManager } from "@/services/fileManager";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getApiUrl, getStaticUrl } from "@/lib/api-config";
 import {
   Dialog,
   DialogContent,
@@ -152,8 +153,7 @@ export function FileUploadModal({
       });
       
       // Delete file from backend using the IDs from the file path
-      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-      const deleteUrl = `${apiBase}/api/files/${fileProjectId}/${fileDocumentId}/${filename}`;
+      const deleteUrl = getApiUrl(`/api/files/${fileProjectId}/${fileDocumentId}/${filename}`);
       
       console.log('[FileUploadModal] DELETE request to:', deleteUrl);
       
@@ -203,9 +203,8 @@ export function FileUploadModal({
     
     // Use the new download API endpoint which sets proper Content-Disposition header
     // Pass the original filename as a query parameter so backend can use it
-    const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
     const encodedOriginalName = encodeURIComponent(attachment.fileName);
-    const downloadUrl = `${apiBase}/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}?originalName=${encodedOriginalName}`;
+    const downloadUrl = getApiUrl(`/api/download/${fileProjectId}/${fileDocumentId}/${serverFileName}?originalName=${encodedOriginalName}`);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = attachment.fileName;
@@ -294,6 +293,17 @@ export function FileUploadModal({
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-primary/10"
+                          onClick={() => {
+                            window.open(getStaticUrl(attachment.filePath), '_blank');
+                          }}
+                          title="Visualizar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

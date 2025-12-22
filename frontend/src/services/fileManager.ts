@@ -1,4 +1,5 @@
 import { ProjectAttachment } from "@/types/project";
+import { API_BASE_URL } from "@/lib/api-config";
 
 /**
  * File Manager Service
@@ -7,9 +8,8 @@ import { ProjectAttachment } from "@/types/project";
  */
 
 // Use relative URL in production, absolute URL in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:3001/api' 
-  : '/api';
+const API_PREFIX = '/api';
+const API_URL = `${API_BASE_URL}${API_PREFIX}`;
 
 export interface FileUploadResult {
   success: boolean;
@@ -133,7 +133,7 @@ export class FileManagerService {
       formData.append('documentId', documentId);
 
       // Upload file to backend
-      const response = await fetch(`${API_BASE_URL}/upload`, {
+      const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -204,7 +204,7 @@ export class FileManagerService {
       const filename = pathParts[3]; // uploads/projectId/documentId/[filename]
 
       // Delete file from backend using the IDs from the file path
-      const response = await fetch(`${API_BASE_URL}/files/${fileProjectId}/${fileDocumentId}/${filename}`, {
+      const response = await fetch(`${API_URL}/files/${fileProjectId}/${fileDocumentId}/${filename}`, {
         method: 'DELETE',
       });
 
@@ -230,7 +230,7 @@ export class FileManagerService {
    */
   public async loadDocumentAttachments(projectId: string, documentId: string): Promise<ProjectAttachment[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/files/${projectId}/${documentId}`);
+      const response = await fetch(`${API_URL}/files/${projectId}/${documentId}`);
       const result = await response.json();
 
       if (!result.success) {

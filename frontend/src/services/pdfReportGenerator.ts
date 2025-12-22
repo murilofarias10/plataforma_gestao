@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
 import { MeetingMetadata } from '@/types/project';
+import { getApiUrl } from '@/lib/api-config';
 
 // Helper function to capture element as image
 async function captureElement(selector: string): Promise<string | null> {
@@ -113,9 +114,8 @@ export class PDFReportGenerator {
       }
 
       // Load fonts from local backend (no CORS issues, reliable)
-      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-      const regularTTFUrl = `${apiBase}/api/fonts/montserrat/regular`;
-      const boldTTFUrl = `${apiBase}/api/fonts/montserrat/bold`;
+      const regularTTFUrl = getApiUrl('/api/fonts/montserrat/regular');
+      const boldTTFUrl = getApiUrl('/api/fonts/montserrat/bold');
       
       console.log('[PDF] Loading Montserrat fonts from backend...');
       console.log('[PDF] Regular font URL:', regularTTFUrl);
@@ -691,7 +691,7 @@ export class PDFReportGenerator {
       }
       
       // Construct full URL
-      const fullUrl = imageUrl.startsWith('http') ? imageUrl : `http://localhost:3001${imageUrl}`;
+      const fullUrl = imageUrl.startsWith('http') ? imageUrl : getApiUrl(imageUrl);
       
       // Fetch the image
       const response = await fetch(fullUrl);
@@ -1651,8 +1651,7 @@ export class PDFReportGenerator {
   private async fetchAttachmentsFromBackend(projectId: string, documentId: string): Promise<any[]> {
     try {
       const cacheBuster = `?t=${Date.now()}`;
-      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-      const response = await fetch(`${apiBase}/api/files/${projectId}/${documentId}${cacheBuster}`, {
+      const response = await fetch(getApiUrl(`/api/files/${projectId}/${documentId}${cacheBuster}`), {
         cache: 'no-store' // Prevent caching
       });
       const result = await response.json();

@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { PDFReportGenerator } from './pdfReportGenerator';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
+import { getApiUrl, getStaticUrl } from '@/lib/api-config';
 
 export interface ZipReportData {
   projectTracker: {
@@ -169,8 +170,7 @@ export class ZIPReportGenerator {
   private async fetchAttachmentsFromBackend(projectId: string, documentId: string): Promise<any[]> {
     try {
       const cacheBuster = `?t=${Date.now()}`;
-      const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-      const response = await fetch(`${apiBase}/api/files/${projectId}/${documentId}${cacheBuster}`, {
+      const response = await fetch(getApiUrl(`/api/files/${projectId}/${documentId}${cacheBuster}`), {
         cache: 'no-store' // Prevent caching
       });
       const result = await response.json();
@@ -238,8 +238,7 @@ export class ZIPReportGenerator {
 
         // Fetch the file from the backend with cache-busting parameter
         const cacheBuster = `?t=${Date.now()}`;
-        const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-        const fileUrl = `${apiBase}${attachment.filePath}${cacheBuster}`;
+        const fileUrl = getStaticUrl(`${attachment.filePath}${cacheBuster}`);
         console.log(`Fetching file from: ${fileUrl}`);
         
         const response = await fetch(fileUrl, {

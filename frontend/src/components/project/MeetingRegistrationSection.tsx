@@ -13,6 +13,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { parseBRDateLocal } from '@/lib/utils';
 import { ptBR } from 'date-fns/locale';
+import { getApiUrl } from '@/lib/api-config';
 
 export interface MeetingRegistrationHandle {
   handleAddMeeting: () => Promise<void>;
@@ -259,8 +260,7 @@ export const MeetingRegistrationSection = forwardRef<MeetingRegistrationHandle, 
                   });
                   
                   // Copy file via backend API
-                  const apiBase = import.meta.env.DEV ? 'http://localhost:3001' : '';
-                  const response = await fetch(`${apiBase}/api/files/copy`, {
+                  const response = await fetch(getApiUrl('/api/files/copy'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
