@@ -58,7 +58,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const { projects, selectedProjectId, setSelectedProject, getSelectedProject, deleteProject, addProject } = useProjectStore();
+  const { projects, selectedProjectId, setSelectedProject, getSelectedProject, deleteProject, addProject, saveAllData } = useProjectStore();
   const { userProfile, signOut } = useAuthStore();
 
   const selectedProject = getSelectedProject();
@@ -73,9 +73,10 @@ const Sidebar = ({ className }: SidebarProps) => {
     setIsSelectProjectOpen(false);
   };
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = async () => {
     if (selectedProject) {
-      deleteProject(selectedProject.id);
+      await deleteProject(selectedProject.id);
+      await saveAllData();
       setIsDeleteDialogOpen(false);
       toast({
         title: "Projeto excluído",
@@ -92,6 +93,7 @@ const Sidebar = ({ className }: SidebarProps) => {
         name: projectName,
         description: newProjectDescription.trim() || undefined,
       });
+      await saveAllData();
       setNewProjectName("");
       setNewProjectDescription("");
       setIsCreateProjectOpen(false);

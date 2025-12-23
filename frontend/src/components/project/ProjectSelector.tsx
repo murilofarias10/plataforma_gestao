@@ -15,7 +15,7 @@ interface ProjectSelectorProps {
 }
 
 export function ProjectSelector({ className }: ProjectSelectorProps) {
-  const { projects, selectedProjectId, setSelectedProject, getSelectedProject, addProject, deleteProject } = useProjectStore();
+  const { projects, selectedProjectId, setSelectedProject, getSelectedProject, addProject, deleteProject, saveAllData } = useProjectStore();
   const { canCreate, canDelete } = usePermissions();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -51,6 +51,8 @@ export function ProjectSelector({ className }: ProjectSelectorProps) {
           description: projectDescription,
         });
         
+        await saveAllData();
+        
         // Only clear and close on success
         setNewProjectName("");
         setNewProjectDescription("");
@@ -66,9 +68,10 @@ export function ProjectSelector({ className }: ProjectSelectorProps) {
     }
   };
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = async () => {
     if (selectedProject) {
-      deleteProject(selectedProject.id);
+      await deleteProject(selectedProject.id);
+      await saveAllData();
       setIsDeleteDialogOpen(false);
       toast({
         title: "Projeto excluído",

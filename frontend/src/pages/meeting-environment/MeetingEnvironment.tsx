@@ -1041,7 +1041,20 @@ const MeetingEnvironment = () => {
                                                                       size="sm"
                                                                       className="h-7 w-7 p-0 opacity-70 group-hover:opacity-100"
                                                                       onClick={() => {
-                                                                        window.open(getStaticUrl(attachment.filePath), '_blank');
+                                                                        // Extract projectId, documentId, and filename from the filePath
+                                                                        // filePath format: /uploads/{projectId}/{documentId}/{filename}
+                                                                        const pathParts = attachment.filePath.split('/').filter(Boolean);
+                                                                        if (pathParts.length < 4) {
+                                                                          toast.error('Caminho do arquivo inválido');
+                                                                          return;
+                                                                        }
+                                                                        
+                                                                        const fileProjectId = pathParts[1];
+                                                                        const fileDocumentId = pathParts[2];
+                                                                        const serverFileName = pathParts[3];
+                                                                        
+                                                                        const viewUrl = getApiUrl(`/api/view/${fileProjectId}/${fileDocumentId}/${serverFileName}`);
+                                                                        window.open(viewUrl, '_blank');
                                                                       }}
                                                                       title="Visualizar"
                                                                     >

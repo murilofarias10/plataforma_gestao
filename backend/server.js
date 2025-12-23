@@ -916,6 +916,94 @@ app.delete('/api/files/:projectId/:documentId/:filename', async (req, res) => {
   }
 });
 
+// View file endpoint - forces inline display
+app.get('/api/view/:projectId/:documentId/:filename', async (req, res) => {
+  try {
+    const { projectId, documentId, filename } = req.params;
+    const filePath = path.join(__dirname, 'uploads', projectId, documentId, filename);
+    
+    // Check if file exists
+    if (!await fs.pathExists(filePath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo não encontrado'
+      });
+    }
+
+    // Explicitly set Content-Type for Office documents to help browser viewers
+    const extension = path.extname(filename).toLowerCase();
+    const mimeTypes = {
+      '.pdf': 'application/pdf',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.doc': 'application/msword',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xls': 'application/vnd.ms-excel',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif'
+    };
+
+    if (mimeTypes[extension]) {
+      res.setHeader('Content-Type', mimeTypes[extension]);
+    }
+
+    // Set headers to force inline viewing
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Send the file
+    res.sendFile(path.resolve(filePath));
+
+  } catch (error) {
+    console.error('View file error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao visualizar arquivo'
+    });
+  }
+});
+
+// Endpoint to save all data at once
+app.post('/api/save-all', (req, res) => {
+  try {
+    const { projects, documents } = req.body;
+    
+    if (projects && Array.isArray(projects)) {
+      projectsData = projects;
+      console.log(`[save-all] Updated projectsData: ${projectsData.length} items`);
+    }
+    
+    if (documents && Array.isArray(documents)) {
+      documentsData = documents;
+      console.log(`[save-all] Updated documentsData: ${documentsData.length} items`);
+    }
+    
+    // Update next IDs
+    if (projectsData.length > 0) {
+      nextProjectId = Math.max(...projectsData.map(p => parseInt(p.id) || 0), 0) + 1;
+    }
+    if (documentsData.length > 0) {
+      nextDocumentId = Math.max(...documentsData.map(d => parseInt(d.id) || 0), 0) + 1;
+    }
+    
+    saveData();
+    
+    res.json({
+      success: true,
+      message: 'All data saved successfully'
+    });
+  } catch (error) {
+    console.error('Save all error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error saving all data'
+    });
+  }
+});
+
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error:', error);

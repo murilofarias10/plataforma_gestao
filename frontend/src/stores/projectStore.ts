@@ -55,6 +55,11 @@ const projectsApi = {
     apiCall(`${API_URL}/projects/${id}`, {
       method: 'DELETE',
     }),
+  saveAll: (data: { projects: any[]; documents: any[] }) =>
+    apiCall(`${API_URL}/save-all`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 const documentsApi = {
@@ -125,6 +130,7 @@ interface ProjectStore {
   clearAllData: () => void;
   renumberCurrentProject: () => Promise<void>;
   renumberAllProjects: () => Promise<void>;
+  saveAllData: () => Promise<void>;
 }
 
 const defaultFilters: ProjectFilters = {
@@ -645,6 +651,35 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     const { selectedProjectId } = get();
     if (selectedProjectId) await get().loadDocumentsForProject(selectedProjectId);
   },
+
+  saveAllData: async () => {
+    try {
+      const { projects, documents } = get();
+      console.log('saveAllData: Saving all projects and documents...', {
+        projectsCount: projects.length,
+        documentsCount: documents.length
+      });
+      
+      const response = await projectsApi.saveAll({
+        projects,
+        documents
+      });
+      
+      if (response.success) {
+        console.log('saveAllData: Success!');
+      } else {
+        throw new Error(response.error || 'Failed to save all data');
+      }
+    } catch (error) {
+      console.error('Error in saveAllData:', error);
+      toast({
+        title: 'Erro ao persistir dados',
+        description: 'Não foi possível salvar todos os dados no servidor.',
+        variant: 'destructive',
+      });
+    }
+  },
+
   getUniqueResponsaveis: () => {
     // Get unique responsáveis from currently visible documents in the table
     // This respects filters and meeting context
