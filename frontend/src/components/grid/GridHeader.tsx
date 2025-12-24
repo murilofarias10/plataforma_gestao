@@ -32,9 +32,23 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
   // Close active filter when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
-        setActiveFilter(null);
+      const target = event.target as HTMLElement;
+      
+      // Check if click is inside the header
+      if (headerRef.current && headerRef.current.contains(target)) {
+        return;
       }
+
+      // Check if click is inside a Radix UI portal (like the Calendar popover)
+      const isInsidePortal = target.closest('[data-radix-portal]') || 
+                            target.closest('.z-\\[1100\\]') ||
+                            target.closest('.z-\\[1002\\]');
+      
+      if (isInsidePortal) {
+        return;
+      }
+
+      setActiveFilter(null);
     };
 
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -112,8 +126,8 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       
       case 'dataInicio':
         return (
-          <div className="relative -m-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <div className="relative flex-1">
+          <div className="flex items-center gap-1 w-full px-1" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-1 min-w-0">
               <CalendarIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <Input
                 type="text"
@@ -133,7 +147,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                   setFilters({ dateRange: { ...filters.dateRange, start: value } });
                 }}
                 placeholder="dd-mm-aaaa"
-                className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
+                className="pl-6 pr-1 w-full text-[10px] h-7 bg-white text-foreground placeholder:text-gray-400 border-none"
                 maxLength={10}
                 inputMode="numeric"
                 autoComplete="off"
@@ -146,7 +160,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 hover:bg-white/20 text-white p-0"
+                  className="h-6 w-6 shrink-0 hover:bg-white/20 text-white p-0"
                 >
                   <CalendarIcon className="h-3.5 w-3.5" />
                 </Button>
@@ -176,8 +190,8 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       
       case 'dataFim':
         return (
-          <div className="relative -m-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <div className="relative flex-1">
+          <div className="flex items-center gap-1 w-full px-1" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-1 min-w-0">
               <CalendarIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <Input
                 type="text"
@@ -197,7 +211,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                   setFilters({ dateRange: { ...filters.dateRange, end: value } });
                 }}
                 placeholder="dd-mm-aaaa"
-                className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
+                className="pl-6 pr-1 w-full text-[10px] h-7 bg-white text-foreground placeholder:text-gray-400 border-none"
                 maxLength={10}
                 inputMode="numeric"
                 autoComplete="off"
@@ -210,7 +224,7 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 hover:bg-white/20 text-white p-0"
+                  className="h-6 w-6 shrink-0 hover:bg-white/20 text-white p-0"
                 >
                   <CalendarIcon className="h-3.5 w-3.5" />
                 </Button>
