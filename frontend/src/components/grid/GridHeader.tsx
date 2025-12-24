@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useProjectStore } from "@/stores/projectStore";
 import { Input } from "@/components/ui/input";
-import { Search, Calendar, Filter, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Calendar as CalendarIcon, Filter, User } from "lucide-react";
+import { cn, parseBRDateLocal } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { ptBR } from "date-fns/locale";
 
 interface Column {
   key: string;
@@ -108,65 +112,129 @@ export function GridHeader({ columns, totalCount }: GridHeaderProps) {
       
       case 'dataInicio':
         return (
-          <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
-            <Input
-              type="text"
-              value={filters.dateRange.start || ""}
-              onChange={(e) => {
-                let value = e.target.value;
-                value = value.replace(/[^0-9-]/g, '');
-                if (value.length <= 2) {
-                  value = value;
-                } else if (value.length <= 5) {
-                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
-                } else if (value.length <= 10) {
-                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
-                } else {
-                  value = value.substring(0, 10);
-                }
-                setFilters({ dateRange: { ...filters.dateRange, start: value } });
-              }}
-              placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
-              maxLength={10}
-              inputMode="numeric"
-              autoComplete="off"
-              spellCheck={false}
-              autoFocus
-            />
+          <div className="relative -m-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-1">
+              <CalendarIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
+              <Input
+                type="text"
+                value={filters.dateRange.start || ""}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  value = value.replace(/[^0-9-]/g, '');
+                  if (value.length <= 2) {
+                    value = value;
+                  } else if (value.length <= 5) {
+                    value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                  } else if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                  } else {
+                    value = value.substring(0, 10);
+                  }
+                  setFilters({ dateRange: { ...filters.dateRange, start: value } });
+                }}
+                placeholder="dd-mm-aaaa"
+                className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
+                maxLength={10}
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 hover:bg-white/20 text-white p-0"
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[1100]" align="end">
+                <Calendar
+                  mode="single"
+                  selected={filters.dateRange.start ? parseBRDateLocal(filters.dateRange.start) || undefined : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const year = date.getFullYear();
+                      const formattedDate = `${day}-${month}-${year}`;
+                      setFilters({ dateRange: { ...filters.dateRange, start: formattedDate } });
+                    } else {
+                      setFilters({ dateRange: { ...filters.dateRange, start: '' } });
+                    }
+                  }}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         );
       
       case 'dataFim':
         return (
-          <div className="relative -m-1" onClick={(e) => e.stopPropagation()}>
-            <Calendar className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
-            <Input
-              type="text"
-              value={filters.dateRange.end || ""}
-              onChange={(e) => {
-                let value = e.target.value;
-                value = value.replace(/[^0-9-]/g, '');
-                if (value.length <= 2) {
-                  value = value;
-                } else if (value.length <= 5) {
-                  value = value.replace(/^(\d{2})(\d)/, '$1-$2');
-                } else if (value.length <= 10) {
-                  value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
-                } else {
-                  value = value.substring(0, 10);
-                }
-                setFilters({ dateRange: { ...filters.dateRange, end: value } });
-              }}
-              placeholder="dd-mm-aaaa"
-              className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
-              maxLength={10}
-              inputMode="numeric"
-              autoComplete="off"
-              spellCheck={false}
-              autoFocus
-            />
+          <div className="relative -m-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-1">
+              <CalendarIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500 pointer-events-none" />
+              <Input
+                type="text"
+                value={filters.dateRange.end || ""}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  value = value.replace(/[^0-9-]/g, '');
+                  if (value.length <= 2) {
+                    value = value;
+                  } else if (value.length <= 5) {
+                    value = value.replace(/^(\d{2})(\d)/, '$1-$2');
+                  } else if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})-(\d{2})(\d)/, '$1-$2-$3');
+                  } else {
+                    value = value.substring(0, 10);
+                  }
+                  setFilters({ dateRange: { ...filters.dateRange, end: value } });
+                }}
+                placeholder="dd-mm-aaaa"
+                className="pl-7 pr-2 w-full text-[11px] h-7 bg-white text-foreground placeholder:text-gray-400"
+                maxLength={10}
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 hover:bg-white/20 text-white p-0"
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[1100]" align="end">
+                <Calendar
+                  mode="single"
+                  selected={filters.dateRange.end ? parseBRDateLocal(filters.dateRange.end) || undefined : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const year = date.getFullYear();
+                      const formattedDate = `${day}-${month}-${year}`;
+                      setFilters({ dateRange: { ...filters.dateRange, end: formattedDate } });
+                    } else {
+                      setFilters({ dateRange: { ...filters.dateRange, end: '' } });
+                    }
+                  }}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         );
       

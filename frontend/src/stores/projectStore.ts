@@ -725,8 +725,10 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     const q = (searchQuery || '').toLowerCase().trim();
     const respSearch = (responsavelSearch || '').toLowerCase().trim();
     const detSearch = (detalhesSearch || '').toLowerCase().trim();
-    const start = dateRange.start ? parseBRDateLocal(dateRange.start) : null;
-    const end = dateRange.end ? parseBRDateLocal(dateRange.end) : null;
+    
+    // Only apply date filters if the date string is complete (10 characters: dd-mm-aaaa)
+    const start = (dateRange.start && dateRange.start.length === 10) ? parseBRDateLocal(dateRange.start) : null;
+    const end = (dateRange.end && dateRange.end.length === 10) ? parseBRDateLocal(dateRange.end) : null;
 
     return documents
       .filter((d) => d.projectId === selectedProjectId && !d.isCleared)
@@ -753,11 +755,11 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
 
         if (start) {
           const di = d.dataInicio ? parseBRDateLocal(d.dataInicio) : null;
-          if (!di || di < start) return false;
+          if (!di || di.getTime() !== start.getTime()) return false;
         }
         if (end) {
           const df = d.dataFim ? parseBRDateLocal(d.dataFim) : null;
-          if (!df || df > end) return false;
+          if (!df || df.getTime() !== end.getTime()) return false;
         }
         return true;
       });

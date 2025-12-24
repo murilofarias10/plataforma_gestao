@@ -10,8 +10,13 @@ import {
 } from "@/components/ui/select";
 import { FileUploadCell } from "./FileUploadCell";
 import { ProjectAttachment } from "@/types/project";
-import { Upload } from "lucide-react";
+import { Upload, CalendarIcon } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { parseBRDateLocal } from "@/lib/utils";
+import { ptBR } from "date-fns/locale";
 
 interface GridCellProps {
   value: any;
@@ -40,6 +45,7 @@ export function GridCell({
 }: GridCellProps) {
   const { canCreate } = usePermissions();
   const [localValue, setLocalValue] = useState(value || '');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -73,7 +79,9 @@ export function GridCell({
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    handleSave();
+    if (!isCalendarOpen) {
+      handleSave();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -175,14 +183,14 @@ export function GridCell({
       );
     }
 
-    return (
-      <div className="p-2 w-full min-h-[44px] flex items-center">
-        <Input
-          ref={inputRef}
-          type="text"
-          value={localValue}
-          onChange={(e) => {
-            if (type === 'date') {
+    if (type === 'date') {
+      return (
+        <div className="p-2 w-full min-h-[44px] flex items-center gap-1">
+          <Input
+            ref={inputRef}
+            type="text"
+            value={localValue}
+            onChange={(e) => {
               let value = e.target.value;
               // Remove non-numeric characters except dashes
               value = value.replace(/[^0-9-]/g, '');
@@ -203,18 +211,70 @@ export function GridCell({
               }
               
               setLocalValue(value);
-            } else {
-              setLocalValue(e.target.value);
+            }}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            className="border-0 shadow-none focus-visible:ring-1 focus-visible:ring-primary text-xs h-auto flex-1 min-w-0"
+            placeholder="dd-mm-aaaa"
+            maxLength={10}
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <Popover open={isCalendarOpen} onOpenChange={(open) => {
+            setIsCalendarOpen(open);
+            if (!open) {
+              // When calendar closes, refocus input to keep editing session alive
+              // But only if we're still in editing mode
+              setTimeout(() => inputRef.current?.focus(), 0);
             }
-          }}
+          }}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 hover:bg-muted"
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[1002]" align="start" side="bottom">
+              <Calendar
+                mode="single"
+                selected={localValue ? parseBRDateLocal(localValue) || undefined : undefined}
+                onSelect={(date) => {
+                  if (date) {
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    const formattedDate = `${day}-${month}-${year}`;
+                    setLocalValue(formattedDate);
+                    onEdit(formattedDate);
+                    setIsCalendarOpen(false);
+                    onStopEdit();
+                  }
+                }}
+                initialFocus
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-2 w-full min-h-[44px] flex items-center">
+        <Input
+          ref={inputRef}
+          type="text"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           className="border-0 shadow-none focus-visible:ring-1 focus-visible:ring-primary text-xs h-auto w-full"
-          placeholder={type === 'date' ? 'dd-mm-aaaa' : ''}
-          maxLength={type === 'date' ? 10 : undefined}
-          inputMode={type === 'date' ? 'numeric' : undefined}
-          autoComplete={type === 'date' ? 'off' : undefined}
-          spellCheck={type === 'date' ? false : undefined}
         />
       </div>
     );
