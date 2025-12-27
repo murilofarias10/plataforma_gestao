@@ -7,6 +7,10 @@ const fs = require('fs-extra');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Persistent storage path - defaults to current directory
+// On Hugging Face Spaces, set this to /data if persistent storage is enabled
+const DATA_DIR = process.env.STORAGE_PATH || __dirname;
+
 // In-memory storage for projects and documents (in production, use a real database)
 let projectsData = [];
 let documentsData = [];
@@ -14,7 +18,7 @@ let nextProjectId = 1;
 let nextDocumentId = 1;
 
 // Load existing data from file if it exists
-const dataFilePath = path.join(__dirname, 'data.json');
+const dataFilePath = path.join(DATA_DIR, 'data.json');
 try {
   if (fs.existsSync(dataFilePath)) {
     const data = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
@@ -26,6 +30,11 @@ try {
 } catch (error) {
   console.error('Error loading data file:', error);
 }
+
+// Ensure uploads directory exists in the data directory
+const uploadsBaseDir = path.join(DATA_DIR, 'uploads');
+fs.ensureDirSync(uploadsBaseDir);
+fs.ensureDirSync(path.join(uploadsBaseDir, 'temp'));
 
 // Save data to file
 const saveData = () => {
@@ -48,7 +57,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory with no cache
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads'), {
   setHeaders: (res, path) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
@@ -156,7 +165,7 @@ const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     // For multipart/form-data, body fields might not be available yet
     // We'll use a temporary directory and move files later
-    const tempPath = path.join(__dirname, 'uploads', 'temp');
+    const tempPath = path.join(DATA_DIR, 'uploads', 'temp');
     
     try {
       await fs.ensureDir(tempPath);
@@ -580,7 +589,7 @@ app.post('/api/upload', upload.array('files', 5), handleMulterError, async (req,
     }
 
     // Create the final destination directory
-    const finalDir = path.join(__dirname, 'uploads', projectId, documentId);
+    const finalDir = path.join(DATA_DIR, 'uploads', projectId, documentId);
     await fs.ensureDir(finalDir);
 
     // Process uploaded files - move from temp to final location
@@ -654,7 +663,7 @@ app.post('/api/projects/:projectId/report-images', upload.single('image'), handl
     }
 
     // Create the final destination directory for report images
-    const finalDir = path.join(__dirname, 'uploads', projectId, 'report-images');
+    const finalDir = path.join(DATA_DIR, 'uploads', projectId, 'report-images');
     await fs.ensureDir(finalDir);
 
     // Move file from temp to final location
@@ -725,7 +734,7 @@ app.get('/api/files/:projectId/:documentId', async (req, res) => {
         const filename = pathParts[3];
         
         // Build the actual file path on disk
-        const diskPath = path.join(__dirname, 'uploads', fileProjectId, fileDocumentId, filename);
+        const diskPath = path.join(DATA_DIR, 'uploads', fileProjectId, fileDocumentId, filename);
         
         // Check if file exists
         if (await fs.pathExists(diskPath)) {
@@ -764,7 +773,7 @@ app.get('/api/files/:projectId/:documentId', async (req, res) => {
 app.get('/api/download/:projectId/:documentId/:filename', async (req, res) => {
   try {
     const { projectId, documentId, filename } = req.params;
-    const filePath = path.join(__dirname, 'uploads', projectId, documentId, filename);
+    const filePath = path.join(DATA_DIR, 'uploads', projectId, documentId, filename);
     
     // Check if file exists
     if (!await fs.pathExists(filePath)) {
@@ -825,8 +834,8 @@ app.post('/api/files/copy', async (req, res) => {
       });
     }
     
-    const sourcePath = path.join(__dirname, 'uploads', sourceProjectId, sourceDocumentId, filename);
-    const targetDir = path.join(__dirname, 'uploads', targetProjectId, targetDocumentId);
+    const sourcePath = path.join(DATA_DIR, 'uploads', sourceProjectId, sourceDocumentId, filename);
+    const targetDir = path.join(DATA_DIR, 'uploads', targetProjectId, targetDocumentId);
     const targetPath = path.join(targetDir, filename);
     
     console.log('============================================');
@@ -889,7 +898,7 @@ app.post('/api/files/copy', async (req, res) => {
 app.delete('/api/files/:projectId/:documentId/:filename', async (req, res) => {
   try {
     const { projectId, documentId, filename } = req.params;
-    const filePath = path.join(__dirname, 'uploads', projectId, documentId, filename);
+    const filePath = path.join(DATA_DIR, 'uploads', projectId, documentId, filename);
     
     // Check if file exists
     if (!await fs.pathExists(filePath)) {
@@ -920,7 +929,7 @@ app.delete('/api/files/:projectId/:documentId/:filename', async (req, res) => {
 app.get('/api/view/:projectId/:documentId/:filename', async (req, res) => {
   try {
     const { projectId, documentId, filename } = req.params;
-    const filePath = path.join(__dirname, 'uploads', projectId, documentId, filename);
+    const filePath = path.join(DATA_DIR, 'uploads', projectId, documentId, filename);
     
     // Check if file exists
     if (!await fs.pathExists(filePath)) {
@@ -1024,7 +1033,7 @@ app.use('*', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📁 Uploads directory: ${path.join(__dirname, 'uploads')}`);
+  console.log(`📁 Uploads directory: ${path.join(DATA_DIR, 'uploads')}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
 });
 

@@ -51,6 +51,20 @@ The application is containerized and ready to deploy on Hugging Face Spaces.
 
 This project is configured for deployment on Hugging Face Spaces using Docker. The Dockerfile builds the frontend and serves it along with the backend API.
 
+### Persistent Storage on Hugging Face Spaces
+
+By default, files and data stored in a Docker container on Hugging Face Spaces are ephemeral and will be lost when the Space restarts. To persist your projects and uploaded files:
+
+1. **Enable Persistent Storage:**
+   - In your Space settings, go to "Persistent Storage".
+   - Select a tier (e.g., "Small" or "Medium"). This will mount a persistent volume at `/data`.
+
+2. **Configure the Storage Path:**
+   - In "Variables and secrets", add a new **Environment Variable** (not a secret):
+     - `STORAGE_PATH` = `/data`
+
+The application will then save `data.json` and all files in `/data/uploads`, ensuring they persist across restarts.
+
 ### Environment Variables
 
 The application uses Supabase for authentication. To configure Supabase credentials for your deployment:
