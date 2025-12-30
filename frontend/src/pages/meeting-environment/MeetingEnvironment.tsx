@@ -17,7 +17,7 @@ import { useMeetingReportStore } from "@/stores/meetingReportStore";
 import { useMeetingContextStore } from "@/stores/meetingContextStore";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings, Paperclip, Loader2 } from "lucide-react";
+import { CalendarDays, Trash2, Download, AlertTriangle, Edit, ChevronDown, ChevronUp, ChevronRight, FileText, X, Circle, Eye, Calendar as CalendarIcon, Settings, Paperclip, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseBRDateLocal } from "@/lib/utils";
@@ -25,6 +25,61 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { getApiUrl, getStaticUrl } from "@/lib/api-config";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
+
+const ExpandableText = ({ text, title }: { text: string; title?: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (textRef.current) {
+        // When not expanded, check if scrollHeight > clientHeight
+        if (!isExpanded) {
+          setIsTruncated(textRef.current.scrollHeight > textRef.current.clientHeight);
+        }
+      }
+    };
+
+    // Small delay to ensure DOM is rendered
+    const timer = setTimeout(checkTruncation, 100);
+    window.addEventListener('resize', checkTruncation);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkTruncation);
+    };
+  }, [text, isExpanded]);
+
+  if (!text || text === '-') return <span>-</span>;
+
+  return (
+    <div className="flex flex-col">
+      <div 
+        ref={textRef}
+        className={isExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-2"}
+        title={!isExpanded ? title || text : undefined}
+      >
+        {text}
+      </div>
+      {(isTruncated || isExpanded) && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          className="text-[10px] text-primary hover:underline mt-1 self-start font-medium flex items-center gap-0.5"
+        >
+          {isExpanded ? (
+            <>Ver menos <ChevronUp className="h-3 w-3" /></>
+          ) : (
+            <>Ver mais <ChevronDown className="h-3 w-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const MeetingEnvironment = () => {
   const navigate = useNavigate();
@@ -945,14 +1000,10 @@ const MeetingEnvironment = () => {
                                                   {doc.dataFim || '-'}
                                                 </td>
                                                 <td className="px-3 py-2 text-foreground">
-                                                  <div className="line-clamp-2" title={doc.documento}>
-                                                    {doc.documento || '-'}
-                                                  </div>
+                                                  <ExpandableText text={doc.documento || ''} title={doc.documento} />
                                                 </td>
                                                 <td className="px-3 py-2 text-muted-foreground">
-                                                  <div className="line-clamp-2" title={doc.detalhe}>
-                                                    {doc.detalhe || '-'}
-                                                  </div>
+                                                  <ExpandableText text={doc.detalhe || ''} title={doc.detalhe} />
                                                 </td>
                                                 <td className="px-3 py-2 text-muted-foreground">
                                                   {doc.responsavel || '-'}
