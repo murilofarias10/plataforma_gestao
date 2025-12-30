@@ -429,6 +429,8 @@ const MeetingEnvironment = () => {
     // Start edit mode with duplicated document IDs
     const meetingWithDuplicates = {
       ...meeting,
+      data: '', // Clear date to force user to enter a new one
+      numeroAta: '', // Clear minute number to force user to enter a new one
       relatedDocumentIds: duplicateDocIds.length > 0 ? duplicateDocIds : originalDocIds,
     };
     
