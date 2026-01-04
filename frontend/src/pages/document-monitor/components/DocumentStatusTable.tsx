@@ -2,7 +2,18 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const DocumentStatusTable = () => {
+interface StatusTableRow {
+  status: string;
+  qtde: number;
+  inicio: number | null;
+  fim: number | null;
+}
+
+interface DocumentStatusTableProps {
+  data: StatusTableRow[];
+}
+
+const DocumentStatusTable = ({ data }: DocumentStatusTableProps) => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const toggleRow = (status: string) => {
@@ -15,21 +26,12 @@ const DocumentStatusTable = () => {
     setExpandedRows(newExpanded);
   };
 
-  const tableData = [
-    { status: 'Aprovado', qtde: 34, inicio: 34, fim: 34 },
-    { status: 'Cancelado', qtde: 3, inicio: 1, fim: null },
-    { status: 'Emitido', qtde: 60, inicio: 60, fim: 53 },
-    { status: 'Não Se Aplica', qtde: 80, inicio: null, fim: null },
-    { status: 'Para Emissão', qtde: 10, inicio: 10, fim: null },
-  ];
-
-  const total = {
+  const total = data.reduce((acc, row) => ({
     status: 'Total',
-    qtde: 187,
-    inicio: 105,
-    fim: 87,
-    isTotal: true
-  };
+    qtde: acc.qtde + row.qtde,
+    inicio: (acc.inicio || 0) + (row.inicio || 0),
+    fim: (acc.fim || 0) + (row.fim || 0)
+  }), { status: 'Total', qtde: 0, inicio: 0, fim: 0 });
 
   return (
     <div className="w-full">
@@ -44,7 +46,7 @@ const DocumentStatusTable = () => {
             </tr>
           </thead>
           <tbody>
-            {tableData.map((row, index) => (
+            {data.map((row, index) => (
               <tr key={index} className="hover:bg-muted/30">
                 <td className="border border-border p-3">
                   <div className="flex items-center gap-2">
@@ -70,7 +72,7 @@ const DocumentStatusTable = () => {
             ))}
             {/* Total Row */}
             <tr className="bg-muted/50 font-semibold">
-              <td className="border border-border p-3">
+              <td className="border border-border p-3 pl-11">
                 <span>{total.status}</span>
               </td>
               <td className="border border-border p-3 text-center">{total.qtde}</td>

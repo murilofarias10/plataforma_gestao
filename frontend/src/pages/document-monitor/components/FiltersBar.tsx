@@ -10,13 +10,15 @@ interface FiltersBarProps {
   onDateRangeChange: (dateRange: { start: string; end: string }) => void;
   selectedDiscipline: string;
   onDisciplineChange: (discipline: string) => void;
+  disciplines?: string[];
 }
 
 const FiltersBar = ({ 
   dateRange, 
   onDateRangeChange, 
   selectedDiscipline, 
-  onDisciplineChange
+  onDisciplineChange,
+  disciplines = ["All"]
 }: FiltersBarProps) => {
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
@@ -54,13 +56,11 @@ const FiltersBar = ({
             <SelectValue placeholder="Selecione uma disciplina" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Civil">Civil</SelectItem>
-            <SelectItem value="Structural">Structural</SelectItem>
-            <SelectItem value="Mechanical">Mechanical</SelectItem>
-            <SelectItem value="Electrical">Electrical</SelectItem>
-            <SelectItem value="Piping">Piping</SelectItem>
-            <SelectItem value="Instrumentation">Instrumentation</SelectItem>
+            {disciplines.map((discipline) => (
+              <SelectItem key={discipline} value={discipline}>
+                {discipline}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

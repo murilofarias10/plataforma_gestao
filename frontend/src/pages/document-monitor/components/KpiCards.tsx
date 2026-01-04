@@ -1,6 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const KpiCards = () => {
+interface KpiCardsProps {
+  emitidosPercentage: number;
+  aprovadosPercentage: number;
+}
+
+const KpiCards = ({ emitidosPercentage, aprovadosPercentage }: KpiCardsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-report-section="document-monitor-kpis">
       {/* Emitidos Card */}
@@ -12,7 +17,7 @@ const KpiCards = () => {
         </CardHeader>
         <CardContent>
           <div className="text-4xl font-bold text-primary">
-            65%
+            {emitidosPercentage}%
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Documentos emitidos do total planejado
@@ -29,7 +34,7 @@ const KpiCards = () => {
         </CardHeader>
         <CardContent>
           <div className="text-4xl font-bold text-primary">
-            70%
+            {aprovadosPercentage}%
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Percentual de documentos emitidos aprovados

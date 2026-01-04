@@ -3,6 +3,7 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs-extra');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1010,6 +1011,83 @@ app.post('/api/save-all', (req, res) => {
       success: false,
       error: 'Error saving all data'
     });
+  }
+});
+
+// SharePoint Proxy Endpoint
+app.get('/api/sharepoint/proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    console.log(`[SharePoint Proxy] Input URL: ${url}`);
+
+    let downloadUrl = url;
+    
+    // Transform SharePoint sharing link to direct download link
+    // Pattern: https://tenant.sharepoint.com/:x:/g/personal/user/token?rtime=...
+    // Target: https://tenant.sharepoint.com/personal/user/_layouts/15/download.aspx?share=token
+    if (url.includes('sharepoint.com') && url.includes('/personal/')) {
+      try {
+        const urlObj = new URL(url);
+        const parts = urlObj.pathname.split('/');
+        
+        // Find 'personal' in the path
+        const personalIndex = parts.indexOf('personal');
+        if (personalIndex !== -1 && parts.length > personalIndex + 2) {
+          const tenantUrl = `${urlObj.protocol}//${urlObj.host}`;
+          const userPath = parts[personalIndex + 1];
+          const token = parts[personalIndex + 2];
+          
+          downloadUrl = `${tenantUrl}/personal/${userPath}/_layouts/15/download.aspx?share=${token}`;
+          console.log(`[SharePoint Proxy] Transformed to Direct Download: ${downloadUrl}`);
+        }
+      } catch (e) {
+        console.warn('[SharePoint Proxy] Transformation failed, using original with download=1:', e.message);
+        if (url.includes('?')) {
+          downloadUrl = url.includes('download=1') ? url : `${url}&download=1`;
+        } else {
+          downloadUrl = `${url}?download=1`;
+        }
+      }
+    }
+
+    const response = await axios({
+      method: 'get',
+      url: downloadUrl,
+      responseType: 'arraybuffer',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      maxRedirects: 5
+    });
+
+    console.log(`[SharePoint Proxy] Download Success: ${response.status}, Content-Type: ${response.headers['content-type']}`);
+
+    // Check if we actually got an HTML page instead of the Excel file
+    const contentType = response.headers['content-type'] || '';
+    if (contentType.includes('text/html')) {
+      console.error('[SharePoint Proxy] Error: Received HTML instead of Excel file. Possibly a login page or redirect.');
+      return res.status(403).json({ 
+        success: false, 
+        error: 'SharePoint returned an HTML page. Please ensure the link is shared with "Anyone with the link".' 
+      });
+    }
+
+    res.setHeader('Content-Type', contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(response.data);
+
+  } catch (error) {
+    console.error('[SharePoint Proxy] Error:', error.message);
+    if (error.response) {
+      return res.status(error.response.status).json({ 
+        success: false, 
+        error: `SharePoint returned ${error.response.status}: ${error.message}` 
+      });
+    }
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
