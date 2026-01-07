@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { API_BASE_URL } from '@/lib/api-config';
 
 export interface ExcelDocument {
   Documento: string;
@@ -12,8 +13,8 @@ export interface ExcelDocument {
 export const fetchSharePointExcel = async (url: string): Promise<ExcelDocument[]> => {
   try {
     // We use a backend proxy to avoid CORS issues when fetching directly from SharePoint
-    // The backend is running on port 3001
-    const proxyUrl = `http://localhost:3001/api/sharepoint/proxy?url=${encodeURIComponent(url)}`;
+    // API_BASE_URL handles both local development and production/HuggingFace environments
+    const proxyUrl = `${API_BASE_URL}/api/sharepoint/proxy?url=${encodeURIComponent(url)}`;
     
     console.log('Fetching from SharePoint via Proxy:', proxyUrl);
 

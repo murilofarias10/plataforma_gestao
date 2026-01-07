@@ -5,7 +5,14 @@
 
 // Use relative URL in production, absolute URL in development
 // In production, the frontend is served by the backend from the same origin
-export const API_BASE_URL = import.meta.env.DEV 
+// We check for localhost to determine if we should use the absolute URL for development
+const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1' || 
+  window.location.hostname === '[::1]'
+);
+
+export const API_BASE_URL = isLocalhost 
   ? 'http://localhost:3001' 
   : '';
 
