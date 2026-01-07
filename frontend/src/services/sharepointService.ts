@@ -35,14 +35,30 @@ export const fetchSharePointExcel = async (url: string): Promise<ExcelDocument[]
     const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
     
     // Map data to ensure it matches our interface and handle potential column name variations
-    return jsonData.map(item => ({
-      Documento: item.Documento || item.documento || '',
-      Status: item.Status || item.status || '',
-      Disciplina: item.Disciplina || item.disciplina || '',
-      Data_baseline: item.Data_baseline || item.data_baseline || item['Data Baseline'] || null,
-      Data_projetado: item.Data_projetado || item.data_projetado || item['Data Projetado'] || null,
-      Data_avancado: item.Data_avancado || item.data_avancado || item['Data Avancado'] || null,
-    }));
+    return jsonData.map(item => {
+      // Helper to find a value by checking multiple possible key variations
+      const findValue = (keys: string[]) => {
+        for (const key of keys) {
+          if (item[key] !== undefined && item[key] !== null) return item[key];
+        }
+        // Also try case-insensitive match as a fallback
+        const itemKeys = Object.keys(item);
+        for (const key of keys) {
+          const foundKey = itemKeys.find(ik => ik.toLowerCase() === key.toLowerCase());
+          if (foundKey) return item[foundKey];
+        }
+        return null;
+      };
+
+      return {
+        Documento: findValue(['Documento', 'documento', 'Doc', 'doc']) || '',
+        Status: findValue(['Status', 'status', 'Situação', 'situacao']) || '',
+        Disciplina: findValue(['Disciplina', 'disciplina']) || '',
+        Data_baseline: findValue(['Data_baseline', 'Data Baseline', 'data_baseline', 'Baseline']),
+        Data_projetado: findValue(['Data_projetado', 'Data Projetado', 'data_projetado', 'Projetado', 'Previsto']),
+        Data_avancado: findValue(['Data_avancado', 'Data Avancado', 'data_avancado', 'Avancado', 'Avançado', 'Real']),
+      };
+    });
   } catch (error) {
     console.error('Error fetching/parsing SharePoint Excel:', error);
     throw error;

@@ -1,5 +1,5 @@
 import { ExcelDocument } from "@/services/sharepointService";
-import { format, startOfMonth, parseISO, isBefore, isAfter, isEqual } from "date-fns";
+import { format, startOfMonth, endOfMonth, isBefore, isAfter, isEqual, parseISO } from "date-fns";
 
 export interface KpiData {
   emitidosPercentage: number;
@@ -20,20 +20,64 @@ export interface StatusTableRow {
   fim: number | null;
 }
 
+const ensureDate = (date: any): Date | null => {
+  if (!date) return null;
+  if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
+  
+  // Handle Excel serial dates (numbers)
+  if (typeof date === 'number') {
+    // Excel base date is Dec 30, 1899
+    return new Date((date - 25569) * 86400 * 1000);
+  }
+
+  // Handle strings
+  if (typeof date === 'string') {
+    // Try DD/MM/YYYY format
+    const parts = date.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const year = parseInt(parts[2], 10);
+      
+      // Handle 2-digit years
+      const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
+      
+      const d = new Date(fullYear, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
+  const parsed = new Date(date);
+  if (!isNaN(parsed.getTime())) return parsed;
+
+  return null;
+};
+
 export const processKpiData = (data: ExcelDocument[]): KpiData => {
   if (!data.length) return { emitidosPercentage: 0, aprovadosPercentage: 0 };
 
-  const total = data.length;
-  const emitidos = data.filter(d => 
-    d.Status?.toLowerCase() === 'emitido' || 
-    d.Status?.toLowerCase() === 'aprovado'
+  const countAprovado = data.filter(d => d.Status?.toLowerCase() === 'aprovado').length;
+  const countEmitido = data.filter(d => d.Status?.toLowerCase() === 'emitido').length;
+  const countParaEmissao = data.filter(d => 
+    d.Status?.toLowerCase() === 'para emissão' || 
+    d.Status?.toLowerCase() === 'para emissao'
   ).length;
+
+  const totalPlanned = countAprovado + countEmitido + countParaEmissao;
+
+
+  // KPI Emitidos: (Aprovado + Emitido / Aprovados + Emitido + Para Emissão) * 100
+  const emitidosPercentage = totalPlanned > 0 ? Math.round(((countEmitido + countAprovado) / (countAprovado + countEmitido + countParaEmissao)) * 100) : 0;
+
+
   
-  const aprovados = data.filter(d => d.Status?.toLowerCase() === 'aprovado').length;
+  // KPI Aprovados: (Aprovado / (Aprovado + Emitido)) * 100
+  const totalIssued = countAprovado + countEmitido;
+  const aprovadosPercentage = totalIssued > 0 ? Math.round((countAprovado / totalIssued) * 100) : 0;
 
   return {
-    emitidosPercentage: Math.round((emitidos / total) * 100),
-    aprovadosPercentage: emitidos > 0 ? Math.round((aprovados / emitidos) * 100) : 0
+    emitidosPercentage,
+    aprovadosPercentage
   };
 };
 
@@ -62,60 +106,45 @@ export const processStatusTableData = (data: ExcelDocument[]): StatusTableRow[] 
 export const processSCurveData = (data: ExcelDocument[]): SCurvePoint[] => {
   if (!data.length) return [];
 
-  const months: Record<string, SCurvePoint> = {};
-  
+  // Normalize dates in the dataset
+  const normalizedData = data.map(d => ({
+    ...d,
+    Data_baseline: ensureDate(d.Data_baseline),
+    Data_projetado: ensureDate(d.Data_projetado),
+    Data_avancado: ensureDate(d.Data_avancado),
+  }));
+
   // Find date range
-  const allDates = data.flatMap(d => [
+  const allDates = normalizedData.flatMap(d => [
     d.Data_baseline,
     d.Data_projetado,
     d.Data_avancado
-  ]).filter(d => d instanceof Date) as Date[];
+  ]).filter(d => d !== null) as Date[];
 
   if (allDates.length === 0) return [];
 
   const minDate = startOfMonth(new Date(Math.min(...allDates.map(d => d.getTime()))));
   const maxDate = startOfMonth(new Date(Math.max(...allDates.map(d => d.getTime()))));
 
-  // Initialize months
-  let current = minDate;
-  while (isBefore(current, maxDate) || isEqual(current, maxDate)) {
-    const monthStr = format(current, "MMM-yy").toLowerCase();
-    months[monthStr] = { time: monthStr, projetado: 0, baseline: 0, avancado: 0 };
-    current = startOfMonth(new Date(current.getFullYear(), current.getMonth() + 1, 1));
-  }
-
-  // Helper to get month string
-  const getMonthStr = (date: any) => {
-    if (!(date instanceof Date)) return null;
-    return format(date, "MMM-yy").toLowerCase();
-  };
-
-  // Cumulative counts
-  const monthKeys = Object.keys(months);
-  
-  monthKeys.forEach(monthKey => {
-    const monthDate = parseISO(`01-${monthKey.replace('-', ' 20')}`); // simplified parse
-    // Actually, let's use the date objects we have
-  });
-
-  // Re-implementing more robustly
   const result: SCurvePoint[] = [];
-  current = minDate;
+  let current = minDate;
   
-  let cumulativeBaseline = 0;
-  let cumulativeProjetado = 0;
-  let cumulativeAvancado = 0;
-
   while (isBefore(current, maxDate) || isEqual(current, maxDate)) {
-    const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+    const monthEnd = endOfMonth(current);
     const monthStr = format(current, "MMM-yy").toLowerCase();
 
-    // Count for THIS month
-    const baselineInMonth = data.filter(d => d.Data_baseline instanceof Date && isBefore(d.Data_baseline, monthEnd) && isAfter(d.Data_baseline, current)).length;
-    // Actually, we want cumulative up to end of month
-    cumulativeBaseline = data.filter(d => d.Data_baseline instanceof Date && isBefore(d.Data_baseline, monthEnd)).length;
-    cumulativeProjetado = data.filter(d => d.Data_projetado instanceof Date && isBefore(d.Data_projetado, monthEnd)).length;
-    cumulativeAvancado = data.filter(d => d.Data_avancado instanceof Date && isBefore(d.Data_avancado, monthEnd)).length;
+    // Cumulative counts: all items with date <= monthEnd
+    const cumulativeBaseline = normalizedData.filter(d => 
+      d.Data_baseline && (isBefore(d.Data_baseline, monthEnd) || isEqual(d.Data_baseline, monthEnd))
+    ).length;
+
+    const cumulativeProjetado = normalizedData.filter(d => 
+      d.Data_projetado && (isBefore(d.Data_projetado, monthEnd) || isEqual(d.Data_projetado, monthEnd))
+    ).length;
+
+    const cumulativeAvancado = normalizedData.filter(d => 
+      d.Data_avancado && (isBefore(d.Data_avancado, monthEnd) || isEqual(d.Data_avancado, monthEnd))
+    ).length;
 
     result.push({
       time: monthStr,
@@ -124,6 +153,7 @@ export const processSCurveData = (data: ExcelDocument[]): SCurvePoint[] => {
       avancado: cumulativeAvancado
     });
 
+    // Move to next month
     current = startOfMonth(new Date(current.getFullYear(), current.getMonth() + 1, 1));
   }
 
