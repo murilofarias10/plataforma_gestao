@@ -22,6 +22,10 @@ build/
 .env.development
 .env.staging
 .env.production
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
 
 # Editor directories and files
 .vscode/*
@@ -138,6 +142,8 @@ backend/data.json
 backend/logs/
 backend/*.log
 backend/fonts/
+backend/.env
+backend/.env.local
 
 # Upload directories
 uploads/
