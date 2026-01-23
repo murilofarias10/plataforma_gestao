@@ -265,6 +265,18 @@ app.put('/api/documents/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // First, fetch the current document to get existing data
+    const { data: currentDoc, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!currentDoc) {
+      return res.status(404).json({ success: false, error: 'Document not found' });
+    }
+
     const { id: docId, projectId, numeroItem, attachments, createdAt, updatedAt, ...rest } = updates;
 
     const dbUpdates = {
@@ -272,7 +284,12 @@ app.put('/api/documents/:id', async (req, res) => {
     };
     if (numeroItem !== undefined) dbUpdates.numero_item = numeroItem;
     if (attachments !== undefined) dbUpdates.attachments = attachments;
-    if (Object.keys(rest).length > 0) dbUpdates.data = rest;
+    
+    // Merge updates with existing data instead of replacing it
+    if (Object.keys(rest).length > 0) {
+      const existingData = currentDoc.data || {};
+      dbUpdates.data = { ...existingData, ...rest };
+    }
 
     const { data, error } = await supabase
       .from('documents')
