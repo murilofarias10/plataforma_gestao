@@ -540,19 +540,36 @@ app.get('/api/files/:projectId/:documentId', async (req, res) => {
 async function handleFileRequest(req, res, isDownload) {
   try {
     const { projectId, documentId, filename } = req.params;
-    
+    const originalName = req.query.originalName ? decodeURIComponent(req.query.originalName) : filename;
+
     // Special case for report images
     const isReportImage = documentId === 'report-images';
     const storagePath = isReportImage ? `${projectId}/report-images/${filename}` : `${projectId}/${documentId}/${filename}`;
 
-    // Generate signed URL
+    if (isDownload) {
+      // Stream the file back so the browser triggers a real download with the correct filename
+      const { data: blob, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .download(storagePath);
+
+      if (error) throw error;
+
+      const arrayBuffer = await blob.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
+      res.setHeader('Content-Type', blob.type || 'application/octet-stream');
+      res.setHeader('Content-Length', buffer.length);
+      return res.send(buffer);
+    }
+
+    // View: generate a signed URL and redirect (browser handles inline display)
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
+      .createSignedUrl(storagePath, 3600);
 
     if (error) throw error;
 
-    // Redirect to Supabase signed URL
     res.redirect(data.signedUrl);
   } catch (error) {
     console.error('File request error:', error);
