@@ -96,6 +96,10 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
   },
 
   startEditMeeting: (meeting, originalDocIds, tempDuplicateIds) => {
+    localStorage.setItem('meetingEditSession', JSON.stringify({
+      tempDuplicateIds,
+      newlyAddedDocumentIds: [],
+    }));
     set({
       currentMeeting: meeting,
       isEditMode: true,
@@ -109,15 +113,23 @@ export const useMeetingContextStore = create<MeetingContextStore>((set, get) => 
   addNewlyAddedDocumentId: (documentId) => {
     const { isEditMode, newlyAddedDocumentIds } = get();
     if (isEditMode && !newlyAddedDocumentIds.includes(documentId)) {
-      set({
-        newlyAddedDocumentIds: [...newlyAddedDocumentIds, documentId],
-      });
+      const updated = [...newlyAddedDocumentIds, documentId];
+      set({ newlyAddedDocumentIds: updated });
       console.log('[meetingContextStore] Tracked newly added document:', documentId);
+      try {
+        const saved = localStorage.getItem('meetingEditSession');
+        if (saved) {
+          const session = JSON.parse(saved);
+          session.newlyAddedDocumentIds = updated;
+          localStorage.setItem('meetingEditSession', JSON.stringify(session));
+        }
+      } catch { /* ignore */ }
     }
   },
 
   clearMeetingContext: () => {
     console.log('[meetingContextStore] Clearing meeting context');
+    localStorage.removeItem('meetingEditSession');
     set({
       currentMeeting: null,
       isEditMode: false,

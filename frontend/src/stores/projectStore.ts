@@ -281,6 +281,7 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
   },
 
   setSelectedProject: async (projectId) => {
+    localStorage.setItem('selectedProjectId', projectId);
     set({ selectedProjectId: projectId });
     // Load documents for the selected project
     await get().loadDocumentsForProject(projectId);
@@ -894,6 +895,26 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     try {
       console.log('loadData: Starting to load data from backend...');
       set({ isLoading: true });
+
+      // Clean up any orphaned edit session from a previous page refresh mid-edit
+      const savedEditSession = localStorage.getItem('meetingEditSession');
+      if (savedEditSession) {
+        try {
+          const { tempDuplicateIds = [], newlyAddedDocumentIds = [] } = JSON.parse(savedEditSession);
+          const idsToDelete = [...tempDuplicateIds, ...newlyAddedDocumentIds];
+          if (idsToDelete.length > 0) {
+            console.log('loadData: Cleaning up orphaned edit session documents:', idsToDelete);
+            await Promise.all(
+              idsToDelete.map((id: string) =>
+                apiCall(`${API_URL}/documents/${id}`, { method: 'DELETE' }).catch(() => {})
+              )
+            );
+          }
+        } catch {
+          // Ignore parse errors
+        }
+        localStorage.removeItem('meetingEditSession');
+      }
       
       // Load projects
       console.log('loadData: Calling projectsApi.getAll()...');
@@ -906,13 +927,24 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
           updatedAt: new Date(project.updatedAt),
           meetings: Array.isArray(project.meetings) ? project.meetings : [],
         }));
+
+        // Restore previously selected project from localStorage; fall back to first project
+        const savedProjectId = localStorage.getItem('selectedProjectId');
+        const restoredProjectId =
+          savedProjectId && projects.find((p: { id: string }) => p.id === savedProjectId)
+            ? savedProjectId
+            : projects[0]?.id || null;
+
+        if (restoredProjectId) {
+          localStorage.setItem('selectedProjectId', restoredProjectId);
+        }
         
-        set((state) => ({
+        set({
           projects,
-          selectedProjectId: state.selectedProjectId || projects[0]?.id || null,
+          selectedProjectId: restoredProjectId,
           isLoading: false,
           isInitialized: true,
-        }));
+        });
         
         // Load documents for the selected project
         const { selectedProjectId } = get();
