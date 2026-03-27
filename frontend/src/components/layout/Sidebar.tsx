@@ -8,6 +8,7 @@ import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
 import { generateReportForMultipleMeetings } from "@/services/pdfReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMeetingFilterStore } from "@/stores/meetingFilterStore";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -60,6 +61,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   const location = useLocation();
   const { projects, selectedProjectId, setSelectedProject, getSelectedProject, deleteProject, addProject, saveAllData } = useProjectStore();
   const { userProfile, signOut } = useAuthStore();
+  const { canCreate, canDelete } = usePermissions();
 
   const selectedProject = getSelectedProject();
 
@@ -179,25 +181,27 @@ const Sidebar = ({ className }: SidebarProps) => {
       {/* Project Actions - More space now that logo is removed */}
       <div className="p-3 border-b border-border space-y-3">
         <TooltipProvider>
-          {/* Create Project */}
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full h-12 px-2 py-3 justify-center hover:bg-primary/10 transition-all"
-                onClick={() => setIsCreateProjectOpen(true)}
-              >
-                <Plus className="h-6 w-6 text-primary" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="font-medium">Criar Novo Projeto</p>
-              <p className="text-xs text-muted-foreground mt-1">Adicionar um novo projeto</p>
-            </TooltipContent>
-          </Tooltip>
+          {/* Create Project — super_admin only */}
+          {canCreate && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-12 px-2 py-3 justify-center hover:bg-primary/10 transition-all"
+                  onClick={() => setIsCreateProjectOpen(true)}
+                >
+                  <Plus className="h-6 w-6 text-primary" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="font-medium">Criar Novo Projeto</p>
+                <p className="text-xs text-muted-foreground mt-1">Adicionar um novo projeto</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
-          {/* Select Project */}
+          {/* Select Project — all roles */}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <Button
@@ -217,26 +221,28 @@ const Sidebar = ({ className }: SidebarProps) => {
             </TooltipContent>
           </Tooltip>
 
-          {/* Delete Project */}
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full h-12 px-2 py-3 justify-center hover:bg-destructive/10 transition-all"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                disabled={!selectedProject}
-              >
-                <Trash2 className="h-6 w-6 text-destructive" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="font-medium">Excluir Projeto</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {selectedProject ? `Excluir ${selectedProject.name}` : 'Nenhum projeto selecionado'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          {/* Delete Project — super_admin only */}
+          {canDelete && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-12 px-2 py-3 justify-center hover:bg-destructive/10 transition-all"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  disabled={!selectedProject}
+                >
+                  <Trash2 className="h-6 w-6 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="font-medium">Excluir Projeto</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedProject ? `Excluir ${selectedProject.name}` : 'Nenhum projeto selecionado'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </TooltipProvider>
       </div>
 
