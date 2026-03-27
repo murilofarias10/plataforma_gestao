@@ -138,6 +138,7 @@ temp/
 # ========================================
 backend/node_modules/
 backend/uploads/
+backend/public/
 backend/data.json
 backend/logs/
 backend/*.log

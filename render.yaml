@@ -1,0 +1,56 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+# Deploys the Express + React (Vite) full-stack app as a single Web Service.
+#
+# HOW IT WORKS:
+#   1. Build phase: Vite compiles the React frontend (needs VITE_* env vars at build time).
+#      The compiled output is copied into backend/public so Express can serve it statically.
+#   2. Start phase: Express starts and serves both the API (/api/*) and the SPA.
+#
+# SETUP STEPS:
+#   1. Push this repo to GitHub.
+#   2. In Render dashboard → New → Blueprint → connect this repo.
+#   3. After the service is created, go to Environment and fill in the values
+#      marked as "set in dashboard" below (VITE_SUPABASE_ANON_KEY, SUPABASE_ANON_KEY).
+#   4. Trigger a manual deploy (or push a commit) — done!
+
+services:
+  - type: web
+    name: plataforma-gestao
+    runtime: node
+    plan: free
+    region: oregon
+
+    # Build: install + compile frontend, copy dist → backend/public, install backend prod deps
+    buildCommand: >-
+      cd frontend && npm ci && npm run build &&
+      cd .. &&
+      mkdir -p backend/public &&
+      cp -r frontend/dist/. backend/public/ &&
+      cd backend && npm ci --only=production
+
+    # Start: run Express from the repo root (server.js uses __dirname which resolves to backend/)
+    startCommand: node backend/server.js
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # ---------- Supabase URLs (not secret — safe to commit) ----------
+      - key: SUPABASE_URL
+        value: https://haxmuzigoywxxbjuiutg.supabase.co
+
+      - key: VITE_SUPABASE_URL
+        value: https://haxmuzigoywxxbjuiutg.supabase.co
+
+      # ---------- Supabase Anon Keys (SECRET — set in Render dashboard) ----------
+      - key: SUPABASE_ANON_KEY
+        sync: false   # <-- You MUST set this in the Render dashboard
+
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false   # <-- You MUST set this in the Render dashboard
+                      #     Also required at BUILD TIME so Vite can embed it.
+                      #     Render makes env vars available during the build phase.
+
+      # ---------- Optional ----------
+      - key: SUPABASE_STORAGE_BUCKET
+        value: meetings_files_folder
