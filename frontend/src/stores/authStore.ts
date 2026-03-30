@@ -7,13 +7,17 @@ interface AuthState {
   userProfile: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  
-  // Actions
+
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   checkPermission: (action: 'create' | 'delete' | 'download' | 'view') => boolean;
 }
+
+// Module-level guards — must live outside the store so they survive across
+// multiple calls to initialize() (which happens when ProtectedRoute remounts).
+let listenerRegistered = false;
+let signInInProgress = false;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -21,14 +25,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   isAuthenticated: false,
 
-  // Initialize auth state and listen for changes
+  // Called ONCE at app startup from App.tsx.
+  // Reads the persisted session and wires up the auth change listener.
   initialize: async () => {
     try {
-      // Get current session
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
-        // Fetch user profile with role
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('*')
@@ -45,36 +48,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: false });
       }
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+      // Register the Supabase auth listener exactly once for the lifetime of
+      // the app.  Multiple registrations accumulate and cause race conditions.
+      if (!listenerRegistered) {
+        listenerRegistered = true;
 
-          set({
-            user: session.user,
-            userProfile: profile,
-            isAuthenticated: true,
-          });
-        } else if (event === 'SIGNED_OUT') {
-          set({
-            user: null,
-            userProfile: null,
-            isAuthenticated: false,
-          });
-        }
-      });
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_OUT') {
+            // Skip stale SIGNED_OUT events that arrive after a fresh signIn().
+            // This happens when the user logs out and immediately logs back in:
+            // the async signOut() network call resolves AFTER signInWithPassword()
+            // has already succeeded, firing a SIGNED_OUT that would kill the new
+            // session.
+            if (signInInProgress) return;
+
+            set({ user: null, userProfile: null, isAuthenticated: false });
+          }
+
+          if (event === 'TOKEN_REFRESHED' && session?.user) {
+            // Keep the stored User object in sync when Supabase rotates the JWT.
+            set({ user: session.user });
+          }
+        });
+      }
     } catch (error) {
       console.error('Error initializing auth:', error);
       set({ isLoading: false });
     }
   },
 
-  // Sign in with email and password
   signIn: async (email: string, password: string) => {
+    signInInProgress = true;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -86,7 +90,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (data.user) {
-        // Fetch user profile
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
           .select('*')
@@ -109,36 +112,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: 'Authentication failed' };
     } catch (error: any) {
       return { success: false, error: error.message || 'An error occurred' };
+    } finally {
+      // Always clear the flag so a late SIGNED_OUT (from a concurrent signOut
+      // network call) is processed correctly from now on.
+      signInInProgress = false;
     }
   },
 
-  // Sign out
+  // Clear local state immediately (optimistic) so the UI reacts instantly,
+  // then invalidate the session on the server.
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({
-      user: null,
-      userProfile: null,
-      isAuthenticated: false,
-    });
+    set({ user: null, userProfile: null, isAuthenticated: false });
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn('Supabase signOut request failed (local state already cleared):', error);
+    }
   },
 
-  // Check if user has permission for an action
   checkPermission: (action: 'create' | 'delete' | 'download' | 'view') => {
     const { userProfile } = get();
-    
     if (!userProfile) return false;
-
-    // Super admin can do everything
-    if (userProfile.role === 'super_admin') {
-      return true;
-    }
-
-    // Visitor can only view and download
-    if (userProfile.role === 'visitor') {
-      return action === 'view' || action === 'download';
-    }
-
+    if (userProfile.role === 'super_admin') return true;
+    if (userProfile.role === 'visitor') return action === 'view' || action === 'download';
     return false;
   },
 }));
-

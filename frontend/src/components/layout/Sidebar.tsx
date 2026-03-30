@@ -66,8 +66,13 @@ const Sidebar = ({ className }: SidebarProps) => {
   const selectedProject = getSelectedProject();
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
+    try {
+      await signOut();
+    } catch (error) {
+      console.warn('Logout error (navigating anyway):', error);
+    } finally {
+      navigate("/login");
+    }
   };
 
   const handleProjectChange = (projectId: string) => {

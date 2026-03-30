@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,8 +11,20 @@ import ProjectTracker from "./pages/project-tracker";
 import DocumentMonitor from "./pages/document-monitor";
 import MeetingEnvironment from "./pages/meeting-environment";
 import NotFound from "./pages/NotFound";
+import { useAuthStore } from "./stores/authStore";
 
 const queryClient = new QueryClient();
+
+// Initializes Supabase auth state and registers the onAuthStateChange listener
+// exactly once for the entire lifetime of the app.
+const AuthInitializer = () => {
+  const initialize = useAuthStore((s) => s.initialize);
+  useEffect(() => {
+    initialize();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // empty deps: run once on mount only
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -19,6 +32,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthInitializer />
         <Routes>
           {/* Public route - Login */}
           <Route path="/login" element={<Login />} />

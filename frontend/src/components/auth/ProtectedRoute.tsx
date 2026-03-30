@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { Loader2 } from "lucide-react";
@@ -7,13 +6,13 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+// ProtectedRoute only reads from the auth store — it does NOT call initialize().
+// initialize() is called once at app startup in App.tsx so that the listener
+// is never registered more than once, preventing listener accumulation across
+// login/logout cycles.
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading, initialize } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   if (isLoading) {
     return (
@@ -34,4 +33,3 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 };
 
 export default ProtectedRoute;
-
