@@ -1,9 +1,13 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
 import { MeetingMetadata } from '@/types/project';
 import { getApiUrl } from '@/lib/api-config';
+
+// Configure pdfjs worker via CDN to avoid bundler complexity
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // Helper function to capture element as image
 async function captureElement(selector: string): Promise<string | null> {
@@ -389,7 +393,7 @@ export class PDFReportGenerator {
       // Add attachments section at the end
       this.addNewPage();
       this.addSectionHeader('ANEXOS');
-      this.addAttachmentsContent({
+      await this.addAttachmentsContent({
         allAttachments: allAttachments,
         totalFiles: allAttachments.length,
         totalSize: totalSize
@@ -619,7 +623,7 @@ export class PDFReportGenerator {
 
       // Attachments section
       this.addSectionHeader('ANEXOS');
-      this.addAttachmentsContent(data.attachments);
+      await this.addAttachmentsContent(data.attachments);
     } else {
       // General report (keep original structure)
       // Project Tracker section
@@ -634,7 +638,7 @@ export class PDFReportGenerator {
 
       // Attachments section
       this.addSectionHeader('ANEXOS');
-      this.addAttachmentsContent(data.attachments);
+      await this.addAttachmentsContent(data.attachments);
     }
   }
   
@@ -1388,7 +1392,8 @@ export class PDFReportGenerator {
     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
     const startX = this.margin;
     const headerLineSpacing = 6;
-    const rowLineSpacing = 4.6;
+    const rowLineSpacing = 5.5; // line-height within each cell (was 4.6 — too tight for multi-line rows)
+    const rowBottomPad = 4;     // extra breathing room below the last text line in a row
 
     const drawHeader = () => {
       this.pdf.setFontSize(9);
@@ -1440,7 +1445,7 @@ export class PDFReportGenerator {
 
       const linesPerColumn = cellContents.map((cell) => Math.max(cell.lines.length, 1));
       const maxLines = Math.max(...linesPerColumn);
-      const rowHeight = maxLines * rowLineSpacing + 1;
+      const rowHeight = maxLines * rowLineSpacing + rowBottomPad;
 
       if (this.currentY + rowHeight > this.pageHeight - this.margin) {
         this.addNewPage();
@@ -1705,14 +1710,13 @@ export class PDFReportGenerator {
   }
 
   /**
-   * Add attachments content to PDF
+   * Add attachments content to PDF (summary list + embedded documents)
    */
-  private addAttachmentsContent(attachmentsData: any): void {
-    // Ensure we have valid data
+  private async addAttachmentsContent(attachmentsData: any): Promise<void> {
     const allAttachments = attachmentsData.allAttachments || [];
     const totalFiles = allAttachments.length;
     const totalSize = attachmentsData.totalSize || '0 B';
-    
+
     // Summary
     this.addSubsectionHeader('Resumo dos Anexos');
     this.pdf.setFontSize(10);
@@ -1728,56 +1732,238 @@ export class PDFReportGenerator {
       return;
     }
 
-    // Attachments list
+    // Attachments list table
     this.addSubsectionHeader('Lista de Anexos');
-    this.pdf.setFontSize(8); // Smaller font for better fit
+    this.pdf.setFontSize(8);
     this.setMontserratFont('normal');
-    
-    // Table header - Adjusted column positions
-    this.setMontserratFont('bold');
-    this.pdf.text('Documento', this.margin, this.currentY);
-    this.pdf.text('Arquivo', this.margin + 50, this.currentY);
-    this.pdf.text('Tipo', this.margin + 100, this.currentY);
-    this.pdf.text('Tamanho', this.margin + 130, this.currentY);
-    this.pdf.text('Data', this.margin + 165, this.currentY);
-    this.currentY += this.lineHeight;
-    
-    // Add line under header
-    this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
-    this.currentY += 2;
 
-    // Table rows
-    this.setMontserratFont('normal');
-    allAttachments.forEach(attachment => {
+    const drawAttachmentHeader = () => {
+      this.setMontserratFont('bold');
+      this.pdf.setFontSize(8);
+      this.pdf.text('Documento', this.margin, this.currentY);
+      this.pdf.text('Arquivo', this.margin + 50, this.currentY);
+      this.pdf.text('Tipo', this.margin + 100, this.currentY);
+      this.pdf.text('Tamanho', this.margin + 130, this.currentY);
+      this.pdf.text('Data', this.margin + 165, this.currentY);
+      this.currentY += this.lineHeight;
+      this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+      this.currentY += 2;
+      this.setMontserratFont('normal');
+    };
+
+    drawAttachmentHeader();
+
+    allAttachments.forEach((attachment: any) => {
       if (this.currentY > this.pageHeight - 30) {
         this.addNewPage();
-        // Re-add header on new page
-        this.setMontserratFont('bold');
-        this.pdf.setFontSize(8);
-        this.pdf.text('Documento', this.margin, this.currentY);
-        this.pdf.text('Arquivo', this.margin + 50, this.currentY);
-        this.pdf.text('Tipo', this.margin + 100, this.currentY);
-        this.pdf.text('Tamanho', this.margin + 130, this.currentY);
-        this.pdf.text('Data', this.margin + 165, this.currentY);
-        this.currentY += this.lineHeight;
-        this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
-        this.currentY += 2;
-        this.setMontserratFont('normal');
+        drawAttachmentHeader();
       }
-      
-      // Truncate text to fit columns
       const docName = attachment.documentName || 'Documento sem nome';
       const fileName = attachment.fileName || attachment.originalName || 'Arquivo sem nome';
       this.pdf.text(docName.substring(0, 20), this.margin, this.currentY);
       this.pdf.text(fileName.substring(0, 18), this.margin + 50, this.currentY);
       this.pdf.text(this.getFileTypeDisplay(attachment.fileType || ''), this.margin + 100, this.currentY);
       this.pdf.text(fileManager.formatFileSize(attachment.fileSize || 0), this.margin + 130, this.currentY);
-      
-      // Format date more compactly
-      const dateStr = this.formatUploadDateCompact(attachment.uploadedAt);
-      this.pdf.text(dateStr, this.margin + 165, this.currentY);
+      this.pdf.text(this.formatUploadDateCompact(attachment.uploadedAt), this.margin + 165, this.currentY);
       this.currentY += this.lineHeight;
     });
+
+    // Embed actual documents on subsequent pages
+    await this.addEmbeddedAttachments(allAttachments);
+  }
+
+  /**
+   * Embed each attachment as actual content after the summary list.
+   * Images are rendered inline, PDFs page-by-page, Word/Excel as placeholders.
+   */
+  private async addEmbeddedAttachments(attachments: any[]): Promise<void> {
+    for (const attachment of attachments) {
+      const fileName = attachment.fileName || attachment.originalName || 'arquivo';
+      const fileType = attachment.fileType || '';
+      const filePath = attachment.filePath || '';
+
+      // Parse path: /uploads/{projectId}/{documentId}/{storedFilename}
+      const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
+      // parts[0] = 'uploads', [1] = projectId, [2] = documentId, [3] = filename
+      const projectId = parts[1];
+      const documentId = parts[2];
+      const storedFilename = parts[3];
+
+      this.addNewPage();
+
+      // Attachment page header
+      this.pdf.setFontSize(14);
+      this.setMontserratFont('bold');
+      this.pdf.text(attachment.documentName || 'Documento', this.margin, this.currentY);
+      this.currentY += 9;
+
+      this.pdf.setFontSize(9);
+      this.setMontserratFont('normal');
+      this.pdf.setTextColor(100, 100, 100);
+      this.pdf.text(
+        `${fileName}  ·  ${this.getFileTypeDisplay(fileType)}  ·  ${fileManager.formatFileSize(attachment.fileSize || 0)}`,
+        this.margin,
+        this.currentY
+      );
+      this.pdf.setTextColor(0, 0, 0);
+      this.currentY += 4;
+      this.pdf.setDrawColor(200, 200, 200);
+      this.pdf.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+      this.pdf.setDrawColor(0, 0, 0);
+      this.currentY += 8;
+
+      if (!projectId || !documentId || !storedFilename) {
+        this.addFilePlaceholder(fileName, fileType, 'Caminho do arquivo não disponível');
+        continue;
+      }
+
+      try {
+        const arrayBuffer = await this.fetchFileArrayBuffer(projectId, documentId, storedFilename, fileName);
+
+        const isImage = fileType.includes('image') || fileType.includes('png') || fileType.includes('jpeg') || fileType.includes('jpg');
+        const isPDF = fileType.includes('pdf');
+
+        if (isImage) {
+          await this.embedImageBuffer(arrayBuffer, fileType);
+        } else if (isPDF) {
+          await this.embedPDFBuffer(arrayBuffer);
+        } else {
+          this.addFilePlaceholder(fileName, fileType, 'Visualização não disponível para este tipo de arquivo');
+        }
+      } catch (err) {
+        console.error(`[PDF Embed] Error embedding ${fileName}:`, err);
+        this.addFilePlaceholder(fileName, fileType, 'Não foi possível carregar o arquivo');
+      }
+    }
+  }
+
+  /**
+   * Fetch file as ArrayBuffer from backend download endpoint
+   */
+  private async fetchFileArrayBuffer(projectId: string, documentId: string, filename: string, originalName: string): Promise<ArrayBuffer> {
+    const url = getApiUrl(`/api/download/${projectId}/${documentId}/${encodeURIComponent(filename)}?originalName=${encodeURIComponent(originalName)}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} fetching ${filename}`);
+    }
+    return response.arrayBuffer();
+  }
+
+  /**
+   * Embed an image (PNG/JPEG) buffer into the current PDF page
+   */
+  private async embedImageBuffer(buffer: ArrayBuffer, fileType: string): Promise<void> {
+    const mimeType = fileType.includes('jpeg') || fileType.includes('jpg') ? 'image/jpeg' : 'image/png';
+    const blob = new Blob([buffer], { type: mimeType });
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const img = new Image();
+    img.src = base64;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+    });
+
+    const maxWidth = this.pageWidth - this.margin * 2;
+    const maxHeight = this.pageHeight - this.currentY - this.margin;
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+    const imgW = img.width * scale;
+    const imgH = img.height * scale;
+
+    if (this.currentY + imgH > this.pageHeight - this.margin) {
+      this.addNewPage();
+    }
+
+    const x = (this.pageWidth - imgW) / 2;
+    const format = mimeType.includes('jpeg') ? 'JPEG' : 'PNG';
+    this.pdf.addImage(base64, format, x, this.currentY, imgW, imgH);
+    this.currentY += imgH + 5;
+  }
+
+  /**
+   * Render a PDF buffer page-by-page using pdfjs-dist and embed each page as an image
+   */
+  private async embedPDFBuffer(buffer: ArrayBuffer): Promise<void> {
+    try {
+      const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+      const pdfDoc = await loadingTask.promise;
+      const numPages = pdfDoc.numPages;
+
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        if (pageNum > 1) {
+          this.addNewPage();
+        }
+
+        const page = await pdfDoc.getPage(pageNum);
+        const scale = 2;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+
+        await page.render({ canvasContext: context as any, canvas, viewport }).promise;
+        const imageData = canvas.toDataURL('image/png');
+
+        const maxWidth = this.pageWidth - this.margin * 2;
+        const maxHeight = this.pageHeight - this.currentY - this.margin;
+        const ratio = viewport.height / viewport.width;
+        let imgW = maxWidth;
+        let imgH = imgW * ratio;
+        if (imgH > maxHeight) {
+          imgH = maxHeight;
+          imgW = imgH / ratio;
+        }
+
+        const x = (this.pageWidth - imgW) / 2;
+        this.pdf.addImage(imageData, 'PNG', x, this.currentY, imgW, imgH);
+        this.currentY += imgH + 5;
+      }
+    } catch (err) {
+      console.error('[PDF Embed] pdfjs rendering error:', err);
+      this.addFilePlaceholder('Documento PDF', 'application/pdf', 'Não foi possível renderizar as páginas do PDF');
+    }
+  }
+
+  /**
+   * Draw a styled placeholder block for files that cannot be rendered inline
+   */
+  private addFilePlaceholder(fileName: string, fileType: string, message: string): void {
+    const boxHeight = 42;
+    const boxWidth = this.pageWidth - this.margin * 2;
+
+    if (this.currentY + boxHeight > this.pageHeight - this.margin) {
+      this.addNewPage();
+    }
+
+    this.pdf.setFillColor(248, 250, 252);
+    this.pdf.setDrawColor(203, 213, 225);
+    this.pdf.roundedRect(this.margin, this.currentY, boxWidth, boxHeight, 3, 3, 'FD');
+    this.pdf.setDrawColor(0, 0, 0);
+
+    const typeDisplay = this.getFileTypeDisplay(fileType);
+    this.pdf.setFontSize(13);
+    this.setMontserratFont('bold');
+    this.pdf.setTextColor(60, 60, 60);
+    this.pdf.text(typeDisplay, this.pageWidth / 2, this.currentY + 14, { align: 'center' });
+
+    this.pdf.setFontSize(9);
+    this.setMontserratFont('normal');
+    this.pdf.text(fileName, this.pageWidth / 2, this.currentY + 23, { align: 'center' });
+
+    this.pdf.setFontSize(8);
+    this.pdf.setTextColor(120, 120, 120);
+    this.pdf.text(message, this.pageWidth / 2, this.currentY + 31, { align: 'center' });
+    this.pdf.setTextColor(0, 0, 0);
+
+    this.currentY += boxHeight + 10;
   }
   
   /**
@@ -1811,13 +1997,83 @@ export class PDFReportGenerator {
    */
   private formatUploadDate(uploadedAt: any): string {
     try {
-      // Handle both Date objects and date strings
       const date = uploadedAt instanceof Date ? uploadedAt : new Date(uploadedAt);
       return date.toLocaleDateString('pt-BR');
     } catch (error) {
       console.error('Error formatting upload date:', error);
       return 'Data inválida';
     }
+  }
+
+  /**
+   * Generate the PDF for a single meeting and return it as a Blob.
+   * Identical output to generateComprehensiveReport(meeting) but does not open a tab.
+   */
+  async generateMeetingReportBlob(meeting: MeetingMetadata): Promise<Blob> {
+    this.pdf = new jsPDF('l', 'mm', 'a4');
+    this.pageHeight = this.pdf.internal.pageSize.height;
+    this.pageWidth = this.pdf.internal.pageSize.width;
+    this.currentY = this.margin;
+
+    await this.initializeMontserratFont();
+
+    const projectStore = useProjectStore.getState();
+    const selectedProject = projectStore.getSelectedProject();
+    if (!selectedProject) throw new Error('Nenhum projeto selecionado');
+
+    const timestamp = this.formatDateTimeForDisplay();
+
+    const allDocuments = projectStore.documents;
+    let meetingDocuments: any[] = [];
+    let meetingDocumentIds: string[] = [];
+
+    if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+      meetingDocumentIds = [...meeting.relatedDocumentIds];
+      meetingDocuments = allDocuments.filter(doc => meetingDocumentIds.includes(doc.id));
+    } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+      meetingDocuments = allDocuments.filter(doc => meeting.relatedItems?.includes(doc.numeroItem));
+      meetingDocumentIds = meetingDocuments.map(doc => doc.id);
+    }
+
+    let allAttachments: any[] = [];
+    if (meetingDocumentIds.length > 0) {
+      allAttachments = await this.collectAllAttachments(selectedProject.id, [...meetingDocumentIds]);
+    }
+    const totalSize = this.calculateTotalSize(allAttachments);
+
+    const reportData: ReportData = {
+      projectTracker: {
+        kpiData: projectStore.getKpiData(),
+        timelineData: projectStore.getTimelineData(),
+        statusDistribution: projectStore.getStatusDistribution(),
+        documents: meetingDocuments,
+        filters: projectStore.filters,
+      },
+      documentMonitor: {
+        kpiData: { emitidos: 65, aprovados: 70 },
+        sCurveData: this.getSCurveData(),
+        documentStatusTable: this.getDocumentStatusData(),
+        filters: { dateRange: { start: '09/01/2025', end: '09/09/2025' }, selectedDiscipline: 'All' },
+      },
+      projectInfo: {
+        name: selectedProject.name,
+        description: selectedProject.description,
+        generatedAt: timestamp,
+      },
+      attachments: {
+        allAttachments,
+        totalFiles: allAttachments.length,
+        totalSize,
+      },
+      reportSettings: selectedProject.reportSettings,
+      meeting: {
+        ...meeting,
+        participants: Array.isArray(meeting.participants) ? meeting.participants : [],
+      },
+    };
+
+    await this.generatePDFContent(reportData, {});
+    return this.pdf.output('blob');
   }
 }
 
@@ -1834,4 +2090,13 @@ export const generateMeetingReportForMeeting = async (meeting: MeetingMetadata):
 export const generateReportForMultipleMeetings = async (meetings: MeetingMetadata[]): Promise<void> => {
   const generator = new PDFReportGenerator();
   await generator.generateReportForMultipleMeetings(meetings);
+};
+
+/**
+ * Generate a PDF blob for a single meeting (same output as the individual ATA button,
+ * but returns the raw Blob so the caller can embed it in a ZIP or handle it directly).
+ */
+export const generateMeetingPDFBlob = async (meeting: MeetingMetadata): Promise<Blob> => {
+  const generator = new PDFReportGenerator();
+  return generator.generateMeetingReportBlob(meeting);
 };

@@ -3,6 +3,7 @@ import { PDFReportGenerator } from './pdfReportGenerator';
 import { useProjectStore } from '@/stores/projectStore';
 import { fileManager } from './fileManager';
 import { getApiUrl, getStaticUrl } from '@/lib/api-config';
+import type { MeetingMetadata } from '@/types/project';
 
 export interface ZipReportData {
   projectTracker: {
@@ -37,6 +38,125 @@ export class ZIPReportGenerator {
   constructor(projectId: string) {
     this.zip = new JSZip();
     this.projectId = projectId;
+  }
+
+  /**
+   * Generate a ZIP file with one folder per ATA.
+   * Each folder contains:
+   *   - The individual PDF report for that ATA
+   *   - All attachments of that ATA with their original filenames
+   *
+   * Structure:
+   *   ATA_{numero}/
+   *     Relatorio_ATA_{numero}.pdf
+   *     original-file-name.pdf
+   *     original-file-name.xlsx
+   *     ...
+   */
+  async generateMeetingsZipReport(meetings: MeetingMetadata[]): Promise<void> {
+    const projectStore = useProjectStore.getState();
+    const selectedProject = projectStore.getSelectedProject();
+    if (!selectedProject) throw new Error('Nenhum projeto selecionado');
+
+    const timestamp = this.formatDateTimeForDisplay();
+    const timestampForFilename = timestamp.replace(/[:\/ ]/g, m => m === '/' ? '-' : '_');
+
+    const pdfGenerator = new PDFReportGenerator();
+
+    for (const meeting of meetings) {
+      const ataLabel = this.sanitizeFileName(meeting.numeroAta || meeting.id);
+      const folderName = `ATA_${ataLabel}`;
+
+      // 1. Generate per-ATA PDF blob
+      try {
+        const pdfBlob = await pdfGenerator.generateMeetingReportBlob(meeting);
+        this.zip.file(`${folderName}/Relatorio_ATA_${ataLabel}.pdf`, pdfBlob);
+      } catch (err) {
+        console.error(`[ZIP] Error generating PDF for ATA ${ataLabel}:`, err);
+      }
+
+      // 2. Resolve document IDs for this meeting
+      let meetingDocumentIds: string[] = [];
+      if (meeting.relatedDocumentIds && meeting.relatedDocumentIds.length > 0) {
+        meetingDocumentIds = [...meeting.relatedDocumentIds];
+      } else if (meeting.relatedItems && meeting.relatedItems.length > 0) {
+        const docs = projectStore.documents.filter(doc =>
+          meeting.relatedItems?.includes(doc.numeroItem)
+        );
+        meetingDocumentIds = docs.map(d => d.id);
+      }
+
+      if (meetingDocumentIds.length === 0) continue;
+
+      // 3. Collect attachments for this meeting's documents
+      const attachments = await this.collectAttachmentsForDocuments(
+        selectedProject.id,
+        meetingDocumentIds
+      );
+
+      // 4. Fetch each attachment and add to the ATA folder with its original filename
+      for (const att of attachments) {
+        const originalName = att.fileName || att.originalName || 'arquivo';
+        const filePath: string = att.filePath || '';
+        const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
+        // parts: ['uploads', projectId, documentId, storedFilename]
+        const storedProjectId = parts[1];
+        const documentId = parts[2];
+        const storedFilename = parts[3];
+
+        if (!storedFilename) continue;
+
+        try {
+          const url = getApiUrl(
+            `/api/download/${storedProjectId}/${documentId}/${encodeURIComponent(storedFilename)}` +
+            `?originalName=${encodeURIComponent(originalName)}`
+          );
+          const response = await fetch(url);
+          if (response.ok) {
+            const blob = await response.blob();
+            // Use the original user-facing filename in the ZIP
+            this.zip.file(`${folderName}/${originalName}`, blob);
+            console.log(`[ZIP] ✓ Added ${folderName}/${originalName}`);
+          } else {
+            console.warn(`[ZIP] ✗ Could not fetch ${originalName} (HTTP ${response.status})`);
+          }
+        } catch (err) {
+          console.error(`[ZIP] Error fetching ${originalName}:`, err);
+        }
+      }
+    }
+
+    // Download the ZIP
+    await this.generateAndDownloadZip(selectedProject.name, timestampForFilename);
+  }
+
+  /**
+   * Collect all attachments for a given list of document IDs.
+   */
+  private async collectAttachmentsForDocuments(projectId: string, documentIds: string[]): Promise<any[]> {
+    const projectStore = useProjectStore.getState();
+    const targetDocs = projectStore.documents.filter(d => documentIds.includes(d.id));
+    const result: any[] = [];
+
+    for (const doc of targetDocs) {
+      let atts: any[] = [];
+
+      if (doc.attachments?.length) {
+        atts = doc.attachments.map((a: any) => ({ ...a }));
+      }
+
+      if (atts.length === 0) {
+        atts = fileManager.getDocumentAttachments(projectId, doc.id);
+      }
+
+      if (atts.length === 0) {
+        atts = await this.fetchAttachmentsFromBackend(projectId, doc.id);
+      }
+
+      atts.forEach((a: any) => result.push({ ...a, documentId: doc.id, documentName: doc.documento }));
+    }
+
+    return result;
   }
 
   async generateComprehensiveZipReport(): Promise<void> {
@@ -341,4 +461,9 @@ export class ZIPReportGenerator {
 export const generateComprehensiveZipReport = async (projectId: string): Promise<void> => {
   const generator = new ZIPReportGenerator(projectId);
   await generator.generateComprehensiveZipReport();
+};
+
+export const generateMeetingsZipReport = async (projectId: string, meetings: MeetingMetadata[]): Promise<void> => {
+  const generator = new ZIPReportGenerator(projectId);
+  await generator.generateMeetingsZipReport(meetings);
 };

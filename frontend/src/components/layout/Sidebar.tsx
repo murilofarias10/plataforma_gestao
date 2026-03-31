@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, BarChart3, CalendarClock, Download, LogOut, User, Shield, Plus, FolderOpen, Trash2 } from "lucide-react";
 import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
-import { generateComprehensiveZipReport } from "@/services/zipReportGenerator";
-import { generateReportForMultipleMeetings } from "@/services/pdfReportGenerator";
+import { generateComprehensiveZipReport, generateMeetingsZipReport } from "@/services/zipReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -146,9 +145,9 @@ const Sidebar = ({ className }: SidebarProps) => {
       const isMeetingEnvironmentPage = location.pathname === '/meeting-environment';
       
       if (isMeetingEnvironmentPage) {
-        // Generate report for all filtered meetings
+        // Generate one ZIP with a folder per ATA, each containing the PDF + original attachments
         const filteredMeetings = useMeetingFilterStore.getState().filteredMeetings;
-        
+
         if (filteredMeetings.length === 0) {
           toast({
             title: "Nenhuma reunião encontrada",
@@ -158,10 +157,10 @@ const Sidebar = ({ className }: SidebarProps) => {
           return;
         }
 
-        await generateReportForMultipleMeetings(filteredMeetings);
+        await generateMeetingsZipReport(selectedProject.id, filteredMeetings);
         toast({
-          title: "Relatório gerado",
-          description: `Relatório gerado para ${filteredMeetings.length} ${filteredMeetings.length === 1 ? 'reunião' : 'reuniões'}.`,
+          title: "ZIP gerado com sucesso",
+          description: `Pacote com ${filteredMeetings.length} ${filteredMeetings.length === 1 ? 'ATA' : 'ATAs'} baixado. Cada pasta contém o PDF da reunião e seus anexos originais.`,
         });
       } else {
         // Generate comprehensive ZIP report for other pages
