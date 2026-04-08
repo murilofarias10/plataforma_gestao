@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, BarChart3, CalendarClock, Download, LogOut, User, Shield, Plus, FolderOpen, Trash2 } from "lucide-react";
-import { ReportGenerationDialog } from "@/components/ui/ReportGenerationDialog";
-import { generateComprehensiveZipReport, generateMeetingsZipReport } from "@/services/zipReportGenerator";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -50,7 +48,6 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ className }: SidebarProps) => {
-  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isSelectProjectOpen, setIsSelectProjectOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
@@ -134,48 +131,6 @@ const Sidebar = ({ className }: SidebarProps) => {
     }
   ];
 
-  const handleGenerateReport = async () => {
-    try {
-      const selectedProject = getSelectedProject();
-      if (!selectedProject) {
-        throw new Error('Nenhum projeto selecionado');
-      }
-
-      // Check if we're on the meeting-environment page
-      const isMeetingEnvironmentPage = location.pathname === '/meeting-environment';
-      
-      if (isMeetingEnvironmentPage) {
-        // Generate one ZIP with a folder per ATA, each containing the PDF + original attachments
-        const filteredMeetings = useMeetingFilterStore.getState().filteredMeetings;
-
-        if (filteredMeetings.length === 0) {
-          toast({
-            title: "Nenhuma reunião encontrada",
-            description: "Não há reuniões para gerar o relatório. Aplique filtros ou verifique se há reuniões registradas.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        await generateMeetingsZipReport(selectedProject.id, filteredMeetings);
-        toast({
-          title: "ZIP gerado com sucesso",
-          description: `Pacote com ${filteredMeetings.length} ${filteredMeetings.length === 1 ? 'ATA' : 'ATAs'} baixado. Cada pasta contém o PDF da reunião e seus anexos originais.`,
-        });
-      } else {
-        // Generate comprehensive ZIP report for other pages
-        await generateComprehensiveZipReport(selectedProject.id);
-      }
-    } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
-      toast({
-        title: "Erro ao gerar relatório",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao gerar o relatório.",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
 
   return (
     <div className={cn(
@@ -278,30 +233,6 @@ const Sidebar = ({ className }: SidebarProps) => {
         </TooltipProvider>
       </nav>
 
-      {/* Generate Report Button */}
-      <div className="p-2">
-        <TooltipProvider>
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <Button 
-                onClick={() => setIsReportDialogOpen(true)} 
-                className="w-full px-2 py-3 justify-center bg-teal-600 hover:bg-teal-700 text-white"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="font-medium">Gerar Relatório</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {location.pathname === '/meeting-environment' 
-                  ? 'Gerar relatório de todas as reuniões filtradas'
-                  : 'Exportar relatório completo do projeto'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
       {/* User Info & Logout */}
       {userProfile && (
         <div className="p-2 border-t border-border space-y-2">
@@ -345,13 +276,6 @@ const Sidebar = ({ className }: SidebarProps) => {
         </div>
       )}
       
-      {/* Report Generation Dialog */}
-      <ReportGenerationDialog
-        isOpen={isReportDialogOpen}
-        onClose={() => setIsReportDialogOpen(false)}
-        onGenerate={handleGenerateReport}
-      />
-
       {/* Project Selector Dialog */}
       <Dialog open={isSelectProjectOpen} onOpenChange={setIsSelectProjectOpen}>
         <DialogContent>

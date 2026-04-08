@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { getApiUrl, getStaticUrl } from "@/lib/api-config";
 import type { MeetingMetadata, ProjectDocument } from "@/types/project";
+import { generateMeetingsZipReport } from "@/services/zipReportGenerator";
 
 const ExpandableText = ({ text, title }: { text: string; title?: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -207,6 +208,18 @@ const MeetingEnvironment = () => {
     setMeetingToDelete(meeting);
     setDeleteDialogOpen(true);
   }, []);
+
+  const handleDownloadMeetingZip = useCallback(async (meeting: MeetingMetadata) => {
+    const selectedProject = getSelectedProject();
+    if (!selectedProject) return;
+    try {
+      await generateMeetingsZipReport(selectedProject.id, [meeting]);
+      toast.success(`ZIP da ATA ${meeting.numeroAta || ''} baixado com sucesso.`);
+    } catch (err) {
+      console.error('[MeetingEnvironment] Error downloading ZIP:', err);
+      toast.error('Erro ao gerar o ZIP da ATA.');
+    }
+  }, [getSelectedProject]);
 
   const handleCloseDeleteDialog = useCallback(() => {
     setDeleteDialogOpen(false);
@@ -936,9 +949,18 @@ const MeetingEnvironment = () => {
                                       size="icon"
                                       onClick={() => openMeetingDialog(meeting)}
                                       className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
-                                      aria-label="Gerar relatório da reunião"
+                                      aria-label="Visualizar relatório da reunião"
                                     >
                                       <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDownloadMeetingZip(meeting)}
+                                      className="h-9 w-9 rounded-full border border-border bg-muted hover:bg-muted/80"
+                                      aria-label="Baixar ZIP da reunião"
+                                    >
+                                      <Download className="h-4 w-4" />
                                     </Button>
                                     {canDelete && (
                                       <Button
