@@ -16,5 +16,6 @@ export interface UserProfile {
   role: UserRole;
   full_name?: string;
   created_at?: string;
+  must_change_password: boolean;
 }
 

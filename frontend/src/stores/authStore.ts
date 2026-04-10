@@ -12,6 +12,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   checkPermission: (action: 'create' | 'delete' | 'download' | 'view') => boolean;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 // Module-level guards — must live outside the store so they survive across
@@ -136,5 +137,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (userProfile.role === 'super_admin') return true;
     if (userProfile.role === 'visitor') return action === 'view' || action === 'download';
     return false;
+  },
+
+  changePassword: async (newPassword: string) => {
+    const { user, userProfile } = get();
+    if (!user || !userProfile) return { success: false, error: 'Usuário não autenticado' };
+
+    try {
+      const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+      if (authError) return { success: false, error: authError.message };
+
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({ must_change_password: false })
+        .eq('id', user.id);
+
+      if (profileError) return { success: false, error: profileError.message };
+
+      set({ userProfile: { ...userProfile, must_change_password: false } });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Ocorreu um erro' };
+    }
   },
 }));
